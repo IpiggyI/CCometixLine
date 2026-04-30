@@ -73,6 +73,7 @@ pub enum SegmentId {
     Session,
     OutputStyle,
     Update,
+    CacheHit,
 }
 
 // Legacy compatibility structure
@@ -128,6 +129,15 @@ pub struct PromptTokensDetails {
     pub audio_tokens: Option<u32>,
 }
 
+// Anthropic-style cache_creation TTL breakdown (5m / 1h ephemeral cache)
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct CacheCreationDetails {
+    #[serde(default)]
+    pub ephemeral_5m_input_tokens: Option<u32>,
+    #[serde(default)]
+    pub ephemeral_1h_input_tokens: Option<u32>,
+}
+
 // Raw usage data from different LLM providers (flexible parsing)
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct RawUsage {
@@ -157,6 +167,11 @@ pub struct RawUsage {
 
     #[serde(default)]
     pub cache_read_input_tokens: Option<u32>,
+
+    // Anthropic-style cache_creation TTL breakdown (nested object).
+    // Only present in cache-creation events; cache reads have no TTL info.
+    #[serde(default)]
+    pub cache_creation: Option<CacheCreationDetails>,
 
     // OpenAI-style cache fields (separate fields to handle both formats)
     #[serde(default)]
@@ -189,6 +204,11 @@ pub struct NormalizedUsage {
     pub total_tokens: u32,
     pub cache_creation_input_tokens: u32,
     pub cache_read_input_tokens: u32,
+
+    // TTL breakdown for cache creation (Anthropic-only).
+    // Sum equals cache_creation_input_tokens when both fields are present.
+    pub cache_creation_5m: u32,
+    pub cache_creation_1h: u32,
 
     // Metadata for debugging and analysis
     pub calculation_source: String,
@@ -351,6 +371,22 @@ impl RawUsage {
             available_fields.push("cache_creation".to_string());
         }
 
+        // Extract TTL breakdown from nested cache_creation object (Anthropic only).
+        // Anthropic guarantees ephemeral_5m + ephemeral_1h == cache_creation_input_tokens.
+        let (cache_creation_5m, cache_creation_1h) = self
+            .cache_creation
+            .as_ref()
+            .map(|d| {
+                (
+                    d.ephemeral_5m_input_tokens.unwrap_or(0),
+                    d.ephemeral_1h_input_tokens.unwrap_or(0),
+                )
+            })
+            .unwrap_or((0, 0));
+        if cache_creation_5m > 0 || cache_creation_1h > 0 {
+            available_fields.push("cache_creation_ttl".to_string());
+        }
+
         // Merge cache read tokens (priority: Anthropic > OpenAI > nested format)
         let cache_read = self
             .cache_read_input_tokens
@@ -389,6 +425,8 @@ impl RawUsage {
         result.total_tokens = total_value;
         result.cache_creation_input_tokens = cache_creation;
         result.cache_read_input_tokens = cache_read;
+        result.cache_creation_5m = cache_creation_5m;
+        result.cache_creation_1h = cache_creation_1h;
         result.calculation_source = sources.join("+");
 
         result
