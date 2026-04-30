@@ -183,6 +183,19 @@ impl PreviewComponent {
                         map
                     },
                 },
+                SegmentId::CacheHit => SegmentData {
+                    primary: "92%".to_string(),
+                    secondary: "45.2k/49.0k [1h]".to_string(),
+                    metadata: {
+                        let mut map = HashMap::new();
+                        map.insert("hit_rate".to_string(), "92.24".to_string());
+                        map.insert("cache_read".to_string(), "45200".to_string());
+                        map.insert("cache_creation".to_string(), "1260".to_string());
+                        map.insert("input_tokens".to_string(), "2540".to_string());
+                        map.insert("ttl".to_string(), "[1h]".to_string());
+                        map
+                    },
+                },
             };
 
             segments_data.push((segment_config.clone(), mock_data));
