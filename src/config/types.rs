@@ -7,6 +7,8 @@ pub struct Config {
     pub style: StyleConfig,
     pub segments: Vec<SegmentConfig>,
     pub theme: String,
+    #[serde(default)]
+    pub layout: LayoutConfig,
 }
 
 // Default implementation moved to ui/themes/presets.rs
@@ -80,6 +82,57 @@ pub enum SegmentId {
     CacheHit,
     SinceReply,
     SessionTokens,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LayoutConfig {
+    #[serde(default)]
+    pub mode: LayoutMode,
+    #[serde(default)]
+    pub merge_groups: Vec<MergeGroup>,
+    #[serde(default = "default_true")]
+    pub auto_stack_on_overflow: bool,
+    #[serde(default = "default_true")]
+    pub balance: bool,
+    #[serde(default = "default_min_row_width")]
+    pub min_row_width: usize,
+    #[serde(default)]
+    pub target_row_width: Option<usize>,
+}
+
+impl Default for LayoutConfig {
+    fn default() -> Self {
+        Self {
+            mode: LayoutMode::Compact,
+            merge_groups: Vec::new(),
+            auto_stack_on_overflow: true,
+            balance: true,
+            min_row_width: default_min_row_width(),
+            target_row_width: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum LayoutMode {
+    #[default]
+    Compact,
+    Expanded,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct MergeGroup {
+    #[serde(default)]
+    pub ids: Vec<SegmentId>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_min_row_width() -> usize {
+    20
 }
 
 // Legacy compatibility structure
@@ -287,6 +340,10 @@ impl Config {
         if self.style.mode != theme_preset.style.mode
             || self.style.separator != theme_preset.style.separator
         {
+            return false;
+        }
+
+        if self.layout != theme_preset.layout {
             return false;
         }
 

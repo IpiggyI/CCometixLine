@@ -5,8 +5,8 @@
 //! (critical -> warning -> text).
 
 use ccometixline::config::{
-    AnsiColor, ColorConfig, Config, IconConfig, SegmentConfig, SegmentId, StyleConfig, StyleMode,
-    TextStyleConfig,
+    AnsiColor, ColorConfig, Config, IconConfig, LayoutConfig, SegmentConfig, SegmentId,
+    StyleConfig, StyleMode, TextStyleConfig,
 };
 use ccometixline::core::segments::{SegmentData, ThresholdLevel};
 use ccometixline::core::StatusLineGenerator;
@@ -35,6 +35,7 @@ fn render(level: ThresholdLevel, colors: ColorConfig) -> String {
         },
         segments: vec![segment_config.clone()],
         theme: "test".to_string(),
+        layout: LayoutConfig::default(),
     };
     let data = SegmentData {
         primary: "42%".to_string(),
@@ -42,7 +43,9 @@ fn render(level: ThresholdLevel, colors: ColorConfig) -> String {
         metadata: HashMap::new(),
         level,
     };
-    StatusLineGenerator::new(config).generate(vec![(segment_config, data)])
+    StatusLineGenerator::new(config)
+        .generate(vec![(segment_config, data)])
+        .join("\n")
 }
 
 #[test]

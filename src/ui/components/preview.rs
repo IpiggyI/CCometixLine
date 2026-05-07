@@ -40,7 +40,7 @@ impl PreviewComponent {
         let renderer = StatusLineGenerator::new(config.clone());
 
         // Keep string version for compatibility (if needed elsewhere)
-        self.preview_cache = renderer.generate(segments_data.clone());
+        self.preview_cache = renderer.generate(segments_data.clone()).join("\n");
 
         // Generate TUI-optimized text with smart segment wrapping for preview display
         // Use actual available width minus borders

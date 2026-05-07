@@ -69,9 +69,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Render statusline
     let generator = StatusLineGenerator::new(config);
-    let statusline = generator.generate(segments_data);
-
-    println!("{}", statusline);
+    for line in generator.generate(segments_data) {
+        println!("{}", line);
+    }
 
     Ok(())
 }

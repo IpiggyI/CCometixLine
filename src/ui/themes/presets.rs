@@ -1,6 +1,6 @@
 // Theme presets for TUI configuration
 
-use crate::config::{Config, StyleConfig, StyleMode};
+use crate::config::{Config, LayoutConfig, StyleConfig, StyleMode};
 
 // Import all theme modules
 use super::{
@@ -139,6 +139,7 @@ impl ThemePresets {
                 theme_cometix::output_style_segment(),
             ],
             theme: "cometix".to_string(),
+            layout: LayoutConfig::default(),
         }
     }
 
@@ -159,6 +160,7 @@ impl ThemePresets {
                 theme_default::output_style_segment(),
             ],
             theme: "default".to_string(),
+            layout: LayoutConfig::default(),
         }
     }
 
@@ -179,6 +181,7 @@ impl ThemePresets {
                 theme_minimal::output_style_segment(),
             ],
             theme: "minimal".to_string(),
+            layout: LayoutConfig::default(),
         }
     }
 
@@ -199,6 +202,7 @@ impl ThemePresets {
                 theme_gruvbox::output_style_segment(),
             ],
             theme: "gruvbox".to_string(),
+            layout: LayoutConfig::default(),
         }
     }
 
@@ -219,6 +223,7 @@ impl ThemePresets {
                 theme_nord::output_style_segment(),
             ],
             theme: "nord".to_string(),
+            layout: LayoutConfig::default(),
         }
     }
 
@@ -239,6 +244,7 @@ impl ThemePresets {
                 theme_powerline_dark::output_style_segment(),
             ],
             theme: "powerline-dark".to_string(),
+            layout: LayoutConfig::default(),
         }
     }
 
@@ -259,6 +265,7 @@ impl ThemePresets {
                 theme_powerline_light::output_style_segment(),
             ],
             theme: "powerline-light".to_string(),
+            layout: LayoutConfig::default(),
         }
     }
 
@@ -279,6 +286,7 @@ impl ThemePresets {
                 theme_powerline_rose_pine::output_style_segment(),
             ],
             theme: "powerline-rose-pine".to_string(),
+            layout: LayoutConfig::default(),
         }
     }
 
@@ -299,6 +307,7 @@ impl ThemePresets {
                 theme_powerline_tokyo_night::output_style_segment(),
             ],
             theme: "powerline-tokyo-night".to_string(),
+            layout: LayoutConfig::default(),
         }
     }
 }
