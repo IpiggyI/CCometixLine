@@ -15,6 +15,8 @@ pub fn model_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color256 { c256: 208 }), // Gruvbox orange
             text: Some(AnsiColor::Color256 { c256: 208 }),
             background: None,
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig { text_bold: true },
         options: HashMap::new(),
@@ -33,6 +35,8 @@ pub fn directory_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color256 { c256: 142 }), // Gruvbox green
             text: Some(AnsiColor::Color256 { c256: 142 }),
             background: None,
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig { text_bold: true },
         options: HashMap::new(),
@@ -51,6 +55,8 @@ pub fn git_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color256 { c256: 109 }), // Gruvbox cyan
             text: Some(AnsiColor::Color256 { c256: 109 }),
             background: None,
+            warning: Some(AnsiColor::Color256 { c256: 214 }),
+            critical: Some(AnsiColor::Color256 { c256: 167 }),
         },
         styles: TextStyleConfig { text_bold: true },
         options: {
@@ -73,6 +79,8 @@ pub fn context_window_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color16 { c16: 5 }),
             text: Some(AnsiColor::Color16 { c16: 5 }),
             background: None,
+            warning: Some(AnsiColor::Color256 { c256: 214 }),
+            critical: Some(AnsiColor::Color256 { c256: 167 }),
         },
         styles: TextStyleConfig { text_bold: true },
         options: HashMap::new(),
@@ -91,6 +99,8 @@ pub fn cost_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color256 { c256: 214 }), // Gruvbox yellow
             text: Some(AnsiColor::Color256 { c256: 214 }),
             background: None,
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig { text_bold: true },
         options: HashMap::new(),
@@ -109,6 +119,8 @@ pub fn session_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color256 { c256: 142 }), // Gruvbox green
             text: Some(AnsiColor::Color256 { c256: 142 }),
             background: None,
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig { text_bold: true },
         options: HashMap::new(),
@@ -127,6 +139,8 @@ pub fn output_style_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color256 { c256: 109 }), // Gruvbox cyan
             text: Some(AnsiColor::Color256 { c256: 109 }),
             background: None,
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig { text_bold: true },
         options: HashMap::new(),
@@ -145,6 +159,8 @@ pub fn usage_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color16 { c16: 14 }),
             text: Some(AnsiColor::Color16 { c16: 14 }),
             background: None,
+            warning: Some(AnsiColor::Color256 { c256: 175 }),
+            critical: Some(AnsiColor::Color256 { c256: 167 }),
         },
         styles: TextStyleConfig::default(),
         options: {

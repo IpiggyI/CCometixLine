@@ -20,6 +20,8 @@ pub enum FieldSelection {
     IconColor,
     TextColor,
     BackgroundColor,
+    WarningColor,
+    CriticalColor,
     TextStyle,
     Options,
 }

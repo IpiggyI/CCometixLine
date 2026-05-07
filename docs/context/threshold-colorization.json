@@ -1,0 +1,232 @@
+{
+  "context_version": "v4",
+  "type": "feature",
+  "project": "CCometixLine (ccline) — Rust statusline for Claude Code",
+  "archived_at": "2026-05-07",
+  "current_state": "completed",
+  "goals": [
+    "在 ccline 移植 claude-hud 的阈值染色机制（critical/warning/normal 三档动态选色）",
+    "Step 7 V2：渲染层装配 + Step 1 v2 数据模型扩展 + 5 个 segment 接入阈值 + 9 主题默认配色 + TUI 编辑器同步"
+  ],
+  "constraints": [
+    "向后兼容：旧 config.toml 无 warning/critical 字段时行为零变化（回退到 text 静态色）",
+    "零侵入老 segment：未声明 level 的 segment 通过 ThresholdLevel::Normal 默认保持原样",
+    "公共 API 稳定：除 SegmentData 加 level 字段外不破坏外部调用",
+    "Powerline 箭头颜色逻辑不动（与阈值无关）"
+  ],
+  "environment": {
+    "os": "Linux 6.6.87.2-microsoft-standard-WSL2",
+    "runtime": "Rust 1.x (cargo 2021 edition)",
+    "tools": ["cargo", "cargo-clippy", "codex", "gemini"],
+    "paths": [
+      "src/config/types.rs",
+      "src/core/segments/mod.rs",
+      "src/core/segments/cache_hit.rs",
+      "src/core/segments/context_window.rs",
+      "src/core/segments/since_reply.rs",
+      "src/core/segments/usage.rs",
+      "src/core/segments/git.rs",
+      "src/core/statusline.rs",
+      "src/ui/app.rs",
+      "src/ui/components/settings.rs",
+      "src/ui/components/segment_list.rs",
+      "src/ui/components/preview.rs",
+      "src/ui/themes/theme_*.rs",
+      "tests/render_threshold.rs",
+      "docs/plans/path-d-ccline-extension.md"
+    ]
+  },
+  "verified_facts": [
+    "ColorConfig 加 warning/critical 字段后 #[serde(default, skip_serializing_if = \"Option::is_none\")] 保证旧 TOML 反序列化兼容",
+    "SegmentData.level: ThresholdLevel 默认 Normal，未染色 segment 行为不变",
+    "渲染层回退链：critical → warning → text → 无色（pick_text_color），icon 在 Normal 时保留静态、Warning/Critical 跟随 text 链路（pick_icon_color）",
+    "context_window 默认 warning=70%/critical=85%，usage 默认 75%/90%，cache_hit 默认 warning_below=60/critical_below=30（反向），since_reply 默认 300s/1800s，git 默认 ahead 5/20",
+    "cache_hit mode=both/total 时基于 total_pct 染色，mode=last 基于 last_pct（与显示数值一致）",
+    "smoke test 验证三档色码（25% → c256=142 绿 / 75% → 214 黄 / 90% → 167 红）",
+    "用户既有 ~/.claude/ccline/config.toml 缺 warning/critical 时，回退链返回 text 静态色 → 行为零变化",
+    "cargo test 24 个用例全部通过（3 unit + 1 integration），cargo clippy --all-targets -- -D warnings 零警告",
+    "settings.rs 抽公共 helper ansi_to_ratatui / describe_ansi_color 后净减 ~80 LOC（5 段重复 ColorConfig 转换合并）",
+    "Powerline Light 主题 segment 背景为 gray-500 (#6B7280)，对任何饱和色对比度都难达 WCAG AA strict (4.5:1)，是主题级架构限制非本 step bug"
+  ],
+  "next_actions": [
+    "用户验证 ccline 实际状态栏阈值变色效果（需要将 release 二进制覆盖到 ~/.claude/ccline/ccline）",
+    "可选：Powerline Light 主题 v2 重设计 segment 背景为 gray-300/400 以彻底满足 WCAG AA strict",
+    "可选：阈值默认值常量化（现各 segment 内 unwrap_or 字面量散落），抽 mod thresholds_default 集中",
+    "可选：README 文档化 cache_hit mode=both 染色基于 total 的设计避免用户困惑"
+  ],
+  "implementations": [
+    {
+      "id": "impl-001",
+      "requirement": "在 ColorConfig 加 warning/critical Option<AnsiColor> 字段，向后兼容旧 TOML",
+      "solution": "新增字段配 #[serde(default, skip_serializing_if = \"Option::is_none\")]，旧 TOML 反序列化时为 None；segment_matches() 同步比较新字段保证主题对比一致性",
+      "decisions": [
+        {
+          "point": "数据模型方案",
+          "choice": "B: ColorConfig 加级别字段 + segment 自决 ThresholdLevel",
+          "reason": "对齐 ccline 每段配色独立哲学；阈值可配置；零侵入老 segment（A 全局调色板无 segment 粒度，C metadata 驱动类型不安全）"
+        }
+      ],
+      "artifacts_touched": ["src/config/types.rs"],
+      "key_code_points": [
+        "ColorConfig 增 warning + critical 字段，serde(default) 兼容旧 TOML",
+        "segment_matches() 增加 warning + critical 比较以保证主题修改检测正确"
+      ]
+    },
+    {
+      "id": "impl-002",
+      "requirement": "新增 ThresholdLevel 枚举，SegmentData 加 level 字段并要求所有 segment 显式赋值",
+      "solution": "ThresholdLevel{Normal,Warning,Critical} 默认 Normal；SegmentData{primary,secondary,metadata,level}；13 个 segment collect() 实现全部加 level（不染色 segment 用 Normal）",
+      "decisions": [
+        {
+          "point": "session_tokens 是否染色",
+          "choice": "保持 Normal 不参与阈值染色",
+          "reason": "session_tokens 显示绝对值（k|k 形式）不天然匹配 % 阈值；避免视觉过载（plan §3.5.6）"
+        }
+      ],
+      "artifacts_touched": [
+        "src/core/segments/mod.rs",
+        "src/core/segments/cost.rs",
+        "src/core/segments/directory.rs",
+        "src/core/segments/model.rs",
+        "src/core/segments/output_style.rs",
+        "src/core/segments/session.rs",
+        "src/core/segments/session_tokens.rs",
+        "src/core/segments/update.rs",
+        "src/ui/components/preview.rs"
+      ],
+      "key_code_points": [
+        "ThresholdLevel #[derive(Default)] = Normal",
+        "12 个 preview.rs mock SegmentData 字面量通过 Python 状态机脚本批量补 level: Normal"
+      ]
+    },
+    {
+      "id": "impl-003",
+      "requirement": "渲染层 pick_text_color/pick_icon_color 实现回退链",
+      "solution": "free function 在 statusline.rs 顶部；render_segment 4 处 config.colors.{text,icon}.as_ref() 替换为 pick_*_color(config, data.level)；apply_color/apply_style/apply_background_color 保持纯函数不动；Powerline 箭头逻辑不动",
+      "decisions": [
+        {
+          "point": "icon 染色行为",
+          "choice": "Normal 保留静态，Warning/Critical 跟随 text 回退链",
+          "reason": "视觉聚焦——平时 icon 静态调色板，告警时 icon 与 text 一起染色强化警示"
+        },
+        {
+          "point": "回退链方向",
+          "choice": "critical → warning → text → 无色",
+          "reason": "保证任何配置层级都有合理默认；用户只配 text 时 critical 可读"
+        }
+      ],
+      "artifacts_touched": ["src/core/statusline.rs"],
+      "key_code_points": [
+        "pick_text_color match level 三分支链式 .or()",
+        "pick_icon_color Normal→config.colors.icon, 否则 pick_text_color().or(icon)",
+        "option_f64/option_i64/option_u32 helper 解析 SegmentConfig.options",
+        "5 个内联单元测试覆盖回退全路径"
+      ]
+    },
+    {
+      "id": "impl-004",
+      "requirement": "5 个 threshold-aware segment 计算 ThresholdLevel 并支持 options 配置",
+      "solution": "每个 segment 加 with_thresholds() 构造器 + classify_*() 内部方法；collect_all_segments 通过 option_f64/i64/u32 helper 从 SegmentConfig.options 注入默认值",
+      "decisions": [
+        {
+          "point": "cache_hit 染色基准（mode=both 时）",
+          "choice": "用 total_pct 染色（mode=last 用 last_pct）",
+          "reason": "与显示数值一致避免视觉不匹配（mode=both 显示 last/total，按数值更具代表性的 total 染色）"
+        },
+        {
+          "point": "cache_hit 阈值方向",
+          "choice": "反向：warning_below=60，critical_below=30",
+          "reason": "命中率越低越坏，命名 _below 与正向 _threshold 区分"
+        }
+      ],
+      "artifacts_touched": [
+        "src/core/segments/cache_hit.rs",
+        "src/core/segments/context_window.rs",
+        "src/core/segments/since_reply.rs",
+        "src/core/segments/usage.rs",
+        "src/core/segments/git.rs",
+        "src/core/statusline.rs"
+      ],
+      "key_code_points": [
+        "context_window: warning_threshold=70, critical_threshold=85（正向）",
+        "usage: warning_threshold=75, critical_threshold=90（正向）",
+        "cache_hit: warning_below=60, critical_below=30（反向）",
+        "since_reply: warning_seconds=300, critical_seconds=1800（正向时间）",
+        "git: push_warning_threshold=5, push_critical_threshold=20（正向 ahead 数）"
+      ]
+    },
+    {
+      "id": "impl-005",
+      "requirement": "9 主题文件添加 warning/critical 默认配色",
+      "solution": "Python 状态机脚本扫描每个 *_segment() 函数的 ColorConfig 字面量并在闭合括号前注入字段；按主题选取调色板",
+      "decisions": [
+        {
+          "point": "usage warning 颜色",
+          "choice": "c256=175 (粉) 区别于 context_window 的 c256=214 (黄)",
+          "reason": "与 model 橙/cache_hit 黄拉开层级避免颜色 Christmas tree（plan §3.5.4）"
+        },
+        {
+          "point": "Powerline Light 染色色值",
+          "choice": "#FFEB3B (Material yellow-500) + #FF8A80 (Material red A100)",
+          "reason": "原 Bootstrap #DC3545 在 gray-500 段背景仅 1.04:1（远低于 WCAG AA），新值接近 AA Large 阈值是该背景下饱和色的最佳折中"
+        }
+      ],
+      "artifacts_touched": [
+        "src/ui/themes/theme_cometix.rs",
+        "src/ui/themes/theme_default.rs",
+        "src/ui/themes/theme_gruvbox.rs",
+        "src/ui/themes/theme_minimal.rs",
+        "src/ui/themes/theme_nord.rs",
+        "src/ui/themes/theme_powerline_dark.rs",
+        "src/ui/themes/theme_powerline_light.rs",
+        "src/ui/themes/theme_powerline_rose_pine.rs",
+        "src/ui/themes/theme_powerline_tokyo_night.rs"
+      ],
+      "key_code_points": [
+        "Gruvbox 系: c256=214 (黄) + c256=167 (红); usage 用 c256=175 (粉)",
+        "Nord/TokyoNight/RosePine/PowerlineDark: 各主题 aurora/danger 调色板的近似色",
+        "Powerline Light: yellow-500/red A100 替代 Bootstrap warning/danger"
+      ]
+    },
+    {
+      "id": "impl-006",
+      "requirement": "TUI 编辑器扩展支持 warning/critical 字段编辑",
+      "solution": "FieldSelection 枚举加 WarningColor/CriticalColor; app.rs 字段计数 7→9 + 导航 match + open_color_picker + apply_selected_color 同步; settings.rs 抽公共 helper 减重复并加 2 行字段渲染",
+      "decisions": [
+        {
+          "point": "settings.rs 是否本 step 内做",
+          "choice": "本 step 内做",
+          "reason": "gemini Critical issue：避免 black box 配置体验，用户能看到颜色变化但无 UI 入口编辑"
+        },
+        {
+          "point": "settings.rs 重复代码处理",
+          "choice": "抽 ansi_to_ratatui + describe_ansi_color 公共 helper",
+          "reason": "原 5 段重复 ~120 行 ColorConfig 转换 → 净减 ~80 LOC，添加 warning/critical 仅需 2 行"
+        }
+      ],
+      "artifacts_touched": [
+        "src/ui/components/settings.rs",
+        "src/ui/components/segment_list.rs",
+        "src/ui/app.rs"
+      ],
+      "key_code_points": [
+        "FieldSelection 增 WarningColor + CriticalColor（位于 BackgroundColor 与 TextStyle 之间）",
+        "app.rs 字段计数 9，导航 match 同步",
+        "open_color_picker 接受 5 种颜色字段，apply_selected_color 写入 segment.colors.{warning,critical}",
+        "settings.rs ansi_to_ratatui 模块级 free function，describe_ansi_color 接收 none_label 参数"
+      ]
+    },
+    {
+      "id": "impl-007",
+      "requirement": "端到端测试覆盖三档染色 + 回退链",
+      "solution": "tests/render_threshold.rs 新建，3 个测试用例验证：(1) Normal/Warning/Critical 输出包含正确 ANSI 256 色码 142/214/167；(2) Critical 缺 critical 时回退 warning；缺 critical+warning 时回退 text；(3) Warning 缺 warning 时回退 text",
+      "decisions": [],
+      "artifacts_touched": ["tests/render_threshold.rs", ".gitignore"],
+      "key_code_points": [
+        "render(level, colors) helper 构造完整 SegmentConfig + Config + SegmentData",
+        "断言输出 contains \\x1b[38;5;{code}m 而非完全等价（避免与其他 ANSI 代码耦合）",
+        ".gitignore 移除 tests/ 行（codex 审计发现）"
+      ]
+    }
+  ]
+}

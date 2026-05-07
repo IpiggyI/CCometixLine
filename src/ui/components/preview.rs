@@ -1,5 +1,5 @@
 use crate::config::{Config, SegmentId};
-use crate::core::segments::SegmentData;
+use crate::core::segments::{SegmentData, ThresholdLevel};
 use crate::core::StatusLineGenerator;
 use ratatui::{
     layout::Rect,
@@ -103,6 +103,7 @@ impl PreviewComponent {
                         map.insert("model".to_string(), "claude-4-sonnet-20250512".to_string());
                         map
                     },
+                    level: ThresholdLevel::Normal,
                 },
                 SegmentId::Directory => SegmentData {
                     primary: "CCometixLine".to_string(),
@@ -112,6 +113,7 @@ impl PreviewComponent {
                         map.insert("current_dir".to_string(), "~/CCometixLine".to_string());
                         map
                     },
+                    level: ThresholdLevel::Normal,
                 },
                 SegmentId::Git => SegmentData {
                     primary: "master".to_string(),
@@ -124,6 +126,7 @@ impl PreviewComponent {
                         map.insert("behind".to_string(), "0".to_string());
                         map
                     },
+                    level: ThresholdLevel::Normal,
                 },
                 SegmentId::ContextWindow => SegmentData {
                     primary: "78.2%".to_string(),
@@ -135,11 +138,13 @@ impl PreviewComponent {
                         map.insert("session_tokens".to_string(), "48200".to_string());
                         map
                     },
+                    level: ThresholdLevel::Normal,
                 },
                 SegmentId::Usage => SegmentData {
                     primary: "24%".to_string(),
                     secondary: "· 10-7-2".to_string(),
                     metadata: HashMap::new(),
+                    level: ThresholdLevel::Normal,
                 },
                 SegmentId::Cost => SegmentData {
                     primary: "$0.02".to_string(),
@@ -149,6 +154,7 @@ impl PreviewComponent {
                         map.insert("cost".to_string(), "0.01234".to_string());
                         map
                     },
+                    level: ThresholdLevel::Normal,
                 },
                 SegmentId::Session => SegmentData {
                     primary: "3m45s".to_string(),
@@ -160,6 +166,7 @@ impl PreviewComponent {
                         map.insert("lines_removed".to_string(), "23".to_string());
                         map
                     },
+                    level: ThresholdLevel::Normal,
                 },
                 SegmentId::OutputStyle => SegmentData {
                     primary: "default".to_string(),
@@ -169,6 +176,7 @@ impl PreviewComponent {
                         map.insert("style_name".to_string(), "default".to_string());
                         map
                     },
+                    level: ThresholdLevel::Normal,
                 },
                 SegmentId::Update => SegmentData {
                     primary: format!("v{}", env!("CARGO_PKG_VERSION")),
@@ -182,6 +190,7 @@ impl PreviewComponent {
                         map.insert("update_available".to_string(), "false".to_string());
                         map
                     },
+                    level: ThresholdLevel::Normal,
                 },
                 SegmentId::CacheHit => SegmentData {
                     primary: "92%".to_string(),
@@ -195,6 +204,7 @@ impl PreviewComponent {
                         map.insert("ttl".to_string(), "[1h]".to_string());
                         map
                     },
+                    level: ThresholdLevel::Normal,
                 },
                 SegmentId::SinceReply => SegmentData {
                     primary: "42s".to_string(),
@@ -208,6 +218,7 @@ impl PreviewComponent {
                         );
                         map
                     },
+                    level: ThresholdLevel::Normal,
                 },
                 SegmentId::SessionTokens => SegmentData {
                     primary: "in 1.5k|42k · out 300|8.2k · cache 45.2k|120k".to_string(),
@@ -220,6 +231,7 @@ impl PreviewComponent {
                         map.insert("total_cache_read".to_string(), "120000".to_string());
                         map
                     },
+                    level: ThresholdLevel::Normal,
                 },
             };
 

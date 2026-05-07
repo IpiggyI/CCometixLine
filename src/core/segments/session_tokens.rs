@@ -1,4 +1,4 @@
-use super::{Segment, SegmentData};
+use super::{Segment, SegmentData, ThresholdLevel};
 use crate::config::{InputData, SegmentId};
 use crate::core::transcript;
 use std::collections::HashMap;
@@ -70,6 +70,7 @@ impl Segment for SessionTokensSegment {
             ),
             secondary: String::new(),
             metadata,
+            level: ThresholdLevel::Normal,
         })
     }
 

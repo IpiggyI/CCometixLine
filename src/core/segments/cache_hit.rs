@@ -1,4 +1,4 @@
-use super::{Segment, SegmentData};
+use super::{Segment, SegmentData, ThresholdLevel};
 use crate::config::{InputData, NormalizedUsage, SegmentId};
 use crate::core::transcript;
 use std::collections::HashMap;
@@ -6,6 +6,8 @@ use std::collections::HashMap;
 #[derive(Default)]
 pub struct CacheHitSegment {
     mode: Option<String>,
+    warning_below: Option<f64>,
+    critical_below: Option<f64>,
 }
 
 impl CacheHitSegment {
@@ -16,6 +18,14 @@ impl CacheHitSegment {
     /// Configure the display mode (`last` | `total` | `both`). Default = `last`.
     pub fn with_mode<S: Into<String>>(mut self, mode: S) -> Self {
         self.mode = Some(mode.into());
+        self
+    }
+
+    /// Reverse-direction thresholds: lower hit-rate is worse.
+    /// Defaults: warning_below=60%, critical_below=30%.
+    pub fn with_thresholds(mut self, warning_below: f64, critical_below: f64) -> Self {
+        self.warning_below = Some(warning_below);
+        self.critical_below = Some(critical_below);
         self
     }
 
@@ -72,6 +82,16 @@ impl CacheHitSegment {
             )
         }
     }
+
+    fn classify_hit_rate(&self, percentage: Option<f64>) -> ThresholdLevel {
+        let warning_below = self.warning_below.unwrap_or(60.0);
+        let critical_below = self.critical_below.unwrap_or(30.0);
+        match percentage {
+            Some(p) if p < critical_below => ThresholdLevel::Critical,
+            Some(p) if p < warning_below => ThresholdLevel::Warning,
+            _ => ThresholdLevel::Normal,
+        }
+    }
 }
 
 impl Segment for CacheHitSegment {
@@ -86,6 +106,12 @@ impl Segment for CacheHitSegment {
             "both" => format!("{}/{}", format_pct(last_pct), format_pct(total_pct)),
             _ => format_pct(last_pct),
         };
+        // Threshold colorization basis: total drives "both"/"total"; last drives "last".
+        let pct_for_color = match mode {
+            "total" | "both" => total_pct,
+            _ => last_pct,
+        };
+        let level = self.classify_hit_rate(pct_for_color);
         let secondary = Self::build_secondary(&stats.last_turn);
         let ttl = Self::ttl_label(&stats.last_turn);
 
@@ -123,6 +149,7 @@ impl Segment for CacheHitSegment {
             primary,
             secondary,
             metadata,
+            level,
         })
     }
 

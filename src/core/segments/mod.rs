@@ -20,11 +20,20 @@ pub trait Segment {
     fn id(&self) -> SegmentId;
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ThresholdLevel {
+    #[default]
+    Normal,
+    Warning,
+    Critical,
+}
+
 #[derive(Debug, Clone)]
 pub struct SegmentData {
     pub primary: String,
     pub secondary: String,
     pub metadata: HashMap<String, String>,
+    pub level: ThresholdLevel,
 }
 
 // Re-export all segment types

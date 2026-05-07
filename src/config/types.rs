@@ -46,6 +46,10 @@ pub struct ColorConfig {
     pub icon: Option<AnsiColor>,
     pub text: Option<AnsiColor>,
     pub background: Option<AnsiColor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub warning: Option<AnsiColor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub critical: Option<AnsiColor>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -315,6 +319,8 @@ impl Config {
             && self.color_matches(&current.colors.icon, &preset.colors.icon)
             && self.color_matches(&current.colors.text, &preset.colors.text)
             && self.color_matches(&current.colors.background, &preset.colors.background)
+            && self.color_matches(&current.colors.warning, &preset.colors.warning)
+            && self.color_matches(&current.colors.critical, &preset.colors.critical)
             && current.styles.text_bold == preset.styles.text_bold
             && current.options == preset.options
     }

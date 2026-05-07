@@ -27,6 +27,8 @@ pub fn model_segment() -> SegmentConfig {
                 g: 192,
                 b: 208,
             }),
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig::default(),
         options: HashMap::new(),
@@ -57,6 +59,8 @@ pub fn directory_segment() -> SegmentConfig {
                 g: 190,
                 b: 140,
             }),
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig::default(),
         options: HashMap::new(),
@@ -87,6 +91,8 @@ pub fn git_segment() -> SegmentConfig {
                 g: 161,
                 b: 193,
             }),
+            warning: Some(AnsiColor::Rgb { r: 235, g: 203, b: 139 }),
+            critical: Some(AnsiColor::Rgb { r: 191, g: 97, b: 106 }),
         },
         styles: TextStyleConfig::default(),
         options: {
@@ -121,6 +127,8 @@ pub fn context_window_segment() -> SegmentConfig {
                 g: 142,
                 b: 173,
             }),
+            warning: Some(AnsiColor::Rgb { r: 235, g: 203, b: 139 }),
+            critical: Some(AnsiColor::Rgb { r: 191, g: 97, b: 106 }),
         },
         styles: TextStyleConfig::default(),
         options: HashMap::new(),
@@ -151,6 +159,8 @@ pub fn cost_segment() -> SegmentConfig {
                 g: 203,
                 b: 139,
             }), // Nord yellow background
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig::default(),
         options: HashMap::new(),
@@ -181,6 +191,8 @@ pub fn session_segment() -> SegmentConfig {
                 g: 190,
                 b: 140,
             }), // Nord green background
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig::default(),
         options: HashMap::new(),
@@ -211,6 +223,8 @@ pub fn output_style_segment() -> SegmentConfig {
                 g: 192,
                 b: 208,
             }), // Nord cyan background
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig::default(),
         options: HashMap::new(),
@@ -241,6 +255,8 @@ pub fn usage_segment() -> SegmentConfig {
                 g: 203,
                 b: 139,
             }), // Nord yellow background
+            warning: Some(AnsiColor::Rgb { r: 235, g: 203, b: 139 }),
+            critical: Some(AnsiColor::Rgb { r: 191, g: 97, b: 106 }),
         },
         styles: TextStyleConfig::default(),
         options: {

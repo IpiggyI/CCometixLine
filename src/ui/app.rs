@@ -465,15 +465,17 @@ impl App {
                 self.selected_segment = new_selection;
             }
             Panel::Settings => {
-                let field_count = 7; // Enabled, Icon, IconColor, TextColor, TextStyle, BackgroundColor, Options
+                let field_count = 9; // +WarningColor, CriticalColor (between BackgroundColor and TextStyle)
                 let current_field = match self.selected_field {
                     FieldSelection::Enabled => 0i32,
                     FieldSelection::Icon => 1,
                     FieldSelection::IconColor => 2,
                     FieldSelection::TextColor => 3,
                     FieldSelection::BackgroundColor => 4,
-                    FieldSelection::TextStyle => 5,
-                    FieldSelection::Options => 6,
+                    FieldSelection::WarningColor => 5,
+                    FieldSelection::CriticalColor => 6,
+                    FieldSelection::TextStyle => 7,
+                    FieldSelection::Options => 8,
                 };
                 let new_field = (current_field + delta).clamp(0, field_count - 1) as usize;
                 self.selected_field = match new_field {
@@ -482,8 +484,10 @@ impl App {
                     2 => FieldSelection::IconColor,
                     3 => FieldSelection::TextColor,
                     4 => FieldSelection::BackgroundColor,
-                    5 => FieldSelection::TextStyle,
-                    6 => FieldSelection::Options,
+                    5 => FieldSelection::WarningColor,
+                    6 => FieldSelection::CriticalColor,
+                    7 => FieldSelection::TextStyle,
+                    8 => FieldSelection::Options,
                     _ => FieldSelection::Enabled,
                 };
             }
@@ -552,7 +556,9 @@ impl App {
                     FieldSelection::Icon => self.open_icon_selector(),
                     FieldSelection::IconColor
                     | FieldSelection::TextColor
-                    | FieldSelection::BackgroundColor => self.open_color_picker(),
+                    | FieldSelection::BackgroundColor
+                    | FieldSelection::WarningColor
+                    | FieldSelection::CriticalColor => self.open_color_picker(),
                     FieldSelection::TextStyle => {
                         // Toggle text bold style
                         if let Some(segment) = self.config.segments.get_mut(self.selected_segment) {
@@ -589,7 +595,9 @@ impl App {
         if self.selected_panel == Panel::Settings
             && (self.selected_field == FieldSelection::IconColor
                 || self.selected_field == FieldSelection::TextColor
-                || self.selected_field == FieldSelection::BackgroundColor)
+                || self.selected_field == FieldSelection::BackgroundColor
+                || self.selected_field == FieldSelection::WarningColor
+                || self.selected_field == FieldSelection::CriticalColor)
         {
             self.color_picker.open();
         }
@@ -607,6 +615,8 @@ impl App {
                 FieldSelection::IconColor => segment.colors.icon = Some(color),
                 FieldSelection::TextColor => segment.colors.text = Some(color),
                 FieldSelection::BackgroundColor => segment.colors.background = Some(color),
+                FieldSelection::WarningColor => segment.colors.warning = Some(color),
+                FieldSelection::CriticalColor => segment.colors.critical = Some(color),
                 _ => {}
             }
             self.preview.update_preview(&self.config);

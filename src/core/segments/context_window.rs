@@ -1,20 +1,47 @@
-use super::{Segment, SegmentData};
+use super::{Segment, SegmentData, ThresholdLevel};
 use crate::config::{InputData, ModelConfig, SegmentId};
 use crate::core::transcript;
 use std::collections::HashMap;
 
-#[derive(Default)]
-pub struct ContextWindowSegment;
+pub struct ContextWindowSegment {
+    warning_threshold: f64,
+    critical_threshold: f64,
+}
+
+impl Default for ContextWindowSegment {
+    fn default() -> Self {
+        Self {
+            warning_threshold: 70.0,
+            critical_threshold: 85.0,
+        }
+    }
+}
 
 impl ContextWindowSegment {
     pub fn new() -> Self {
-        Self
+        Self::default()
+    }
+
+    pub fn with_thresholds(mut self, warning_threshold: f64, critical_threshold: f64) -> Self {
+        self.warning_threshold = warning_threshold;
+        self.critical_threshold = critical_threshold;
+        self
     }
 
     /// Get context limit for the specified model
     fn get_context_limit_for_model(model_id: &str) -> u32 {
         let model_config = ModelConfig::load();
         model_config.get_context_limit(model_id)
+    }
+
+    fn classify_percentage(&self, percentage: f64) -> ThresholdLevel {
+        if percentage >= self.critical_threshold {
+            ThresholdLevel::Critical
+        } else if percentage >= self.warning_threshold {
+            ThresholdLevel::Warning
+        } else {
+            ThresholdLevel::Normal
+        }
     }
 }
 
@@ -26,7 +53,7 @@ impl Segment for ContextWindowSegment {
         let context_used_token_opt = transcript::parse_last_assistant_usage(&input.transcript_path)
             .map(|u| u.display_tokens());
 
-        let (percentage_display, tokens_display) = match context_used_token_opt {
+        let (percentage_display, tokens_display, level) = match context_used_token_opt {
             Some(context_used_token) => {
                 let context_used_rate = (context_used_token as f64 / context_limit as f64) * 100.0;
 
@@ -47,11 +74,11 @@ impl Segment for ContextWindowSegment {
                     context_used_token.to_string()
                 };
 
-                (percentage, tokens)
+                (percentage, tokens, self.classify_percentage(context_used_rate))
             }
             None => {
                 // No usage data available
-                ("-".to_string(), "-".to_string())
+                ("-".to_string(), "-".to_string(), ThresholdLevel::Normal)
             }
         };
 
@@ -74,6 +101,7 @@ impl Segment for ContextWindowSegment {
             primary: format!("{} · {} tokens", percentage_display, tokens_display),
             secondary: String::new(),
             metadata,
+            level,
         })
     }
 

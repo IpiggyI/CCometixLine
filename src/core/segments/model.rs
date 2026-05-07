@@ -1,4 +1,4 @@
-use super::{Segment, SegmentData};
+use super::{Segment, SegmentData, ThresholdLevel};
 use crate::config::{InputData, ModelConfig, SegmentId};
 use std::collections::HashMap;
 
@@ -21,6 +21,7 @@ impl Segment for ModelSegment {
             primary: self.format_model_name(&input.model.id, &input.model.display_name),
             secondary: String::new(),
             metadata,
+            level: ThresholdLevel::Normal,
         })
     }
 

@@ -1,4 +1,4 @@
-use super::{Segment, SegmentData};
+use super::{Segment, SegmentData, ThresholdLevel};
 use crate::config::{InputData, SegmentId};
 use crate::utils::credentials;
 use chrono::{DateTime, Datelike, Duration, Local, Timelike, Utc};
@@ -44,6 +44,20 @@ impl UsageSegment {
             63..=75 => "\u{f0aa3}".to_string(), // circle_slice_6
             76..=87 => "\u{f0aa4}".to_string(), // circle_slice_7
             _ => "\u{f0aa5}".to_string(),       // circle_slice_8
+        }
+    }
+
+    fn classify_percentage(
+        percentage: f64,
+        warning_threshold: f64,
+        critical_threshold: f64,
+    ) -> ThresholdLevel {
+        if percentage >= critical_threshold {
+            ThresholdLevel::Critical
+        } else if percentage >= warning_threshold {
+            ThresholdLevel::Warning
+        } else {
+            ThresholdLevel::Normal
         }
     }
 
@@ -203,6 +217,15 @@ impl Segment for UsageSegment {
             .and_then(|v| v.as_u64())
             .unwrap_or(2);
 
+        let warning_threshold = segment_config
+            .and_then(|sc| sc.options.get("warning_threshold"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(75.0);
+        let critical_threshold = segment_config
+            .and_then(|sc| sc.options.get("critical_threshold"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(90.0);
+
         let cached_data = self.load_cache();
         let use_cached = cached_data
             .as_ref()
@@ -248,6 +271,7 @@ impl Segment for UsageSegment {
 
         let dynamic_icon = Self::get_circle_icon(seven_day_util / 100.0);
         let five_hour_percent = five_hour_util.round() as u8;
+        let level = Self::classify_percentage(five_hour_util, warning_threshold, critical_threshold);
         let primary = format!("{}%", five_hour_percent);
         let secondary = format!("· {}", Self::format_reset_time(resets_at.as_deref()));
 
@@ -266,6 +290,7 @@ impl Segment for UsageSegment {
             primary,
             secondary,
             metadata,
+            level,
         })
     }
 

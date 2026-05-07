@@ -1,4 +1,4 @@
-use super::{Segment, SegmentData};
+use super::{Segment, SegmentData, ThresholdLevel};
 use crate::config::{InputData, SegmentId};
 use std::collections::HashMap;
 
@@ -25,6 +25,7 @@ impl Segment for OutputStyleSegment {
             primary,
             secondary: String::new(),
             metadata,
+            level: ThresholdLevel::Normal,
         })
     }
 

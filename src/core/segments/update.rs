@@ -1,4 +1,4 @@
-use super::{Segment, SegmentData};
+use super::{Segment, SegmentData, ThresholdLevel};
 use crate::config::{InputData, SegmentId};
 use crate::updater::UpdateState;
 
@@ -20,6 +20,7 @@ impl Segment for UpdateSegment {
             primary: status_text,
             secondary: String::new(),
             metadata: std::collections::HashMap::new(),
+            level: ThresholdLevel::Normal,
         })
     }
 

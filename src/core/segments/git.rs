@@ -1,4 +1,4 @@
-use super::{Segment, SegmentData};
+use super::{Segment, SegmentData, ThresholdLevel};
 use crate::config::{InputData, SegmentId};
 use std::collections::HashMap;
 use std::process::Command;
@@ -21,6 +21,8 @@ pub enum GitStatus {
 
 pub struct GitSegment {
     show_sha: bool,
+    push_warning_threshold: u32,
+    push_critical_threshold: u32,
 }
 
 impl Default for GitSegment {
@@ -31,12 +33,37 @@ impl Default for GitSegment {
 
 impl GitSegment {
     pub fn new() -> Self {
-        Self { show_sha: false }
+        Self {
+            show_sha: false,
+            push_warning_threshold: 5,
+            push_critical_threshold: 20,
+        }
     }
 
     pub fn with_sha(mut self, show_sha: bool) -> Self {
         self.show_sha = show_sha;
         self
+    }
+
+    /// `ahead` commit thresholds for push backlog. Defaults: warning=5, critical=20.
+    pub fn with_push_thresholds(
+        mut self,
+        warning: u32,
+        critical: u32,
+    ) -> Self {
+        self.push_warning_threshold = warning;
+        self.push_critical_threshold = critical;
+        self
+    }
+
+    fn classify_ahead(&self, ahead: u32) -> ThresholdLevel {
+        if ahead >= self.push_critical_threshold {
+            ThresholdLevel::Critical
+        } else if ahead >= self.push_warning_threshold {
+            ThresholdLevel::Warning
+        } else {
+            ThresholdLevel::Normal
+        }
     }
 
     fn get_git_info(&self, working_dir: &str) -> Option<GitInfo> {
@@ -205,10 +232,13 @@ impl Segment for GitSegment {
             status_parts.push(sha.clone());
         }
 
+        let level = self.classify_ahead(git_info.ahead);
+
         Some(SegmentData {
             primary,
             secondary: status_parts.join(" "),
             metadata,
+            level,
         })
     }
 

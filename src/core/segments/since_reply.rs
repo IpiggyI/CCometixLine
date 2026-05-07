@@ -1,14 +1,24 @@
-use super::{Segment, SegmentData};
+use super::{Segment, SegmentData, ThresholdLevel};
 use crate::config::{InputData, SegmentId};
 use crate::core::transcript;
 use std::collections::HashMap;
 
 #[derive(Default)]
-pub struct SinceReplySegment;
+pub struct SinceReplySegment {
+    warning_seconds: Option<i64>,
+    critical_seconds: Option<i64>,
+}
 
 impl SinceReplySegment {
     pub fn new() -> Self {
-        Self
+        Self::default()
+    }
+
+    /// Default thresholds: warning=300s (5m), critical=1800s (30m).
+    pub fn with_thresholds(mut self, warning_seconds: i64, critical_seconds: i64) -> Self {
+        self.warning_seconds = Some(warning_seconds);
+        self.critical_seconds = Some(critical_seconds);
+        self
     }
 
     fn format_elapsed(seconds: i64) -> String {
@@ -18,6 +28,18 @@ impl SinceReplySegment {
             60..=3599 => format!("{}m {}s", seconds / 60, seconds % 60),
             3600..=86_399 => format!("{}h {}m", seconds / 3600, (seconds % 3600) / 60),
             _ => format!("{}d", seconds / 86_400),
+        }
+    }
+
+    fn classify_elapsed(&self, seconds: i64) -> ThresholdLevel {
+        let critical_seconds = self.critical_seconds.unwrap_or(1800);
+        let warning_seconds = self.warning_seconds.unwrap_or(300);
+        if seconds >= critical_seconds {
+            ThresholdLevel::Critical
+        } else if seconds >= warning_seconds {
+            ThresholdLevel::Warning
+        } else {
+            ThresholdLevel::Normal
         }
     }
 }
@@ -41,6 +63,7 @@ impl Segment for SinceReplySegment {
             primary: Self::format_elapsed(elapsed),
             secondary: String::new(),
             metadata,
+            level: self.classify_elapsed(elapsed),
         })
     }
 

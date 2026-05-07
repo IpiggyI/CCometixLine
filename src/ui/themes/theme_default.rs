@@ -15,6 +15,8 @@ pub fn model_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color16 { c16: 14 }), // Cyan
             text: Some(AnsiColor::Color16 { c16: 14 }),
             background: None,
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig::default(),
         options: HashMap::new(),
@@ -33,6 +35,8 @@ pub fn directory_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color16 { c16: 11 }), // Yellow
             text: Some(AnsiColor::Color16 { c16: 10 }), // Green
             background: None,
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig::default(),
         options: HashMap::new(),
@@ -51,6 +55,8 @@ pub fn git_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color16 { c16: 12 }), // Blue
             text: Some(AnsiColor::Color16 { c16: 12 }),
             background: None,
+            warning: Some(AnsiColor::Color256 { c256: 214 }),
+            critical: Some(AnsiColor::Color256 { c256: 167 }),
         },
         styles: TextStyleConfig::default(),
         options: {
@@ -73,6 +79,8 @@ pub fn context_window_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color16 { c16: 13 }), // Magenta
             text: Some(AnsiColor::Color16 { c16: 13 }),
             background: None,
+            warning: Some(AnsiColor::Color256 { c256: 214 }),
+            critical: Some(AnsiColor::Color256 { c256: 167 }),
         },
         styles: TextStyleConfig::default(),
         options: HashMap::new(),
@@ -91,6 +99,8 @@ pub fn usage_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color16 { c16: 14 }), // Cyan
             text: Some(AnsiColor::Color16 { c16: 14 }),
             background: None,
+            warning: Some(AnsiColor::Color256 { c256: 175 }),
+            critical: Some(AnsiColor::Color256 { c256: 167 }),
         },
         styles: TextStyleConfig::default(),
         options: {
@@ -121,6 +131,8 @@ pub fn cost_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color16 { c16: 3 }), // Yellow
             text: Some(AnsiColor::Color16 { c16: 3 }),
             background: None,
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig::default(),
         options: HashMap::new(),
@@ -139,6 +151,8 @@ pub fn session_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color16 { c16: 2 }), // Green
             text: Some(AnsiColor::Color16 { c16: 2 }),
             background: None,
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig::default(),
         options: HashMap::new(),
@@ -157,6 +171,8 @@ pub fn output_style_segment() -> SegmentConfig {
             icon: Some(AnsiColor::Color16 { c16: 6 }), // Cyan
             text: Some(AnsiColor::Color16 { c16: 6 }),
             background: None,
+            warning: None,
+            critical: None,
         },
         styles: TextStyleConfig::default(),
         options: HashMap::new(),

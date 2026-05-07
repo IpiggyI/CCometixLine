@@ -1,0 +1,102 @@
+{
+  "context_version": "v4",
+  "type": "feature",
+  "project": "CCometixLine",
+  "archived_at": "2026-04-30",
+  "current_state": "completed",
+  "goals": [
+    "在 ccline 状态栏增加 prompt 缓存命中率展示",
+    "在 ccline 状态栏区分 Anthropic 5m / 1h ephemeral cache TTL"
+  ],
+  "constraints": [
+    "Claude Code statusline stdin JSON 不暴露 reasoning_effort/thinking_budget，思考强度档位无法展示",
+    "Anthropic API 中 cache_read_input_tokens 没有 TTL 嵌套字段，命中侧 TTL 不可获取",
+    "默认禁用以避免破坏老用户布局"
+  ],
+  "environment": {
+    "os": "Linux 6.6.87.2-microsoft-standard-WSL2",
+    "runtime": "Rust 1.94.0 (cargo)",
+    "tools": ["cargo", "git", "ccg verify-change", "ccg verify-quality"],
+    "paths": [
+      "/home/hyy/develop/personal/GitHub/CCometixLine",
+      "~/.claude/ccline/ccline",
+      "~/.claude/ccline/config.toml"
+    ]
+  },
+  "verified_facts": [
+    "Anthropic transcript jsonl 中 assistant message 的 usage 字段包含 cache_creation 嵌套对象，含 ephemeral_5m_input_tokens 和 ephemeral_1h_input_tokens 两个 TTL 细分字段",
+    "cache_read_input_tokens 是平铺字段，没有 TTL 嵌套，命中侧无法区分 5m/1h",
+    "ccline 添加新 segment 需要修改 9 处代码：SegmentId 枚举 + collect_all_segments match + segment_list match + settings match + app match (2 处) + preview match + segments/mod.rs 注册 + 对应 segment 实现",
+    "ccline 默认禁用 segment 的模式：跟 Update segment 一样纯代码注册，不挂任何主题（用户在 ~/.claude/ccline/config.toml 手动加配置启用）",
+    "npm 包 @cometix/ccline 全局安装的 ccline 在 PATH 上是 JS shim，真正二进制在 ~/.claude/ccline/ccline",
+    "ccg verify-quality 工具（quality_checker.js）不支持 Rust，扫描结果 files_scanned=0",
+    "ccline 项目 origin 默认指向上游 Haleclipse/CCometixLine，fork 提交需重命名 origin → upstream 并添加 fork 为新 origin",
+    "命中率公式 hit_rate = cache_read / (input + cache_read + cache_creation) × 100%，分母不含 output"
+  ],
+  "next_actions": [
+    "用户在 GitHub UI 手动给 Haleclipse/CCometixLine 提 PR",
+    "若 Claude Code 后续在 stdin JSON 暴露 reasoning_effort，可扩展 thinking 强度 segment",
+    "若 npm 包升级覆盖 ~/.claude/ccline/ccline，需重新执行 cp target/release/ccometixline ~/.claude/ccline/ccline 重新部署"
+  ],
+  "implementations": [
+    {
+      "id": "impl-001",
+      "requirement": "ccline 状态栏增加 prompt 缓存命中率与 5m/1h TTL 展示",
+      "solution": "新增独立 CacheHit segment + 抽 src/core/transcript.rs 公共模块复用 ContextWindow 的 transcript 解析逻辑",
+      "decisions": [
+        {
+          "point": "缓存命中率展示形式",
+          "choice": "独立 CacheHit segment",
+          "reason": "比合并到 ContextWindow/Usage secondary 颗粒度更高，可单独配置启停/颜色"
+        },
+        {
+          "point": "命中率分母",
+          "choice": "input + cache_read + cache_creation（不含 output）",
+          "reason": "与 Anthropic prompt 侧总消耗语义一致；output 不参与下一轮 cache lookup"
+        },
+        {
+          "point": "TTL 数据来源",
+          "choice": "仅取 cache_creation 嵌套对象的 ephemeral_5m / ephemeral_1h",
+          "reason": "cache_read 字段没有 TTL 嵌套，命中侧 TTL Anthropic API 不暴露"
+        },
+        {
+          "point": "思考强度档位",
+          "choice": "本期不做",
+          "reason": "Claude Code stdin JSON 与 transcript 都未暴露 reasoning_effort"
+        },
+        {
+          "point": "默认开关",
+          "choice": "默认禁用",
+          "reason": "不破坏老用户布局；沿用 Update segment 的纯代码注册模式"
+        },
+        {
+          "point": "transcript 解析复用",
+          "choice": "抽公共 src/core/transcript.rs",
+          "reason": "ContextWindow 与 CacheHit 都需解析最后一条 assistant message 的 NormalizedUsage，避免重复 100+ 行"
+        }
+      ],
+      "artifacts_touched": [
+        "src/config/types.rs",
+        "src/core/mod.rs",
+        "src/core/transcript.rs",
+        "src/core/segments/cache_hit.rs",
+        "src/core/segments/context_window.rs",
+        "src/core/segments/mod.rs",
+        "src/core/statusline.rs",
+        "src/ui/app.rs",
+        "src/ui/components/preview.rs",
+        "src/ui/components/segment_list.rs",
+        "src/ui/components/settings.rs"
+      ],
+      "key_code_points": [
+        "RawUsage 新增 cache_creation: Option<CacheCreationDetails> 字段解析嵌套 TTL 对象",
+        "NormalizedUsage 新增 cache_creation_5m / cache_creation_1h 字段，由 normalize() 从嵌套对象提取",
+        "src/core/transcript.rs::parse_last_assistant_usage(path) -> Option<NormalizedUsage> 统一入口；处理普通 transcript / summary 跳转 leaf / 文件不存在降级到 project 历史",
+        "CacheHitSegment::ttl_label() 按 5m/1h 是否非零返回 [5m]/[1h]/[5m+1h]/空字符串",
+        "命中率公式 hit_rate = cache_read / (input + cache_read + cache_creation) × 100%",
+        "SegmentId::CacheHit 必须在 9 处 match 中补齐：collect_all_segments / segment_list / settings / app (2 处) / preview / segments/mod.rs 模块注册",
+        "默认主题不加 cache_hit 配置（沿用 Update segment 模式），用户手动在 config.toml 加 [[segments]] id = \"cache_hit\" 启用"
+      ]
+    }
+  ]
+}
