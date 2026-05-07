@@ -6,6 +6,8 @@ pub mod git;
 pub mod model;
 pub mod output_style;
 pub mod session;
+pub mod session_tokens;
+pub mod since_reply;
 pub mod update;
 pub mod usage;
 
@@ -34,5 +36,7 @@ pub use git::GitSegment;
 pub use model::ModelSegment;
 pub use output_style::OutputStyleSegment;
 pub use session::SessionSegment;
+pub use session_tokens::SessionTokensSegment;
+pub use since_reply::SinceReplySegment;
 pub use update::UpdateSegment;
 pub use usage::UsageSegment;

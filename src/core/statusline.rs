@@ -510,7 +510,20 @@ pub fn collect_all_segments(
                 segment.collect(input)
             }
             crate::config::SegmentId::CacheHit => {
-                let segment = CacheHitSegment::new();
+                let mode = segment_config
+                    .options
+                    .get("mode")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or("last");
+                let segment = CacheHitSegment::new().with_mode(mode);
+                segment.collect(input)
+            }
+            crate::config::SegmentId::SinceReply => {
+                let segment = SinceReplySegment::new();
+                segment.collect(input)
+            }
+            crate::config::SegmentId::SessionTokens => {
+                let segment = SessionTokensSegment::new();
                 segment.collect(input)
             }
         };

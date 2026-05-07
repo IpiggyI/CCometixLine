@@ -196,6 +196,31 @@ impl PreviewComponent {
                         map
                     },
                 },
+                SegmentId::SinceReply => SegmentData {
+                    primary: "42s".to_string(),
+                    secondary: "".to_string(),
+                    metadata: {
+                        let mut map = HashMap::new();
+                        map.insert("seconds".to_string(), "42".to_string());
+                        map.insert(
+                            "last_assistant_at".to_string(),
+                            "2026-05-07T12:00:00Z".to_string(),
+                        );
+                        map
+                    },
+                },
+                SegmentId::SessionTokens => SegmentData {
+                    primary: "in 1.5k|42k · out 300|8.2k · cache 45.2k|120k".to_string(),
+                    secondary: "".to_string(),
+                    metadata: {
+                        let mut map = HashMap::new();
+                        map.insert("turns".to_string(), "12".to_string());
+                        map.insert("total_input".to_string(), "42000".to_string());
+                        map.insert("total_output".to_string(), "8200".to_string());
+                        map.insert("total_cache_read".to_string(), "120000".to_string());
+                        map
+                    },
+                },
             };
 
             segments_data.push((segment_config.clone(), mock_data));

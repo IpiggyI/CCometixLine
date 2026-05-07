@@ -74,6 +74,8 @@ pub enum SegmentId {
     OutputStyle,
     Update,
     CacheHit,
+    SinceReply,
+    SessionTokens,
 }
 
 // Legacy compatibility structure
@@ -213,6 +215,19 @@ pub struct NormalizedUsage {
     // Metadata for debugging and analysis
     pub calculation_source: String,
     pub raw_data_available: Vec<String>,
+}
+
+/// Session-level usage stats produced by walking a transcript file once.
+///
+/// `totals` is the cumulative sum across all assistant turns (sidechain
+/// excluded). `last_turn` is the last assistant turn's normalized usage —
+/// kept so callers like `cache_hit` can show "current" alongside totals.
+#[derive(Debug, Clone, Default)]
+pub struct SessionUsageStats {
+    pub totals: NormalizedUsage,
+    pub last_turn: NormalizedUsage,
+    pub last_assistant_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub assistant_count: u32,
 }
 
 impl NormalizedUsage {
@@ -451,4 +466,7 @@ pub struct TranscriptEntry {
     #[serde(rename = "parentUuid")]
     pub parent_uuid: Option<String>,
     pub summary: Option<String>,
+    pub timestamp: Option<String>,
+    #[serde(rename = "isSidechain", default)]
+    pub is_sidechain: Option<bool>,
 }

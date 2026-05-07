@@ -507,6 +507,8 @@ impl App {
                         SegmentId::OutputStyle => "Output Style",
                         SegmentId::Update => "Update",
                         SegmentId::CacheHit => "Cache Hit",
+                        SegmentId::SinceReply => "Since Reply",
+                        SegmentId::SessionTokens => "Session Tokens",
                     };
                     let is_enabled = segment.enabled;
                     self.status_message = Some(format!(
@@ -535,6 +537,8 @@ impl App {
                                 SegmentId::OutputStyle => "Output Style",
                                 SegmentId::Update => "Update",
                                 SegmentId::CacheHit => "Cache Hit",
+                                SegmentId::SinceReply => "Since Reply",
+                                SegmentId::SessionTokens => "Session Tokens",
                             };
                             let is_enabled = segment.enabled;
                             self.status_message = Some(format!(
