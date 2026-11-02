@@ -1,8 +1,9 @@
-// The ccline companion mod: a data bridge, nothing else. It watches the
+// The ccline companion mod watches the
 // session from inside Claude Code and writes what the status line's JSON
 // lacks to `<ccline home>/bridge/<session id>.json`, which ccline reads when
-// it renders. It draws no UI and changes nothing about the session: every
-// hook passes its event on untouched.
+// it renders. When explicitly enabled in ccline's config, it also compacts
+// idle terminal sessions whose native idle compaction cannot run. It draws
+// no UI; every hook passes its event on untouched.
 //
 // Written by ccline from the copy built into it. Format: src/state/bridge.rs
 // in CCometixLine.
@@ -40,6 +41,8 @@ type Turn = {
 type Tool = { name: string; since: number; agent?: string }
 type Agent = { id: string; type: string; status: string; description?: string }
 type Chunk = { kind?: string; usage?: { output_tokens?: number; model?: string } | null }
+// Optional extension to v1; the Rust bridge reader ignores unknown fields.
+type IdleCompact = { state: 'off' | 'armed' | 'done' | 'skipped' | 'failed'; at: number; reason: string }
 
 /** What the bridge holds, kept between events. */
 const live = {
@@ -51,6 +54,10 @@ const live = {
   tools: new Map<string, Tool>(),
   pending: false,
   seq: 0,
+  idle: undefined as IdleCompact | undefined,
+  idleGeneration: 0,
+  running: undefined as string | undefined,
+  ended: false,
 }
 
 // Where to write: the path the installer left beside the mod, else the
@@ -72,6 +79,10 @@ async function where($: $): Promise<string | undefined> {
 
 // Forget what the bridge held for another session.
 function reset(session: string) {
+  live.idleGeneration++
+  live.idle = undefined
+  live.running = undefined
+  live.ended = false
   live.session = session
   live.context = undefined
   live.turn = undefined
@@ -85,7 +96,10 @@ async function follow($: $) {
   try {
     const id = await $.session.id()
     if (id && id !== live.session) reset(id)
-  } catch {}
+    return Boolean(id)
+  } catch {
+    return false
+  }
 }
 
 async function write($: $) {
@@ -101,6 +115,7 @@ async function write($: $) {
       turn: live.turn,
       tools: [...live.tools.values()],
       agents: live.agents,
+      idle_compact: live.idle,
     }
     await $.fs.write(`${to}/${live.session}.json`, JSON.stringify(doc))
   } catch {}
@@ -150,6 +165,150 @@ async function now($: $): Promise<number> {
   return $.clock.now()
 }
 
+// Strip TOML comments without treating a quoted '#' as a comment.
+function uncomment(line: string): string | undefined {
+  let quote = ''
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]
+    if (quote === '"' && c === '\\') i++
+    else if (quote && c === quote) quote = ''
+    else if (!quote && (c === '"' || c === "'")) quote = c
+    else if (!quote && c === '#') return line.slice(0, i).trim()
+  }
+  return quote ? undefined : line.trim()
+}
+
+// Read only this small table, leaving the rest of ccline's TOML alone.
+function idleConfig(text: string): { enabled: boolean; margin: number } | undefined {
+  const config = { enabled: false, margin: 180 }
+  let inside = false
+  const seen = new Set<string>()
+  for (const raw of text.split(/\r?\n/)) {
+    const line = uncomment(raw)
+    if (line?.startsWith('[')) {
+      inside = /^\[\s*(?:idle_compact|"idle_compact"|'idle_compact')\s*\]$/.test(line)
+      continue
+    }
+    if (!inside || line === '') continue
+    const pair = line?.match(/^(?:([\w-]+)|"([^"\\]+)"|'([^']+)')\s*=\s*(.*?)\s*$/)
+    if (!pair) return
+    const key = pair[1] ?? pair[2] ?? pair[3]
+    if (key !== 'enabled' && key !== 'margin_secs') continue
+    if (seen.has(key)) return
+    seen.add(key)
+    if (key === 'enabled') {
+      if (!/^(true|false)$/.test(pair[4])) return
+      config.enabled = pair[4] === 'true'
+    } else {
+      if (!/^[+-]?\d(?:_?\d)*$/.test(pair[4])) return
+      const margin = Number(pair[4].replace(/_/g, ''))
+      if (!Number.isFinite(margin)) return
+      config.margin = Math.max(30, Math.min(900, margin))
+    }
+  }
+  return config
+}
+
+const truthy = (value: string | undefined) => /^(1|true|yes|on)$/i.test(value?.trim() ?? '')
+
+async function flagsUnavailable($: $): Promise<boolean> {
+  if (await $.env.get('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC') ||
+      await $.env.get('DISABLE_GROWTHBOOK') || await $.env.get('DISABLE_TELEMETRY') ||
+      await $.env.get('DO_NOT_TRACK')) return true
+  if (truthy(await $.env.get('CLAUDE_CODE_USE_GATEWAY'))) return true
+  if (await $.env.get('CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST')) return false
+  return truthy(await $.env.get('CLAUDE_CODE_USE_BEDROCK')) ||
+    truthy(await $.env.get('CLAUDE_CODE_USE_VERTEX')) || truthy(await $.env.get('CLAUDE_CODE_USE_FOUNDRY'))
+}
+
+function stateTokens(context: any): number | undefined {
+  const usage = context?.current_usage
+  if (usage && typeof usage.input_tokens === 'number') {
+    return usage.input_tokens + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0)
+  }
+  if (typeof context?.used_percentage === 'number' && typeof context.context_window_size === 'number') {
+    return context.used_percentage * context.context_window_size / 100
+  }
+  return context?.total_input_tokens
+}
+
+async function idleWindow($: $): Promise<string | { expires: number; margin: number }> {
+  const bridge = await where($)
+  if (!bridge) return 'ccline home unavailable'
+  const home = bridge.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]+$/, '')
+  const config = idleConfig(String(await $.fs.read(`${home}/config.toml`)))
+  if (!config?.enabled) return 'disabled in ccline config'
+  if (await $.env.get('DISABLE_AUTO_COMPACT')) return 'DISABLE_AUTO_COMPACT is set'
+  if (!live.context?.auto) return 'auto compaction is off or unknown'
+  if (await $.settings.read({ key: 'idleCompaction' }) === false) return 'idleCompaction is false'
+  if (!(await $.session.surfaces()).includes('terminal')) return 'no terminal surface'
+  if (!await flagsUnavailable($)) return 'native idle compaction is available'
+  const id = live.session?.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80)
+  if (!id) return 'no safe session id'
+  const input = JSON.parse(String(await $.fs.read(`${home}/state/sessions/${id}.json`)))?.last_input
+  const cache = input?.prompt_cache
+  if (cache?.ttl !== '1h' || cache.warm !== true) return 'cache is not warm with a 1h TTL'
+  if (typeof cache.expires_at !== 'number' || !Number.isFinite(cache.expires_at)) return 'cache expiry unavailable'
+  const raw = await $.env.get('CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS')
+  const threshold = raw?.trim() && Number.isFinite(Number(raw)) ? Math.max(100_000, Number(raw)) : 200_000
+  const used = live.context.used ?? stateTokens(input?.context_window)
+  if (typeof used !== 'number' || !Number.isFinite(used) || used < threshold) return 'context below idle threshold'
+  return { expires: cache.expires_at * 1000, margin: config.margin * 1000 }
+}
+
+async function idleStatus($: $, state: IdleCompact['state'], reason: string) {
+  const generation = live.idleGeneration
+  const at = await now($)
+  if (generation !== live.idleGeneration) return
+  live.idle = { state, at, reason }
+  flush($)
+}
+
+async function compactIdle($: $, at: number) {
+  // Disarm before invoking compact: a rejection also consumes this attempt.
+  const attempt = ++live.idleGeneration
+  live.idle = { state: 'armed', at, reason: 'compaction requested' }
+  flush($)
+  try {
+    const result = await $.session.compact()
+    if (attempt !== live.idleGeneration) return
+    await idleStatus($, result?.skip ? 'skipped' : 'done', result?.skip ?? 'idle compaction completed')
+  } catch {
+    if (attempt === live.idleGeneration) await idleStatus($, 'failed', 'session.compact rejected')
+  }
+}
+
+// Generation checks invalidate both queued timers and work awaiting host calls.
+async function checkIdle($: $, generation: number) {
+  const current = () => generation === live.idleGeneration && !live.ended
+  try {
+    const known = await follow($)
+    if (!current()) return
+    if (!known) return await idleStatus($, 'off', 'session id unavailable')
+    const window = await idleWindow($)
+    const confirmed = await follow($)
+    if (!current()) return
+    if (!confirmed) return await idleStatus($, 'off', 'session id unavailable')
+    if (typeof window === 'string') return await idleStatus($, 'off', window)
+    const at = await now($)
+    if (!current()) return
+    if (at > window.expires - 10_000) return await idleStatus($, 'skipped', 'cache compaction window missed')
+    if (live.running !== undefined || live.tools.size > 0 || at < window.expires - window.margin) {
+      await idleStatus($, 'armed', 'waiting for an idle warm cache window')
+      $.clock.after(Math.min(15_000, window.expires - 10_000 - at || 15_000), () => checkIdle($, generation))
+      return
+    }
+    await compactIdle($, at)
+  } catch {
+    if (current()) await idleStatus($, 'off', 'idle compaction inputs unreadable')
+  }
+}
+
+function turnStarted(turn: string) {
+  live.running = turn
+  live.idleGeneration++
+}
+
 // One main-loop request is done: its time to first token and its speed,
 // shown while the turn goes on rather than once it ends.
 function timed(sent: number, first: number, last: number, output?: number, model?: string) {
@@ -167,6 +326,10 @@ function timed(sent: number, first: number, last: number, output?: number, model
 export const register: Register = (on) => {
   live.dir = undefined
   live.pending = false
+  live.idleGeneration++
+  live.idle = undefined
+  live.running = undefined
+  live.ended = false
 
   on('session.start', async ($, e, next) => {
     const started = await next(e)
@@ -176,6 +339,15 @@ export const register: Register = (on) => {
       await write($)
     } catch {}
     return started
+  })
+
+  on('turn.start', async ($, e, next) => {
+    if (e.agentId === undefined) {
+      turnStarted(e.turnId)
+      await follow($)
+      live.running = e.turnId
+    }
+    return next(e)
   })
 
   // After each main-thread turn, and when a rate limit moves.
@@ -195,7 +367,9 @@ export const register: Register = (on) => {
   // Subagents' requests pass straight through.
   on('turn.step', async function* ($, e, next) {
     if (e.agentId !== undefined) return yield* next(e)
+    turnStarted(e.turnId)
     await follow($)
+    live.running = e.turnId
     const sent = await now($)
     let first: number | undefined
     let output: number | undefined
@@ -237,6 +411,11 @@ export const register: Register = (on) => {
       await follow($)
       if (e.agentId === undefined) {
         live.turn = { ...live.turn, duration_ms: e.durationMs, ended_at: await now($) }
+        if (live.running === undefined || live.running === e.turnId) {
+          live.running = undefined
+          await measure($)
+          await checkIdle($, ++live.idleGeneration)
+        }
       }
       await listAgents($)
       flush($)
@@ -269,6 +448,9 @@ export const register: Register = (on) => {
   })
 
   on('session.end', async ($, e, next) => {
+    live.ended = true
+    live.idleGeneration++
+    await idleStatus($, 'off', 'session ended')
     live.tools.clear()
     live.agents = []
     await write($)

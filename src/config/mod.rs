@@ -179,6 +179,27 @@ impl Default for UpdateConfig {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
+pub struct IdleCompactConfig {
+    pub enabled: bool,
+    #[serde(deserialize_with = "idle_compact_margin")]
+    pub margin_secs: u64,
+}
+
+impl Default for IdleCompactConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            margin_secs: 180,
+        }
+    }
+}
+
+fn idle_compact_margin<'de, D: Deserializer<'de>>(d: D) -> Result<u64, D::Error> {
+    Ok(i64::deserialize(d)?.clamp(30, 900) as u64)
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Config {
     pub version: u32,
     /// The preset this config started from, for "modified" indicators.
@@ -200,6 +221,7 @@ pub struct Config {
     pub palette_overrides: BTreeMap<String, String>,
     pub git: GitConfig,
     pub update: UpdateConfig,
+    pub idle_compact: IdleCompactConfig,
     /// The line drawn for each background task (`subagentStatusLine`); a
     /// built-in line when absent.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -226,6 +248,7 @@ impl Default for Config {
             palette_overrides: BTreeMap::new(),
             git: GitConfig::default(),
             update: UpdateConfig::default(),
+            idle_compact: IdleCompactConfig::default(),
             subagent: None,
             lines: Vec::new(),
         }
@@ -294,6 +317,22 @@ pub fn load_from(path: &Path) -> (Config, LoadNote) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn idle_compact_is_opt_in_and_bounds_its_margin() {
+        let old: Config = toml::from_str("version = 2").unwrap();
+        assert_eq!(old.idle_compact, IdleCompactConfig::default());
+        let enabled: Config = toml::from_str("[idle_compact]\nenabled = true").unwrap();
+        assert!(enabled.idle_compact.enabled);
+        assert_eq!(enabled.idle_compact.margin_secs, 180);
+        for (given, expected) in [(-1, 30), (30, 30), (240, 240), (900, 900), (901, 900)] {
+            let c: Config = toml::from_str(&format!(
+                "[idle_compact]\nenabled = true\nmargin_secs = {given}"
+            ))
+            .unwrap();
+            assert_eq!(c.idle_compact.margin_secs, expected);
+        }
+    }
 
     #[test]
     fn ignores_the_removed_overflow_setting() {
