@@ -4,7 +4,7 @@ use crate::config::{Config, ItemConfig, ItemSpec, LineConfig};
 use crate::env::{AutoCompact, ClaudeSettings};
 use crate::input::{Input, SubagentInput, Task};
 use crate::layout::{self, LaidItem, LineSpec};
-use crate::metrics::{self, Commands, Ctx, GitSource, Options};
+use crate::metrics::{self, Commands, Ctx, GitSource, McpSource, Options, TranscriptSource};
 use crate::models::Registry;
 use crate::render::span::{Line, Span, Style};
 use crate::state::StateView;
@@ -215,6 +215,14 @@ pub fn item_levels(
 fn context<'a>(input: &'a Input, registry: &'a Registry, frame: &Frame, theme: &Theme) -> Ctx<'a> {
     Ctx::new(input, registry, frame.now, frame.tz, theme.glyphs)
         .with_git(frame.git.clone())
+        .with_transcript(match &frame.git {
+            GitSource::Fixed(_) => TranscriptSource::Fixed(frame.state.transcript.clone()),
+            _ => TranscriptSource::Live,
+        })
+        .with_mcp(match &frame.git {
+            GitSource::Fixed(_) => McpSource::Fixed(frame.state.mcp.clone()),
+            _ => McpSource::Live,
+        })
         .with_state(frame.state.clone())
         .with_compact(frame.compact)
         .with_commands(frame.commands.clone())

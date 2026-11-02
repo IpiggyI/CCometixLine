@@ -7,8 +7,10 @@ mod custom;
 pub mod fmt;
 mod identity;
 mod live;
+mod mcp;
 mod projection;
 mod task;
+mod transcript;
 mod usage;
 
 use crate::env::AutoCompact;
@@ -149,6 +151,20 @@ pub enum GitSource {
     Fixed(Option<GitInfo>),
 }
 
+/// Where session transcript data comes from.
+#[derive(Clone)]
+pub enum TranscriptSource {
+    Live,
+    Fixed(Option<crate::state::transcript::Summary>),
+}
+
+/// Where enabled MCP server names come from.
+#[derive(Clone)]
+pub enum McpSource {
+    Live,
+    Fixed(Option<Vec<String>>),
+}
+
 /// How `cmd` items get their output.
 #[derive(Clone, Debug, Default)]
 pub enum Commands {
@@ -177,6 +193,10 @@ pub struct Ctx<'a> {
     git: GitSource,
     git_cache: OnceCell<Option<GitInfo>>,
     model_cache: OnceCell<Option<Resolved>>,
+    transcript: TranscriptSource,
+    transcript_cache: OnceCell<Option<crate::state::transcript::Summary>>,
+    mcp: McpSource,
+    mcp_cache: OnceCell<Option<Vec<String>>>,
 }
 
 impl<'a> Ctx<'a> {
@@ -201,12 +221,46 @@ impl<'a> Ctx<'a> {
             git: GitSource::Live,
             git_cache: OnceCell::new(),
             model_cache: OnceCell::new(),
+            transcript: TranscriptSource::Live,
+            transcript_cache: OnceCell::new(),
+            mcp: McpSource::Live,
+            mcp_cache: OnceCell::new(),
         }
     }
 
     pub fn with_git(mut self, git: GitSource) -> Self {
         self.git = git;
         self
+    }
+
+    pub fn with_transcript(mut self, source: TranscriptSource) -> Self {
+        self.transcript = source;
+        self
+    }
+
+    pub fn with_mcp(mut self, source: McpSource) -> Self {
+        self.mcp = source;
+        self
+    }
+
+    pub fn transcript(&self) -> Option<&crate::state::transcript::Summary> {
+        self.transcript_cache
+            .get_or_init(|| match &self.transcript {
+                TranscriptSource::Live => crate::state::transcript::read(Path::new(
+                    self.input.transcript_path.as_deref()?,
+                )),
+                TranscriptSource::Fixed(summary) => summary.clone(),
+            })
+            .as_ref()
+    }
+
+    pub fn mcp(&self) -> Option<&[String]> {
+        self.mcp_cache
+            .get_or_init(|| match &self.mcp {
+                McpSource::Live => mcp::servers(self.input),
+                McpSource::Fixed(names) => names.clone(),
+            })
+            .as_deref()
     }
 
     pub fn with_state(mut self, state: StateView) -> Self {
@@ -279,6 +333,8 @@ pub fn catalog() -> &'static [Metric] {
         all.extend(custom::metrics());
         all.extend(live::metrics());
         all.extend(task::metrics());
+        all.extend(transcript::metrics());
+        all.push(mcp::metric());
         all
     })
 }

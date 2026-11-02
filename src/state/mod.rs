@@ -11,6 +11,7 @@ pub mod ledger;
 pub mod models_seen;
 pub mod session;
 pub mod swr;
+pub mod transcript;
 pub mod update;
 
 use crate::input::Input;
@@ -161,6 +162,9 @@ pub fn sometimes(every: u32, f: impl FnOnce()) {
 /// What metrics may read from state during a render.
 #[derive(Clone, Debug, Default)]
 pub struct StateView {
+    /// Fixed transcript and MCP data for previews; live renders read lazily.
+    pub transcript: Option<transcript::Summary>,
+    pub mcp: Option<Vec<String>>,
     /// Samples of this session, oldest first, ending with the current one.
     pub samples: Vec<Sample>,
     /// Spend across sessions today, from the ledger.
@@ -237,6 +241,8 @@ pub fn observe(
     }
     bridge::prune();
     StateView {
+        transcript: None,
+        mcp: None,
         samples,
         today_cost: ledger.as_ref().map(ledger::Ledger::today),
         week_cost: costs.map(|c| c.0),

@@ -514,6 +514,30 @@ pub fn find(name: &str) -> Option<&'static Scenario> {
 }
 
 impl Scenario {
+    /// Fixed session data, independent of the machine showing the preview.
+    pub fn transcript(&self, now: i64) -> Option<crate::state::transcript::Summary> {
+        use crate::state::transcript::{Hooks, Skills, Summary};
+        (self.name != "old-cc").then(|| Summary {
+            start: Some(now - 3 * 3600 - 12 * 60),
+            last_reply: Some(now - 45),
+            advisor: Some("claude-opus-5-5".into()),
+            skills: Skills {
+                running: vec!["trellis-meta".into()],
+                done: vec!["code-review".into()],
+                count: 2,
+            },
+            hooks: Hooks {
+                last: Some("PreToolUse:Bash".into()),
+                counts: [("PreToolUse".into(), 5), ("Stop".into(), 1)].into(),
+                ..Hooks::default()
+            },
+        })
+    }
+
+    pub fn mcp(&self) -> Option<Vec<String>> {
+        (self.name != "old-cc").then(|| vec!["context7".into(), "github".into()])
+    }
+
     pub fn git(&self) -> Option<GitInfo> {
         self.git.as_ref().map(GitSpec::info)
     }
@@ -555,6 +579,8 @@ impl Scenario {
             .chain(std::iter::once(current))
             .collect();
         StateView {
+            transcript: self.transcript(now),
+            mcp: self.mcp(),
             samples,
             today_cost: self.today,
             week_cost: self.today.map(|today| today * 4.0),
@@ -613,7 +639,7 @@ mod tests {
     /// timing, so none is gray for want of data.
     #[test]
     fn subscriber_samples_have_every_metric() {
-        use crate::metrics::{self, Ctx, GitSource, Options};
+        use crate::metrics::{self, Ctx, GitSource, McpSource, Options, TranscriptSource};
         let registry = crate::models::Registry::default();
         let tz = chrono::FixedOffset::east_opt(0).unwrap();
         for name in [
@@ -628,6 +654,8 @@ mod tests {
             let input = s.input(BASE);
             let ctx = Ctx::new(&input, &registry, BASE, tz, crate::style::GlyphTier::Nerd)
                 .with_git(GitSource::Fixed(s.git()))
+                .with_transcript(TranscriptSource::Fixed(s.transcript(BASE)))
+                .with_mcp(McpSource::Fixed(s.mcp()))
                 .with_state(s.state(BASE));
             for id in ["quota.5h", "quota.7d", "cache", "timing.ttft", "timing.tps"] {
                 let metric = metrics::find(id).unwrap();
@@ -642,7 +670,7 @@ mod tests {
     /// sample. `cmd` needs a command and `task.*` belong to the subagent line.
     #[test]
     fn normal_shows_all_but_situational_metrics() {
-        use crate::metrics::{self, Ctx, GitSource, Options};
+        use crate::metrics::{self, Ctx, GitSource, McpSource, Options, TranscriptSource};
         let situational = ["update", "quota.spend", "quota.eta", "worktree"];
         let registry = crate::models::Registry::default();
         let tz = chrono::FixedOffset::east_opt(0).unwrap();
@@ -652,6 +680,8 @@ mod tests {
                 let input = s.input(BASE);
                 let ctx = Ctx::new(&input, &registry, BASE, tz, crate::style::GlyphTier::Nerd)
                     .with_git(GitSource::Fixed(s.git()))
+                    .with_transcript(TranscriptSource::Fixed(s.transcript(BASE)))
+                    .with_mcp(McpSource::Fixed(s.mcp()))
                     .with_state(s.state(BASE));
                 let shown: Vec<_> = metrics::catalog()
                     .iter()

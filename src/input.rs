@@ -374,6 +374,15 @@ impl Input {
     pub fn model_id(&self) -> Option<&str> {
         self.model.as_ref().and_then(|m| m.id.as_deref())
     }
+
+    /// The project root for project-scoped configuration, falling back to cwd.
+    pub fn project_dir(&self) -> Option<&str> {
+        self.workspace
+            .as_ref()
+            .and_then(|w| w.project_dir.as_deref())
+            .filter(|d| !d.is_empty())
+            .or(self.cwd.as_deref().filter(|d| !d.is_empty()))
+    }
 }
 
 #[cfg(test)]
