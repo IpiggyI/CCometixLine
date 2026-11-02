@@ -165,6 +165,12 @@ pub struct StateView {
     pub samples: Vec<Sample>,
     /// Spend across sessions today, from the ledger.
     pub today_cost: Option<f64>,
+    /// Spend across local days in the current seven-day window.
+    pub week_cost: Option<f64>,
+    /// Opening timestamp of the counted seven-day window.
+    pub week_since: Option<i64>,
+    /// Spend across local days in the current calendar month.
+    pub month_cost: Option<f64>,
     /// Newest ccline version known to be published.
     pub latest_version: Option<String>,
     /// What the companion mod reports for this session.
@@ -198,7 +204,7 @@ pub fn observe(
     session.last_input = serde_json::from_str(raw).ok();
     session.save_if_needed(id, now, added);
 
-    let today_cost = current.cost.and_then(|cost| {
+    let ledger = current.cost.and_then(|cost| {
         let local = DateTime::from_timestamp(now, 0)?.with_timezone(&tz);
         let midnight = now - local.num_seconds_from_midnight() as i64;
         let started_today = input
@@ -209,6 +215,9 @@ pub fn observe(
         let date = local.format("%Y-%m-%d").to_string();
         Some(ledger::update(id, cost, started_today, &date, now))
     });
+    let costs = ledger
+        .as_ref()
+        .and_then(|l| period_costs(input, l, now, tz));
 
     if let Some(model) = &input.model
         && let Some(model_id) = model.id.as_deref()
@@ -229,15 +238,93 @@ pub fn observe(
     bridge::prune();
     StateView {
         samples,
-        today_cost,
+        today_cost: ledger.as_ref().map(ledger::Ledger::today),
+        week_cost: costs.map(|c| c.0),
+        week_since: costs.map(|c| c.1),
+        month_cost: costs.map(|c| c.2),
         latest_version: None,
         bridge: bridge::read(id, now * 1000).map(std::rc::Rc::new),
     }
 }
 
+/// Daily totals include the whole local day when a quota window opens mid-day.
+fn period_costs(
+    input: &Input,
+    ledger: &ledger::Ledger,
+    now: i64,
+    tz: FixedOffset,
+) -> Option<(f64, i64, f64)> {
+    let local = DateTime::from_timestamp(now, 0)?.with_timezone(&tz);
+    let midnight = now - local.num_seconds_from_midnight() as i64;
+    let since = input
+        .rate_limits
+        .as_ref()
+        .and_then(|r| r.seven_day.as_ref())
+        .and_then(|w| w.resets_at)
+        .filter(|t| t.is_finite())
+        .map_or(midnight - 6 * 86_400, |reset| {
+            (reset as i64).saturating_sub(7 * 86_400)
+        });
+    let week_date = DateTime::from_timestamp(since, 0)?
+        .with_timezone(&tz)
+        .format("%Y-%m-%d")
+        .to_string();
+    let month_date = local.format("%Y-%m-01").to_string();
+    Some((ledger.since(&week_date), since, ledger.since(&month_date)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn period_totals_use_local_dates_and_quota_opening() {
+        let tz = FixedOffset::east_opt(8 * 3600).unwrap();
+        let now = DateTime::parse_from_rfc3339("2026-11-02T01:00:00+08:00")
+            .unwrap()
+            .timestamp();
+        let mut ledger = ledger::Ledger::default();
+        for (day, cost) in [
+            ("2026-10-26", 1.0),
+            ("2026-10-27", 3.0),
+            ("2026-10-31", 7.0),
+            ("2026-11-01", 15.0),
+            ("2026-11-02", 31.0),
+        ] {
+            ledger.record(day, "a", cost, false, 0);
+        }
+        let mut input = Input::default();
+        let (week, since, month) = period_costs(&input, &ledger, now, tz).unwrap();
+        assert_eq!(week, 30.0);
+        assert_eq!(month, 24.0);
+        assert_eq!(
+            since,
+            DateTime::parse_from_rfc3339("2026-10-27T00:00:00+08:00")
+                .unwrap()
+                .timestamp()
+        );
+        let opening = DateTime::parse_from_rfc3339("2026-10-31T12:00:00+08:00")
+            .unwrap()
+            .timestamp();
+        input.rate_limits = Some(crate::input::RateLimits {
+            seven_day: Some(crate::input::Window {
+                resets_at: Some((opening + 7 * 86_400) as f64),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+        assert_eq!(
+            period_costs(&input, &ledger, now, tz),
+            Some((28.0, opening, 24.0))
+        );
+        let december = DateTime::parse_from_rfc3339("2026-12-01T00:00:00+08:00")
+            .unwrap()
+            .timestamp();
+        ledger.record("2026-12-01", "a", 32.0, false, 0);
+        input.rate_limits = None;
+        let (week, _, month) = period_costs(&input, &ledger, december, tz).unwrap();
+        assert_eq!((week, month), (1.0, 1.0));
+    }
 
     #[test]
     fn keys_are_stable_and_names_safe() {

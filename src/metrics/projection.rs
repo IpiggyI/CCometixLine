@@ -125,6 +125,36 @@ pub(super) fn metrics() -> Vec<Metric> {
         },
         Metric {
             meta: MetricMeta {
+                stateful: true,
+                ..meta(
+                    "cost.week",
+                    Category::Cost,
+                    "Spent this week",
+                    "Spend across sessions since the seven-day window opened",
+                    IconKey::Today,
+                    ["{usd} this week", "{usd}", "{usd}"],
+                    &["usd", "since"],
+                )
+            },
+            compute: cost_week,
+        },
+        Metric {
+            meta: MetricMeta {
+                stateful: true,
+                ..meta(
+                    "cost.month",
+                    Category::Cost,
+                    "Spent this month",
+                    "Spend across sessions since the first local day of this month",
+                    IconKey::Today,
+                    ["{usd} this month", "{usd}", "{usd}"],
+                    &["usd"],
+                )
+            },
+            compute: cost_month,
+        },
+        Metric {
+            meta: MetricMeta {
                 min_cc: Some(gate::PROMPT_CACHE),
                 ..meta(
                     "cache.cold_cost",
@@ -259,17 +289,33 @@ fn cost_today(ctx: &Ctx, _: &Options) -> Option<Reading> {
     Some(Reading::default().set("usd", fmt::money(usd)))
 }
 
+fn cost_week(ctx: &Ctx, _: &Options) -> Option<Reading> {
+    Some(
+        Reading::default()
+            .set("usd", fmt::money(ctx.state.week_cost?))
+            .set("since", fmt::clock(ctx.state.week_since?, ctx.now, ctx.tz)),
+    )
+}
+
+fn cost_month(ctx: &Ctx, _: &Options) -> Option<Reading> {
+    Some(Reading::default().set("usd", fmt::money(ctx.state.month_cost?)))
+}
+
 /// Estimated cost of writing the prompt cache again from scratch, and the
 /// tokens involved.
 pub(super) fn rewarm_cost(ctx: &Ctx) -> Option<(f64, u64)> {
     let pc = ctx.input.prompt_cache.as_ref()?;
     let tokens = pc.recache_tokens_if_cold.filter(|t| *t > 0)?;
-    let price = builtin::input_price(ctx.input.model_id()?)?;
+    let price = builtin::price(
+        ctx.input.model_id()?,
+        ctx.input.fast_mode == Some(true),
+        tokens,
+    )?;
     let write = match pc.ttl.as_deref() {
-        Some("1h") => 2.0,
-        _ => 1.25,
+        Some("1h") => price.cache_write_1h,
+        _ => price.cache_write_5m,
     };
-    Some((tokens as f64 * price * write / 1_000_000.0, tokens))
+    Some((tokens as f64 * write / 1_000_000.0, tokens))
 }
 
 fn cold_cost(ctx: &Ctx, _: &Options) -> Option<Reading> {
@@ -463,10 +509,66 @@ mod tests {
         // 182k tokens of Opus 4.8 at $5/M, written with the 5-minute TTL.
         let r = reading("cache.cold_cost", "near-full").unwrap();
         assert_eq!(field(&r, "usd"), "$1.14");
-        // 270k tokens of Opus 5.5 written with the 1-hour TTL.
+        // 270k tokens of fast Opus 5.5 at $8/M, written with the 1-hour TTL.
         let big = reading("cache.cold_cost", "big-context").unwrap();
-        assert_eq!(field(&big, "usd"), "$2.70");
+        assert_eq!(field(&big, "usd"), "$4.32");
         assert!(reading("cache.cold_cost", "third-party").is_none());
+    }
+
+    #[test]
+    fn prices_rewarming_with_fast_mode_and_prompt_tiers() {
+        let reg = Registry::default();
+        for (id, fast, tokens, ttl, expected) in [
+            ("claude-opus-5-5", true, 100_000, "5m", 1.0),
+            ("claude-opus-5", true, 100_000, "1h", 2.0),
+            ("claude-opus-4-8", true, 100_000, "5m", 1.25),
+            ("claude-sonnet-5-5", true, 100_000, "5m", 0.25),
+            ("claude-haiku-5-5", false, 100_000, "5m", 0.0125),
+            ("claude-haiku-5-5", false, 100_001, "5m", 0.062500625),
+            ("claude-haiku-5-5", true, 100_001, "1h", 0.100001),
+        ] {
+            let input = crate::input::Input::parse(
+                &serde_json::json!({
+                    "model": {"id": id}, "fast_mode": fast, "version": "2.1.305",
+                    "prompt_cache": {"recache_tokens_if_cold": tokens, "ttl": ttl}
+                })
+                .to_string(),
+            )
+            .unwrap();
+            let ctx = Ctx::new(
+                &input,
+                &reg,
+                BASE,
+                FixedOffset::east_opt(0).unwrap(),
+                GlyphTier::Unicode,
+            );
+            let (usd, count) = rewarm_cost(&ctx).unwrap();
+            assert!((usd - expected).abs() < 1e-10, "{id}: {usd}");
+            assert_eq!(count, tokens);
+            let r = read(find("cache.cold_cost").unwrap(), &ctx, &Options::new()).unwrap();
+            assert_eq!(field(&r, "usd"), fmt::money(expected));
+            let cache = read(find("cache").unwrap(), &ctx, &Options::new()).unwrap();
+            assert_eq!(field(&cache, "rewarm"), fmt::money(expected));
+        }
+    }
+
+    #[test]
+    fn renders_week_and_month_from_ledger_state() {
+        let week = reading("cost.week", "normal").unwrap();
+        assert_eq!(field(&week, "usd"), "$19.40");
+        let state = scenarios::find("normal").unwrap().state(BASE);
+        assert_eq!(
+            field(&week, "since"),
+            fmt::clock(
+                state.week_since.unwrap(),
+                BASE,
+                FixedOffset::east_opt(0).unwrap()
+            )
+        );
+        assert_eq!(
+            field(&reading("cost.month", "normal").unwrap(), "usd"),
+            "$58.20"
+        );
     }
 
     #[test]

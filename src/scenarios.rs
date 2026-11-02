@@ -557,6 +557,13 @@ impl Scenario {
         StateView {
             samples,
             today_cost: self.today,
+            week_cost: self.today.map(|today| today * 4.0),
+            week_since: self.today.map(|_| {
+                current
+                    .d7_reset
+                    .map_or(now - 6 * 86_400, |reset| reset - 7 * 86_400)
+            }),
+            month_cost: self.today.map(|today| today * 12.0),
             latest_version: self.latest.map(str::to_string),
             bridge: self.bridge(now).map(std::rc::Rc::new),
         }

@@ -87,21 +87,55 @@ pub fn claude_name(id: &str) -> Option<String> {
     })
 }
 
-/// List price of uncached input tokens in USD per million, for estimates.
-/// Cache writes cost 1.25× this with the 5-minute TTL and 2× with 1 hour.
-pub fn input_price(id: &str) -> Option<f64> {
+/// API prices in USD per million tokens.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Price {
+    pub input: f64,
+    pub output: f64,
+    pub cache_write_5m: f64,
+    pub cache_write_1h: f64,
+    pub cache_read: f64,
+}
+
+/// Official pricing: https://platform.claude.com/docs/en/about-claude/pricing.
+/// `prompt_tokens` includes input, cache reads and cache writes. US-only
+/// `inference_geo` adds 1.1x, but is not reported by the input and is not applied.
+pub fn price(id: &str, fast_mode: bool, prompt_tokens: u64) -> Option<Price> {
     let m = claude_model(id)?;
     let version = (m.major, m.minor.unwrap_or(0));
-    match m.family.as_str() {
-        "opus" if version >= (4, 5) => Some(5.0),
-        "opus" => Some(15.0),
-        "sonnet" => Some(3.0),
-        "haiku" if version >= (4, 0) => Some(1.0),
-        "haiku" if version >= (3, 5) => Some(0.8),
-        "haiku" => Some(0.25),
-        "fable" => Some(10.0),
-        _ => None,
+    let (mut input, mut output) = match (m.family.as_str(), version) {
+        ("fable" | "mythos", (5, 0 | 1)) => (10.0, 50.0),
+        ("opus", (5, 5)) => (4.0, 20.0),
+        ("opus", (5, 0) | (4, 5..=8)) => (5.0, 25.0),
+        ("opus", (4, 0 | 1)) => (15.0, 75.0),
+        ("sonnet", (5, 0 | 5)) => (2.0, 10.0),
+        ("sonnet", (4, 0 | 5 | 6)) => (3.0, 15.0),
+        ("haiku", (5, 5)) if prompt_tokens > 100_000 => (0.5, 2.5),
+        ("haiku", (5, 5)) => (0.1, 0.5),
+        ("haiku", (4, 5)) => (1.0, 5.0),
+        ("haiku", (3, 5)) => (0.8, 4.0),
+        ("haiku", (3, 0)) => (0.25, 1.25),
+        _ => return None,
+    };
+    if fast_mode && m.family == "opus" {
+        match version {
+            (5, 5) => (input, output) = (8.0, 40.0),
+            (5, 0) | (4, 8) => (input, output) = (10.0, 50.0),
+            _ => {}
+        }
     }
+    let read = match (m.family.as_str(), version) {
+        ("fable" | "mythos", (5, 1)) => 0.025,
+        ("opus" | "sonnet", (5, 5)) => 0.05,
+        _ => 0.1,
+    };
+    Some(Price {
+        input,
+        output,
+        cache_write_5m: input * 1.25,
+        cache_write_1h: input * 2.0,
+        cache_read: input * read,
+    })
 }
 
 #[cfg(test)]
@@ -130,20 +164,73 @@ mod tests {
     }
 
     #[test]
-    fn prices_by_family_and_version() {
+    fn prices_known_models_only() {
         let cases = [
-            ("claude-opus-4-8", Some(5.0)),
-            ("claude-opus-4-1-20250805", Some(15.0)),
-            ("claude-3-opus-20240229", Some(15.0)),
-            ("claude-sonnet-5", Some(3.0)),
-            ("claude-haiku-4-5", Some(1.0)),
-            ("claude-3-5-haiku-20241022", Some(0.8)),
-            ("claude-3-haiku-20240307", Some(0.25)),
-            ("kimi-k2-turbo-preview", None),
+            ("fable-5-1", 10.0, 50.0, 0.025),
+            ("mythos-5-1", 10.0, 50.0, 0.025),
+            ("fable-5", 10.0, 50.0, 0.1),
+            ("mythos-5", 10.0, 50.0, 0.1),
+            ("opus-5-5", 4.0, 20.0, 0.05),
+            ("opus-5", 5.0, 25.0, 0.1),
+            ("opus-4-8", 5.0, 25.0, 0.1),
+            ("opus-4-7", 5.0, 25.0, 0.1),
+            ("opus-4-6", 5.0, 25.0, 0.1),
+            ("opus-4-5", 5.0, 25.0, 0.1),
+            ("opus-4-1", 15.0, 75.0, 0.1),
+            ("opus-4", 15.0, 75.0, 0.1),
+            ("sonnet-5-5", 2.0, 10.0, 0.05),
+            ("sonnet-5", 2.0, 10.0, 0.1),
+            ("sonnet-4-6", 3.0, 15.0, 0.1),
+            ("sonnet-4-5", 3.0, 15.0, 0.1),
+            ("sonnet-4", 3.0, 15.0, 0.1),
+            ("haiku-5-5", 0.1, 0.5, 0.1),
+            ("haiku-4-5", 1.0, 5.0, 0.1),
+            ("haiku-3-5", 0.8, 4.0, 0.1),
+            ("haiku-3", 0.25, 1.25, 0.1),
         ];
-        for (id, want) in cases {
-            assert_eq!(input_price(id), want, "{id}");
+        for (model, input, output, read) in cases {
+            let p = price(&format!("claude-{model}"), false, 100_000).unwrap();
+            assert_eq!(
+                p,
+                Price {
+                    input,
+                    output,
+                    cache_write_5m: input * 1.25,
+                    cache_write_1h: input * 2.0,
+                    cache_read: input * read,
+                },
+                "{model}"
+            );
         }
+        for model in [
+            "claude-opus-6",
+            "claude-3-opus-20240229",
+            "claude-haiku-4",
+            "gpt-5",
+            "kimi-k2",
+        ] {
+            assert_eq!(price(model, false, 0), None, "{model}");
+        }
+    }
+
+    #[test]
+    fn applies_fast_rates_and_long_prompt_tier() {
+        for (id, input, output) in [
+            ("opus-5-5", 8.0, 40.0),
+            ("opus-5", 10.0, 50.0),
+            ("opus-4-8", 10.0, 50.0),
+        ] {
+            let p = price(&format!("claude-{id}"), true, 0).unwrap();
+            assert_eq!(
+                (p.input, p.output, p.cache_write_5m, p.cache_write_1h),
+                (input, output, input * 1.25, input * 2.0)
+            );
+        }
+        for id in ["claude-sonnet-5-5", "claude-opus-4-7", "claude-haiku-5-5"] {
+            assert_eq!(price(id, true, 0), price(id, false, 0));
+        }
+        let p = price("claude-haiku-5-5", false, 100_001).unwrap();
+        assert_eq!((p.input, p.output, p.cache_read), (0.5, 2.5, 0.05));
     }
 
     #[test]
