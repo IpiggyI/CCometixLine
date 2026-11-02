@@ -31,13 +31,14 @@ expression: render_preset(preset.name)
 ◔ ▕██████████████████▎ ▏ 91% · 182k                                                                                         ◆ Opus 4.8 · Max⏎
 ∿ ▁▃▅▆▇█ +11k │ compact due                                                                                                 ≈ cold · 71% hit⏎
 ── big-context @ 60
-◔ ▕█████▍              ▏ 27% · 270k    ◆ Opus 5.5 1M · xHigh⏎
+◔ ▕█████▍              ▏ 27% · 270k⏎
+                                ◆ Opus 5.5 1M · xHigh · fast⏎
 ∿ ▁▄▆█ +22k │ 697k to compact · ~21 turns  ≈ 45:00 · 97% hit⏎
 ── big-context @ 100
-◔ ▕█████▍              ▏ 27% · 270k                                            ◆ Opus 5.5 1M · xHigh⏎
+◔ ▕█████▍              ▏ 27% · 270k                                     ◆ Opus 5.5 1M · xHigh · fast⏎
 ∿ ▁▄▆█ +22k │ 697k to compact · ~21 turns                                          ≈ 45:00 · 97% hit⏎
 ── big-context @ 140
-◔ ▕█████▍              ▏ 27% · 270k                                                                                    ◆ Opus 5.5 1M · xHigh⏎
+◔ ▕█████▍              ▏ 27% · 270k                                                                             ◆ Opus 5.5 1M · xHigh · fast⏎
 ∿ ▁▄▆█ +22k │ 697k to compact · ~21 turns                                                                                  ≈ 45:00 · 97% hit⏎
 ── third-party @ 60
 ◔ ▕████████████████▎   ▏ 81% · 104k          ◆ Kimi K2 Turbo⏎

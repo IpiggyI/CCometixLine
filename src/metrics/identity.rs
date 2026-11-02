@@ -46,8 +46,12 @@ pub(super) fn metrics() -> Vec<Metric> {
                     "Model",
                     "Model name, corrected by the model registry, with its reasoning effort",
                     IconKey::Model,
-                    ["{name}[ · {effort}]", "{name}[ · {effort}]", "{family}"],
-                    &["name", "family", "id", "effort"],
+                    [
+                        "{name}[ · {effort}][ · {fast}]",
+                        "{name}[ · {effort}][ · {fast}]",
+                        "{family}[ · {fast}]",
+                    ],
+                    &["name", "family", "id", "effort", "fast"],
                 )
             },
             compute: model,
@@ -153,6 +157,9 @@ fn model(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     let with_effort = opts.get("effort").and_then(|v| v.as_bool()).unwrap_or(true);
     if with_effort && let Some(level) = effort(ctx) {
         r = r.set("effort", level);
+    }
+    if ctx.input.fast_mode == Some(true) {
+        r = r.set("fast", "fast");
     }
     Some(r)
 }
@@ -260,6 +267,21 @@ mod tests {
     }
 
     const OPUS: &str = r#""model": {"id": "claude-opus-4-8", "display_name": "Opus 4.8"}"#;
+
+    #[test]
+    fn model_shows_fast_independently_of_effort() {
+        let json = format!(r#"{{{OPUS}, "fast_mode": true, "effort": {{"level": "xhigh"}}}}"#);
+        for level in [0, 1] {
+            assert_eq!(model_text(&json, "", level), "Opus 4.8 · xHigh · fast");
+            assert_eq!(
+                model_text(&json, "effort = false", level),
+                "Opus 4.8 · fast"
+            );
+        }
+        assert_eq!(model_text(&json, "", 2), "Opus · fast");
+        let off = format!(r#"{{{OPUS}, "fast_mode": false}}"#);
+        assert_eq!(model_text(&off, "", 0), "Opus 4.8");
+    }
 
     #[test]
     fn model_carries_the_effort_while_thinking() {

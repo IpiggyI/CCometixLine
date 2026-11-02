@@ -1,7 +1,7 @@
 //! Context, rate limits, cost, prompt cache and session time.
 
 use super::projection::{self, Limit};
-use super::{Ctx, LEVELS, Metric, MetricMeta, Options, Reading, fmt};
+use super::{Ctx, LEVELS, Metric, MetricMeta, OptKind, OptSpec, Options, Reading, fmt};
 use crate::input::{ContextWindow, SpendLimit, Window};
 use crate::style::{Category, GlyphTier, IconKey, Role, Severity};
 use crate::version::gate;
@@ -37,6 +37,20 @@ fn meta(
 
 const WINDOW_FIELDS: &[&str] = &["pct", "reset", "left", "pace", "arrow", "eta"];
 const WINDOW_TEMPLATES: [&str; 3] = ["{pct}%[ · {reset}]", "{pct}%", "{pct}%"];
+const WINDOW_OPTIONS: &[OptSpec] = &[
+    OptSpec {
+        key: "countdown",
+        kind: OptKind::Choice(&["compact", "spaced", "coarse"]),
+        default: "compact",
+        summary: "How to format the time left",
+    },
+    OptSpec {
+        key: "reset_format",
+        kind: OptKind::Text,
+        default: "",
+        summary: "Local reset time as a chrono strftime format; unset uses the default",
+    },
+];
 
 pub(super) fn metrics() -> Vec<Metric> {
     vec![
@@ -45,6 +59,12 @@ pub(super) fn metrics() -> Vec<Metric> {
                 widget: WidgetKind::Bar,
                 templates: ["{pct}%[ · {tokens}]", "{pct}%", "{pct}%"],
                 fields: &["pct", "tokens", "window", "left", "cc_pct"],
+                options: &[OptSpec {
+                    key: "token_style",
+                    kind: OptKind::Choice(&["short", "decimal"]),
+                    default: "short",
+                    summary: "Keep one decimal for millions",
+                }],
                 levels: LEVELS,
                 priority: 5,
                 ..meta(
@@ -62,6 +82,7 @@ pub(super) fn metrics() -> Vec<Metric> {
                 widget: WidgetKind::Pace,
                 templates: WINDOW_TEMPLATES,
                 fields: WINDOW_FIELDS,
+                options: WINDOW_OPTIONS,
                 levels: LEVELS,
                 priority: 4,
                 ..meta(
@@ -79,6 +100,7 @@ pub(super) fn metrics() -> Vec<Metric> {
                 widget: WidgetKind::Pace,
                 templates: WINDOW_TEMPLATES,
                 fields: WINDOW_FIELDS,
+                options: WINDOW_OPTIONS,
                 levels: LEVELS,
                 priority: 3,
                 ..meta(
@@ -99,6 +121,7 @@ pub(super) fn metrics() -> Vec<Metric> {
                     "pct", "used", "limit", "period", "reset", "left", "pace", "arrow", "eta",
                 ],
                 min_cc: Some(gate::SPEND_LIMIT),
+                options: WINDOW_OPTIONS,
                 levels: LEVELS,
                 ..meta(
                     "quota.spend",
@@ -191,7 +214,11 @@ pub(super) fn context_tokens(cw: &ContextWindow) -> Option<u64> {
     })
 }
 
-fn context(ctx: &Ctx, _: &Options) -> Option<Reading> {
+fn context(ctx: &Ctx, opts: &Options) -> Option<Reading> {
+    let style = opts
+        .get("token_style")
+        .and_then(|v| v.as_str())
+        .unwrap_or("short");
     let cw = ctx.input.context_window.as_ref()?;
     let tokens = context_tokens(cw)?;
     let resolved = ctx.model();
@@ -204,13 +231,16 @@ fn context(ctx: &Ctx, _: &Options) -> Option<Reading> {
     };
     let mut r = Reading::default()
         .set("pct", fmt::percent(ratio))
-        .set("window", fmt::tokens(window))
-        .set("left", fmt::tokens(window.saturating_sub(tokens)))
+        .set("window", fmt::tokens_style(window, style))
+        .set(
+            "left",
+            fmt::tokens_style(window.saturating_sub(tokens), style),
+        )
         .ratio(ratio);
     // Before the first response there is nothing to count; leave the field
     // unset so templates drop it instead of showing "0 tokens".
     if tokens > 0 {
-        r = r.set("tokens", fmt::tokens(tokens));
+        r = r.set("tokens", fmt::tokens_style(tokens, style));
     }
     if corrected && let Some(p) = cw.used_percentage {
         r = r.set("cc_pct", fmt::percent(p / 100.0));
@@ -220,7 +250,7 @@ fn context(ctx: &Ctx, _: &Options) -> Option<Reading> {
 
 /// A rate-limit window: usage, time to reset, pace against elapsed time and
 /// when it runs out at the current rate.
-fn window(w: &Window, length: i64, limit: Limit, ctx: &Ctx) -> Option<Reading> {
+fn window(w: &Window, length: i64, limit: Limit, ctx: &Ctx, opts: &Options) -> Option<Reading> {
     let used = w.used_percentage? / 100.0;
     let resets = w.resets_at.map(|t| t as i64);
     if resets.is_some_and(|t| t <= ctx.now) {
@@ -248,8 +278,24 @@ fn window(w: &Window, length: i64, limit: Limit, ctx: &Ctx) -> Option<Reading> {
             (down, Role::Good)
         };
         r = r
-            .set("reset", fmt::clock(at, ctx.now, ctx.tz))
-            .set("left", fmt::countdown(left))
+            .set(
+                "reset",
+                fmt::clock_format(
+                    at,
+                    ctx.now,
+                    ctx.tz,
+                    opts.get("reset_format").and_then(|v| v.as_str()),
+                ),
+            )
+            .set(
+                "left",
+                fmt::countdown_style(
+                    left,
+                    opts.get("countdown")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("compact"),
+                ),
+            )
             .set_role("pace", fmt::signed_percent(delta), role)
             .set_role("arrow", format!("{arrow}{}%", points.abs()), role);
         r.elapsed = Some(elapsed);
@@ -260,22 +306,26 @@ fn window(w: &Window, length: i64, limit: Limit, ctx: &Ctx) -> Option<Reading> {
     Some(r)
 }
 
-fn five_hour(ctx: &Ctx, _: &Options) -> Option<Reading> {
+fn five_hour(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     window(
         ctx.input.rate_limits.as_ref()?.five_hour.as_ref()?,
         FIVE_HOURS,
         Limit::FiveHour,
         ctx,
+        opts,
     )
+    .map(|r| r.link(Some("https://claude.ai/settings/usage".into())))
 }
 
-fn seven_day(ctx: &Ctx, _: &Options) -> Option<Reading> {
+fn seven_day(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     window(
         ctx.input.rate_limits.as_ref()?.seven_day.as_ref()?,
         SEVEN_DAYS,
         Limit::SevenDay,
         ctx,
+        opts,
     )
+    .map(|r| r.link(Some("https://claude.ai/settings/usage".into())))
 }
 
 /// A spend limit as a window, and the window's length.
@@ -292,10 +342,10 @@ fn spend_window(s: &SpendLimit) -> (Window, i64) {
     (w, length)
 }
 
-fn spend(ctx: &Ctx, _: &Options) -> Option<Reading> {
+fn spend(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     let s = ctx.input.rate_limits.as_ref()?.spend_limit.as_ref()?;
     let (w, length) = spend_window(s);
-    let mut r = window(&w, length, Limit::Spend, ctx)?;
+    let mut r = window(&w, length, Limit::Spend, ctx, opts)?;
     if let Some(used) = s.used_usd {
         r = r.set("used", fmt::money(used));
     }
@@ -412,6 +462,75 @@ fn duration(ctx: &Ctx, _: &Options) -> Option<Reading> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn context_token_style_applies_to_all_token_fields() {
+        let input = crate::input::Input::parse(
+            r#"{"context_window":{"total_input_tokens":1200000,"context_window_size":2200000}}"#,
+        )
+        .unwrap();
+        let registry = crate::models::Registry::default();
+        let ctx = Ctx::new(
+            &input,
+            &registry,
+            0,
+            chrono::FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        );
+        let short = context(&ctx, &Options::new()).unwrap();
+        let opts = toml::from_str("token_style = 'decimal'").unwrap();
+        let decimal = context(&ctx, &opts).unwrap();
+        for (field, expected) in [("tokens", "1.2M"), ("window", "2.2M"), ("left", "1.0M")] {
+            assert_eq!(decimal.get(field).unwrap().text, expected);
+        }
+        assert_eq!(short.get("left").unwrap().text, "1M");
+    }
+
+    #[test]
+    fn quota_options_and_links_reach_each_window() {
+        let input = crate::input::Input::parse(r#"{"rate_limits":{"five_hour":{"used_percentage":30,"resets_at":7620},"seven_day":{"used_percentage":30,"resets_at":7620},"spend_limit":{"used_percentage":30,"resets_at":7620}}}"#).unwrap();
+        let registry = crate::models::Registry::default();
+        let ctx = Ctx::new(
+            &input,
+            &registry,
+            0,
+            chrono::FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        );
+        for id in ["quota.5h", "quota.7d", "quota.spend"] {
+            let metric = metrics().into_iter().find(|m| m.meta.id == id).unwrap();
+            assert!(metric.meta.options.iter().any(|o| o.key == "countdown"));
+            assert!(metric.meta.options.iter().any(|o| o.key == "reset_format"));
+            let default = (metric.compute)(&ctx, &Options::new()).unwrap();
+            assert_eq!(default.get("left").unwrap().text, "2h07m");
+            for (style, expected) in [("spaced", "2h 7m"), ("coarse", "2h")] {
+                let opts =
+                    toml::from_str(&format!("countdown = '{style}'\nreset_format = '%H:%M:%S'"))
+                        .unwrap();
+                let reading = (metric.compute)(&ctx, &opts).unwrap();
+                assert_eq!(reading.get("left").unwrap().text, expected);
+                assert_eq!(reading.get("reset").unwrap().text, "02:07:00");
+                assert_eq!(
+                    reading.link.as_deref(),
+                    if id == "quota.spend" {
+                        None
+                    } else {
+                        Some("https://claude.ai/settings/usage")
+                    }
+                );
+            }
+        }
+        assert!(
+            metrics()
+                .into_iter()
+                .find(|m| m.meta.id == "context")
+                .unwrap()
+                .meta
+                .options
+                .iter()
+                .any(|o| o.key == "token_style")
+        );
+    }
 
     #[test]
     fn on_pace_is_neither_ahead_nor_behind() {

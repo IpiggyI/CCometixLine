@@ -3,59 +3,60 @@ source: tests/snapshots.rs
 expression: render_preset(preset.name)
 ---
 ── normal @ 60
-  Opus 4.8 · High   󰉋 app   󰊢 main ● ↑2     $1.20 ⏎
+  Opus 4.8 · High   󰉋 app   󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\     $1.20 ⏎
   ▕██████▎   ▏ 62% · 124k    ▁▂▃▄▅▆▆▇█ +12k ⏎
- 󰔠 ▀▀▀▀▀▀▀▀ 26% · 02:07 ⇣32%            3:42 · 94% hit ⏎
+ 󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\26%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\02:07 ]8;;\]8;;https://claude.ai/settings/usage\⇣32%]8;;\            3:42 · 94% hit ⏎
  ± +128 -34    ]8;;https://github.com/acme/app/pull/1287\#1287 pending]8;;\                󱦻 30m30s ⏎
 ── normal @ 100
-  Opus 4.8 · High   󰉋 app   󰊢 main ● ↑2                                             $1.20 ⏎
-  ▕██████▎   ▏ 62% · 124k    ▁▂▃▄▅▆▆▇█ +12k   󰔠 ▀▀▀▀▀▀▀▀ 26% · 02:07 ⇣32% ⏎
+  Opus 4.8 · High   󰉋 app   󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\                                             $1.20 ⏎
+  ▕██████▎   ▏ 62% · 124k    ▁▂▃▄▅▆▆▇█ +12k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\26%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\02:07 ]8;;\]8;;https://claude.ai/settings/usage\⇣32%]8;;\ ⏎
                                                                                   3:42 · 94% hit ⏎
  ± +128 -34    ]8;;https://github.com/acme/app/pull/1287\#1287 pending]8;;\                                                        󱦻 30m30s ⏎
 ── normal @ 140
-  Opus 4.8 · High   󰉋 app   󰊢 main ● ↑2                                                                                     $1.20 ⏎
-  ▕██████▎   ▏ 62% · 124k    ▁▂▃▄▅▆▆▇█ +12k   󰔠 ▀▀▀▀▀▀▀▀ 26% · 02:07 ⇣32%                                         3:42 · 94% hit ⏎
+  Opus 4.8 · High   󰉋 app   󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\                                                                                     $1.20 ⏎
+  ▕██████▎   ▏ 62% · 124k    ▁▂▃▄▅▆▆▇█ +12k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\26%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\02:07 ]8;;\]8;;https://claude.ai/settings/usage\⇣32%]8;;\                                         3:42 · 94% hit ⏎
  ± +128 -34    ]8;;https://github.com/acme/app/pull/1287\#1287 pending]8;;\                                                                                                󱦻 30m30s ⏎
 ── fresh @ 60
   Sonnet 5 · Med   󰉋 app   󰊢 main ✓ ⏎
                            󰚰 ]8;;https://github.com/Haleclipse/CCometixLine/releases/tag/v2.1.0\v2.1.0 available]8;;\    $0.06 ⏎
-  ▕█▎        ▏ 12% · 24k   󰔠 ▀▀▀▀▀▀▀▀ 1% · 04:55 ⇣1% ⏎
+  ▕█▎        ▏ 12% · 24k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\1%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\04:55 ]8;;\]8;;https://claude.ai/settings/usage\⇣1%]8;;\ ⏎
                                                     4:20 ⏎
                                                     󱦻 40s ⏎
 ── fresh @ 100
   Sonnet 5 · Med   󰉋 app   󰊢 main ✓                         󰚰 ]8;;https://github.com/Haleclipse/CCometixLine/releases/tag/v2.1.0\v2.1.0 available]8;;\    $0.06 ⏎
-  ▕█▎        ▏ 12% · 24k   󰔠 ▀▀▀▀▀▀▀▀ 1% · 04:55 ⇣1%                                   4:20 ⏎
+  ▕█▎        ▏ 12% · 24k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\1%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\04:55 ]8;;\]8;;https://claude.ai/settings/usage\⇣1%]8;;\                                   4:20 ⏎
                                                                                             󱦻 40s ⏎
 ── fresh @ 140
   Sonnet 5 · Med   󰉋 app   󰊢 main ✓                                                                 󰚰 ]8;;https://github.com/Haleclipse/CCometixLine/releases/tag/v2.1.0\v2.1.0 available]8;;\    $0.06 ⏎
-  ▕█▎        ▏ 12% · 24k   󰔠 ▀▀▀▀▀▀▀▀ 1% · 04:55 ⇣1%                                                                           4:20 ⏎
+  ▕█▎        ▏ 12% · 24k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\1%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\04:55 ]8;;\]8;;https://claude.ai/settings/usage\⇣1%]8;;\                                                                           4:20 ⏎
                                                                                                                                     󱦻 40s ⏎
 ── near-full @ 60
-  Opus 4.8 · Max   󰉋 app   󰊢 feature/auth ⚠ ↓3 ⏎
+  Opus 4.8 · Max   󰉋 app   󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\ ⏎
                                                   $18.42 ⏎
   ▕█████████▏▏ 91% · 182k    ▁▃▅▆▇█ +11k ⏎
- 󰔠 ▀▀▀▀▀▀▀▀ 88% · 00:30 ⇣2%             cold · 71% hit ⏎
+ 󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\88%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\00:30 ]8;;\]8;;https://claude.ai/settings/usage\⇣2%]8;;\             cold · 71% hit ⏎
  ± +1450 -610    ]8;;https://github.com/acme/app/pull/1288\#1288 changes]8;;\                  󱦻 4h ⏎
 ── near-full @ 100
-  Opus 4.8 · Max   󰉋 app   󰊢 feature/auth ⚠ ↓3                                     $18.42 ⏎
-  ▕█████████▏▏ 91% · 182k    ▁▃▅▆▇█ +11k   󰔠 ▀▀▀▀▀▀▀▀ 88% · 00:30 ⇣2%     cold · 71% hit ⏎
+  Opus 4.8 · Max   󰉋 app   󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\                                     $18.42 ⏎
+  ▕█████████▏▏ 91% · 182k    ▁▃▅▆▇█ +11k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\88%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\00:30 ]8;;\]8;;https://claude.ai/settings/usage\⇣2%]8;;\     cold · 71% hit ⏎
  ± +1450 -610    ]8;;https://github.com/acme/app/pull/1288\#1288 changes]8;;\                                                          󱦻 4h ⏎
 ── near-full @ 140
-  Opus 4.8 · Max   󰉋 app   󰊢 feature/auth ⚠ ↓3                                                                             $18.42 ⏎
-  ▕█████████▏▏ 91% · 182k    ▁▃▅▆▇█ +11k   󰔠 ▀▀▀▀▀▀▀▀ 88% · 00:30 ⇣2%                                             cold · 71% hit ⏎
+  Opus 4.8 · Max   󰉋 app   󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\                                                                             $18.42 ⏎
+  ▕█████████▏▏ 91% · 182k    ▁▃▅▆▇█ +11k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\88%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\00:30 ]8;;\]8;;https://claude.ai/settings/usage\⇣2%]8;;\                                             cold · 71% hit ⏎
  ± +1450 -610    ]8;;https://github.com/acme/app/pull/1288\#1288 changes]8;;\                                                                                                  󱦻 4h ⏎
 ── big-context @ 60
-  Opus 5.5 1M · xHigh   󰉋 api   󰊢 main ✓    $7.74 ⏎
+  Opus 5.5 1M · xHigh · fast   󰉋 api   󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\ ⏎
+                                                   $7.74 ⏎
   ▕██▊       ▏ 27% · 270k    ▁▄▆█ +22k ⏎
- 󰔠 ▀▀▀▀▀▀▀▀ 4% · 04:30 ⇣6%             45:00 · 97% hit ⏎
+ 󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\4%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\04:30 ]8;;\]8;;https://claude.ai/settings/usage\⇣6%]8;;\             45:00 · 97% hit ⏎
  ± +40 -2    ]8;;https://github.com/acme/monorepo/pull/77\#77 approved]8;;\                    󱦻 1h30m ⏎
 ── big-context @ 100
-  Opus 5.5 1M · xHigh   󰉋 api   󰊢 main ✓                                            $7.74 ⏎
-  ▕██▊       ▏ 27% · 270k    ▁▄▆█ +22k   󰔠 ▀▀▀▀▀▀▀▀ 4% · 04:30 ⇣6%       45:00 · 97% hit ⏎
+  Opus 5.5 1M · xHigh · fast   󰉋 api   󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\                                     $7.74 ⏎
+  ▕██▊       ▏ 27% · 270k    ▁▄▆█ +22k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\4%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\04:30 ]8;;\]8;;https://claude.ai/settings/usage\⇣6%]8;;\       45:00 · 97% hit ⏎
  ± +40 -2    ]8;;https://github.com/acme/monorepo/pull/77\#77 approved]8;;\                                                            󱦻 1h30m ⏎
 ── big-context @ 140
-  Opus 5.5 1M · xHigh   󰉋 api   󰊢 main ✓                                                                                    $7.74 ⏎
-  ▕██▊       ▏ 27% · 270k    ▁▄▆█ +22k   󰔠 ▀▀▀▀▀▀▀▀ 4% · 04:30 ⇣6%                                               45:00 · 97% hit ⏎
+  Opus 5.5 1M · xHigh · fast   󰉋 api   󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\                                                                             $7.74 ⏎
+  ▕██▊       ▏ 27% · 270k    ▁▄▆█ +22k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\4%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\04:30 ]8;;\]8;;https://claude.ai/settings/usage\⇣6%]8;;\                                               45:00 · 97% hit ⏎
  ± +40 -2    ]8;;https://github.com/acme/monorepo/pull/77\#77 approved]8;;\                                                                                                    󱦻 1h30m ⏎
 ── third-party @ 60
   Kimi K2 Turbo   󰉋 app   󰊢 main ●          $0.84 ⏎
@@ -72,30 +73,30 @@ expression: render_preset(preset.name)
                                                                                                                                     󱦻 15m ⏎
 ── worktree @ 60
   Sonnet 5 · High   󰉋 feature-x ⏎
- 󰊢 worktree-feature-x ● ↑1                       $0.31 ⏎
+ 󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\                       $0.31 ⏎
   ▕█▉        ▏ 19% · 38k    ▁▅█ +8k ⏎
- 󰔠 ▀▀▀▀▀▀▀▀ 41% · 03:00 ⇡1%             3:30 · 91% hit ⏎
+ 󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\41%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\03:00 ]8;;\]8;;https://claude.ai/settings/usage\⇡1%]8;;\             3:30 · 91% hit ⏎
  ± +12    ]8;;https://gitlab.com/group/team/app/-/merge_requests/12\!12 draft]8;;\    feature-x             󱦻 7m ⏎
 ── worktree @ 100
-  Sonnet 5 · High   󰉋 feature-x   󰊢 worktree-feature-x ● ↑1                         $0.31 ⏎
-  ▕█▉        ▏ 19% · 38k    ▁▅█ +8k   󰔠 ▀▀▀▀▀▀▀▀ 41% · 03:00 ⇡1%          3:30 · 91% hit ⏎
+  Sonnet 5 · High   󰉋 feature-x   󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\                         $0.31 ⏎
+  ▕█▉        ▏ 19% · 38k    ▁▅█ +8k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\41%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\03:00 ]8;;\]8;;https://claude.ai/settings/usage\⇡1%]8;;\          3:30 · 91% hit ⏎
  ± +12    ]8;;https://gitlab.com/group/team/app/-/merge_requests/12\!12 draft]8;;\    feature-x                                                     󱦻 7m ⏎
 ── worktree @ 140
-  Sonnet 5 · High   󰉋 feature-x   󰊢 worktree-feature-x ● ↑1                                                                 $0.31 ⏎
-  ▕█▉        ▏ 19% · 38k    ▁▅█ +8k   󰔠 ▀▀▀▀▀▀▀▀ 41% · 03:00 ⇡1%                                                  3:30 · 91% hit ⏎
+  Sonnet 5 · High   󰉋 feature-x   󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\                                                                 $0.31 ⏎
+  ▕█▉        ▏ 19% · 38k    ▁▅█ +8k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\41%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\03:00 ]8;;\]8;;https://claude.ai/settings/usage\⇡1%]8;;\                                                  3:30 · 91% hit ⏎
  ± +12    ]8;;https://gitlab.com/group/team/app/-/merge_requests/12\!12 draft]8;;\    feature-x                                                                                             󱦻 7m ⏎
 ── non-git @ 60
   Haiku 4.5   󰉋 scratch                       $0.02 ⏎
-  ▕▌         ▏ 5% · 9k   󰔠 ▀▀▀▀▀▀▀▀ 12% · 03:12 ⇣24% ⏎
+  ▕▌         ▏ 5% · 9k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\12%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\03:12 ]8;;\]8;;https://claude.ai/settings/usage\⇣24%]8;;\ ⏎
                                           1:35 · 40% hit ⏎
                                                    󱦻 1m1s ⏎
 ── non-git @ 100
   Haiku 4.5   󰉋 scratch                                                               $0.02 ⏎
-  ▕▌         ▏ 5% · 9k   󰔠 ▀▀▀▀▀▀▀▀ 12% · 03:12 ⇣24%                         1:35 · 40% hit ⏎
+  ▕▌         ▏ 5% · 9k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\12%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\03:12 ]8;;\]8;;https://claude.ai/settings/usage\⇣24%]8;;\                         1:35 · 40% hit ⏎
                                                                                            󱦻 1m1s ⏎
 ── non-git @ 140
   Haiku 4.5   󰉋 scratch                                                                                                       $0.02 ⏎
-  ▕▌         ▏ 5% · 9k   󰔠 ▀▀▀▀▀▀▀▀ 12% · 03:12 ⇣24%                                                                 1:35 · 40% hit ⏎
+  ▕▌         ▏ 5% · 9k   󰔠 ▀▀▀▀▀▀▀▀ ]8;;https://claude.ai/settings/usage\12%]8;;\]8;;https://claude.ai/settings/usage\ · ]8;;\]8;;https://claude.ai/settings/usage\03:12 ]8;;\]8;;https://claude.ai/settings/usage\⇣24%]8;;\                                                                 1:35 · 40% hit ⏎
                                                                                                                                    󱦻 1m1s ⏎
 ── gateway @ 60
   Sonnet 5 · Med   󰉋 app   󰊢 main ✓         $3.10 ⏎

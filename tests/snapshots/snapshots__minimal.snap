@@ -21,11 +21,11 @@ Opus 4.8 · Max · 91% · cache cold · $18.42⏎
 ── near-full @ 140
 Opus 4.8 · Max · 91% · cache cold · $18.42⏎
 ── big-context @ 60
-Opus 5.5 1M · xHigh · 27% · cache 45:00 · $7.74⏎
+Opus 5.5 1M · xHigh · fast · 27% · cache 45:00 · $7.74⏎
 ── big-context @ 100
-Opus 5.5 1M · xHigh · 27% · cache 45:00 · $7.74⏎
+Opus 5.5 1M · xHigh · fast · 27% · cache 45:00 · $7.74⏎
 ── big-context @ 140
-Opus 5.5 1M · xHigh · 27% · cache 45:00 · $7.74⏎
+Opus 5.5 1M · xHigh · fast · 27% · cache 45:00 · $7.74⏎
 ── third-party @ 60
 Kimi K2 Turbo · 81% · cache 3:00 · $0.84⏎
 ── third-party @ 100
