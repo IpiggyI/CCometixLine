@@ -482,7 +482,7 @@ impl ClaudePage {
     }
 
     fn handle_agents(&mut self, key: KeyEvent) -> Outcome {
-        match (self.rows[1], key.code) {
+        match (self.rows[Pane::Agents as usize], key.code) {
             (0, KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Left | KeyCode::Right) => {
                 let on = self
                     .current()
@@ -504,7 +504,7 @@ impl ClaudePage {
 
     fn handle_updates(&mut self, key: KeyEvent, doc: &mut Doc) -> Outcome {
         let forward = !matches!(key.code, KeyCode::Left);
-        match (self.rows[2], key.code) {
+        match (self.rows[Pane::Updates as usize], key.code) {
             (0, KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Left | KeyCode::Right) => {
                 doc.edit(|c, _| c.update.check = !c.update.check);
                 Outcome::Consumed
@@ -601,6 +601,19 @@ mod tests {
     use crate::tui::app::App;
     use crate::tui::app::tests::{ctrl, env, key, screen};
     use crate::tui::doc::tests::temp_paths;
+
+    #[test]
+    fn each_pane_acts_on_its_own_row() {
+        let (dir, paths) = temp_paths("claude-rows");
+        let mut app = App::new(Doc::open(paths), env());
+        app.open_page(PageId::Claude);
+        // The agent panel's second row opens its line in Layout.
+        for k in [KeyCode::Tab, KeyCode::Tab, KeyCode::Down, KeyCode::Enter] {
+            app.handle_key(key(k));
+        }
+        assert_eq!(app.page, PageId::Layout);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn edits_a_draft_and_applies_it_after_the_diff() {
