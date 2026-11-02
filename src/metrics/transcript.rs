@@ -123,7 +123,7 @@ pub(super) fn metrics() -> Vec<Metric> {
                 Category::Activity,
                 "Todos",
                 "Current todo and completion progress in this session",
-                IconKey::Lines,
+                IconKey::Todos,
                 ["{current} ({progress})", "{current}", "{progress}"],
                 &["current", "progress"],
             ),

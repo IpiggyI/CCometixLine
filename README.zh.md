@@ -112,7 +112,7 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 | `focus` | 2 | plain，Unicode | 宽幅上下文条、每轮增量、距自动压缩、缓存 |
 | `zen` | 1 | ASCII，无色 | 任何终端都能用 |
 | `powerline` | 1 | powerline，Tokyo Night | powerline 段，带 5 小时额度图标 |
-| `hud` | 2 | plain，终端配色 | 带标签的进度条：上下文（已用/窗口大小）；5 小时与每周额度，附倒计时和重置时间 |
+| `hud` | 3 | plain，终端配色 | 带标签的进度条：上下文（已用/窗口大小）；5 小时与每周额度，附倒计时和重置时间；工具、代理、待办和技能占一行 |
 
 在配置器里可以应用整个预置，也可以只应用它的布局或只应用外观。在 Presets 页按 `N` 可以把当前设置另存为自己的预置，文件保存在 `~/.claude/ccline/presets/`。
 
@@ -150,15 +150,32 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 | 费用 | `cost`、`cost.rate`（每小时）、`cost.today`（所有会话）、`cost.week`（自 7 天窗口开启起）、`cost.month`（自本月 1 日起） |
 | 缓存 | `cache`（距变冷的时间、命中率、未命中）、`cache.cold_cost` |
 | 代码 | `dir`、`git`、`repo`、`pr`、`worktree`、`lines` |
-| 活动与计时 | `activity.tools`¹、`activity.agents`¹、`activity.skills`²、`activity.hooks`²、`mcp`³、`timing.ttft`¹、`timing.tps`¹ |
+| 活动与计时 | `activity.tools`²、`activity.agents`²、`activity.todos`²、`activity.skills`²、`activity.hooks`²、`env`³、`mcp`³、`timing.ttft`¹、`timing.tps`¹ |
 | 系统 | `cc_version`、`update` |
 | 自定义 | `cmd`：任意 shell 命令输出的第一行，带缓存，在后台运行 |
 
 ¹ 需要配套 mod 和 Claude Code 2.1.287+。`cache` 与 `quota.spend` 需要 Claude Code 2.1.251+。配置器会标出你当前的 Claude Code 显示不了的指标，并且不允许添加。
 
-² 读取自会话记录（transcript）。ccline 只读其中有限的一段（开头 64 KiB 用来取开始时间，末尾 512 KiB 用来取其余内容），所以 `activity.skills`、`activity.hooks` 和 `session.last_reply` 反映的是最近的情况，不是整个会话；很长的会话记录可能显示得比实际少。`activity.hooks` 统计的是你最近一次提问之后的钩子结果。
+² 读取自会话记录（transcript），覆盖整个会话。每次渲染最多读取 8 MiB 新的记录，并记住读到哪里，所以很长的会话记录会在几次渲染内追上，之后每次只读新追加的部分。`activity.hooks` 统计的是你最近一次提问之后的钩子结果。没有会话记录时，`activity.tools` 和 `activity.agents` 显示配套 mod 报告的数据。
 
-³ 来自用户配置、项目配置和项目 `.mcp.json` 中已启用的 MCP 服务器。插件提供的服务器不在其中。
+³ `env` 列出用户设置和项目设置里的 `CLAUDE.md` 文件、规则、已配置的钩子，以及 MCP 服务器。`mcp` 列出已启用的 MCP 服务器：用户配置和项目配置中的服务器，加上项目 `.mcp.json` 里经 `settings.json`、`.claude/settings.json` 或 `.claude/settings.local.json` 批准的服务器（`enabledMcpjsonServers`，或 `enableAllProjectMcpServers`，再去掉 `disabledMcpjsonServers`）。Windows 的项目路径无论怎么写都能对上。插件提供的服务器不在其中。
+
+活动类指标在 `⇒` 左边显示现在的状态，右边显示整个会话的合计：
+
+```
+◐ Bash cargo test | ✓ Edit lib.rs ⇒ Edit×1 Read×1
+◐ Explore [haiku-4.5 · high] · scan the crate (1m 2s) ⇒ Agent×1 (1 running)
+▸ cover the new segment (0/1)
+✓ review ⇒ 1 skill
+✓ format ⇒ Post×1
+```
+
+- `activity.tools`：正在运行的工具（`◐`）和最近完成的工具（`✓`，失败时为 `✗`）及其目标，之后是用得最多的工具；`top` 设置显示几个（默认 4）。
+- `activity.agents`：正在运行的和最近一分钟内结束的子代理，带模型、推理强度、描述和运行时间，之后是运行过几个、还有几个在运行。
+- `activity.todos`：进行中的待办（`▸`）和已完成的数量。
+- `activity.skills`：正在运行或最近用过的技能，以及运行过几个技能。
+- `activity.hooks`：你最近一次提问之后的最新钩子结果，以及按钩子事件的计数。
+- `env`：`CLAUDE.md: …`、`rules: …`、`MCPs: …` 和 `hooks: …`，每一项只在有内容时才显示。
 
 条目只在有内容时才显示：Claude Code 报告了缓存才显示缓存，有新版本才显示 `update`，`output_style` 是默认风格时不显示。
 
@@ -218,10 +235,12 @@ right = [{ metric = "cmd", options = { run = "kubectl config current-context", c
 | `format`、`compact`、`minimal` | 三档文字模板：`{字段}` 插入数值，`[ … ]` 里只要有字段为空，整组就不显示 |
 | `icon` | 覆盖图标；`""` 表示不要图标 |
 | `color`、`fg`、`icon_color` | 调色板 token（`accent`、`warn`、`cache` …）、颜色名（`bright_yellow`）、`#rrggbb`、`256:n` 或 `16:n` |
-| `levels`、`coloring` | 警告阈值，如 `[[50, "warn"], [80, "crit"]]`；`steps`（整段变色）或 `gradient`（逐格渐变） |
+| `levels`、`coloring` | 警告阈值，如 `[[50, "warn"], [80, "crit"]]`；`steps`（整段变色）或 `gradient`（逐格渐变）。对 `cache` 来说，阈值是缓存有效期已用掉的百分比 |
 | `options` | 指标选项，例如 `dir` 的 `style`、`cmd` 的 `run` |
 
-调色板：`terminal`（跟随终端主题）、`catppuccin-mocha`、`catppuccin-latte`、`dracula`、`nord`、`tokyo-night`、`rose-pine`、`gruvbox`、`anthropic-clay`，以及沿用 v1 powerline 配色的 `powerline-dark`、`powerline-light`、`powerline-rose-pine`、`powerline-tokyo-night`。自定义调色板放在 `palettes/*.toml`；`[palette_overrides]` 可以单独改某个 token。
+调色板：`terminal`（跟随终端主题）、`catppuccin-mocha`、`catppuccin-latte`、`dracula`、`nord`、`tokyo-night`、`rose-pine`、`gruvbox`、`anthropic-clay`，以及沿用 v1 powerline 配色的 `powerline-dark`、`powerline-light`、`powerline-rose-pine`、`powerline-tokyo-night`。自定义调色板放在 `palettes/*.toml`；`[palette_overrides]` 可以单独改某个 token。`terminal` 调色板用亮青色显示会话类条目。
+
+`cache` 的倒计时会随缓存有效期（5 分钟或 1 小时）剩余的比例变色。剩余超过四分之一时保持条目自己的颜色；最后四分之一变为 `warn`（5 分钟缓存剩 1:15，1 小时缓存剩 15:00），最后十分之一变为 `crit`（0:30，6:00）。缓存变冷后用弱化色显示。`levels` 可以调整阈值，单位是有效期已用掉的百分比：`levels = [[60, "warn"], [85, "crit"]]`。
 
 配置文件解析失败时状态栏不会空白：ccline 会用默认预置绘制，并在行尾加上 `! config`。
 

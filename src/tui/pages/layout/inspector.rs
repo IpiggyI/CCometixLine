@@ -577,18 +577,40 @@ mod tests {
             "quota.7d",
             "quota.spend",
             "context.breakdown",
+            "cache",
         ] {
             assert!(
                 fields(&bare(id), meta(id), false).contains(&Field::Levels),
                 "{id}"
             );
         }
-        for id in ["model", "dir", "git", "cost", "cmd", "cache", "duration"] {
+        for id in ["model", "dir", "git", "cost", "cmd", "duration"] {
             assert!(
                 !fields(&bare(id), meta(id), false).contains(&Field::Levels),
                 "{id}"
             );
         }
+    }
+
+    #[test]
+    fn activity_items_edit_their_text_and_look() {
+        for id in [
+            "activity.tools",
+            "activity.agents",
+            "activity.todos",
+            "activity.skills",
+            "activity.hooks",
+            "env",
+        ] {
+            let f = fields(&bare(id), meta(id), false);
+            for field in Level::ALL.map(Field::Template) {
+                assert!(f.contains(&field), "{id}: {field:?}");
+            }
+            for field in [Field::Icon, Field::IconColor, Field::Color, Field::Text] {
+                assert!(f.contains(&field), "{id}: {field:?}");
+            }
+        }
+        assert_eq!(meta("activity.tools").options[0].key, "top");
     }
 
     #[test]

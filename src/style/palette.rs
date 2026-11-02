@@ -336,8 +336,8 @@ fn with_segments(mut p: Palette, segments: &[(Category, &str, &str)]) -> Palette
 }
 
 /// ANSI 16 colors, so the line follows the terminal's own theme. Text and
-/// background stay at the terminal defaults. Category colors match v1's
-/// cometix theme.
+/// background stay at the terminal defaults. Category colors follow v1's
+/// cometix theme, except session times, which are bright cyan.
 pub fn terminal() -> Palette {
     use Color::Ansi16 as A;
     let colors = [
@@ -354,7 +354,7 @@ pub fn terminal() -> Palette {
         (Token::Quota, A(6)),
         (Token::Cost, A(3)),
         (Token::Cache, A(4)),
-        (Token::Session, A(2)),
+        (Token::Session, A(14)),
         (Token::Timing, A(5)),
         (Token::Activity, A(11)),
         (Token::System, A(8)),
@@ -541,6 +541,15 @@ mod tests {
         p.set(Token::Separator, red);
         assert_eq!(p.color(Token::Separator), Some(red));
         assert_ne!(p.color(Token::Muted), Some(red));
+    }
+
+    #[test]
+    fn terminal_palette_colors_session_times_bright_cyan() {
+        let p = terminal();
+        assert_eq!(p.get(Token::Session), Some(Color::Ansi16(14)));
+        assert_eq!(p.get(Token::Timing), Some(Color::Ansi16(5)));
+        assert_eq!(p.get(Token::Cache), Some(Color::Ansi16(4)));
+        assert_eq!(p.get(Token::Cost), Some(Color::Ansi16(3)));
     }
 
     #[test]

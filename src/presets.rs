@@ -178,7 +178,7 @@ right = [{ metric = "quota.5h", widget = "gauge" }, "cost"]
     },
     Preset {
         name: "hud",
-        summary: "Labelled bars: context with used and window size, quotas with countdown and reset time",
+        summary: "Labelled bars: context with used and window size, quotas with countdown and reset time, tool and agent activity",
         tags: &["multi-line", "quota", "context"],
         toml: r#"
 palette = "terminal"
@@ -199,6 +199,9 @@ left = [
   { metric = "quota.5h", widget = "bar", icon = "用量", format = "{pct}%[ ({left}, {reset})]", options = { countdown = "spaced" } },
   { metric = "quota.7d", widget = "bar", icon = "本周", format = "{pct}%[ ({left}, {reset})]", options = { countdown = "spaced", reset_format = "%-m月%-d日 %H:%M" } },
 ]
+
+[[line]]
+left = ["activity.tools", "activity.agents", "activity.todos", "activity.skills"]
 "#,
     },
 ];

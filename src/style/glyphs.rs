@@ -77,10 +77,11 @@ pub enum IconKey {
     Skills,
     Hooks,
     Mcp,
+    Todos,
 }
 
 impl IconKey {
-    pub const ALL: [IconKey; 37] = [
+    pub const ALL: [IconKey; 38] = [
         IconKey::Model,
         IconKey::Effort,
         IconKey::Thinking,
@@ -118,6 +119,7 @@ impl IconKey {
         IconKey::Skills,
         IconKey::Hooks,
         IconKey::Mcp,
+        IconKey::Todos,
     ];
 
     /// A short lowercase name, for pickers.
@@ -174,6 +176,7 @@ pub fn icon(key: IconKey, tier: GlyphTier) -> &'static str {
         IconKey::Skills => ("\u{f0d0}", "✦"),
         IconKey::Hooks => ("\u{f13d}", "⌁"),
         IconKey::Mcp => ("\u{f1e6}", "⇌"),
+        IconKey::Todos => ("\u{f0ae}", "☑"),
     };
     match tier {
         GlyphTier::Nerd => nerd,
@@ -329,6 +332,7 @@ mod tests {
             IconKey::Skills,
             IconKey::Hooks,
             IconKey::Mcp,
+            IconKey::Todos,
         ];
         for tier in [GlyphTier::Nerd, GlyphTier::Unicode] {
             for key in newer {

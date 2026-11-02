@@ -48,6 +48,9 @@ pub struct Reading {
     pub series: Option<Vec<f64>>,
     /// Severity decided by the metric itself; otherwise thresholds on `ratio`.
     pub severity: Option<Severity>,
+    /// The ratio counts down, like time left: thresholds read how much of it
+    /// is used up (`1 - ratio`), so the low end is the bad one.
+    pub draining: bool,
     /// Replaces the metric's default icon.
     pub icon: Option<IconKey>,
     pub link: Option<String>,
@@ -84,6 +87,11 @@ impl Reading {
 
     pub fn severity(mut self, severity: Severity) -> Self {
         self.severity = Some(severity);
+        self
+    }
+
+    pub fn draining(mut self) -> Self {
+        self.draining = true;
         self
     }
 

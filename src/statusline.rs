@@ -411,6 +411,79 @@ mod tests {
         }
     }
 
+    /// The color of the cache countdown (the first span with text) when
+    /// `left` seconds remain of a `ttl` cache; `None` left means cold.
+    fn cache_color(ttl: &str, left: Option<i64>, item: &ItemConfig) -> Option<Color> {
+        let s = scenarios::find("normal").unwrap();
+        let mut input = s.input(scenarios::BASE);
+        let cache = input.prompt_cache.as_mut().unwrap();
+        cache.ttl = Some(ttl.into());
+        cache.warm = Some(left.is_some());
+        cache.expires_at = left.map(|l| (scenarios::BASE + l) as f64);
+        let frame = Frame {
+            now: scenarios::BASE,
+            tz: FixedOffset::east_opt(0).unwrap(),
+            width: None,
+            git: GitSource::Fixed(s.git()),
+            state: s.state(scenarios::BASE),
+            compact: AutoCompact::default(),
+            commands: Commands::Show,
+        };
+        let config = presets::get("hud").unwrap();
+        let levels =
+            item_levels(&input, None, &config, &Registry::default(), &frame, item).unwrap();
+        let line = levels[0].as_ref().unwrap();
+        line.iter()
+            .find(|span| span.text.contains(['0', '1', '2', '3', '4', '5', 'c']))
+            .and_then(|span| span.style.fg)
+    }
+
+    #[test]
+    fn cache_countdown_color_follows_the_share_of_the_ttl_left() {
+        let config = presets::get("hud").unwrap();
+        let palette = theme(&config).palette;
+        let token = |t| palette.get(t);
+        let cache = ItemSpec::Id("cache".into()).config().into_owned();
+        // 5m: more than a quarter left, then the last quarter, then the last tenth.
+        assert_eq!(cache_color("5m", Some(222), &cache), token(Token::Cache));
+        assert_eq!(cache_color("5m", Some(80), &cache), token(Token::Cache));
+        assert_eq!(cache_color("5m", Some(70), &cache), token(Token::Warn));
+        assert_eq!(cache_color("5m", Some(35), &cache), token(Token::Warn));
+        assert_eq!(cache_color("5m", Some(25), &cache), token(Token::Crit));
+        assert_eq!(cache_color("5m", Some(5), &cache), token(Token::Crit));
+        // 1h: the same shares, so 12 minutes is already a warning.
+        assert_eq!(cache_color("1h", Some(2_700), &cache), token(Token::Cache));
+        assert_eq!(cache_color("1h", Some(720), &cache), token(Token::Warn));
+        assert_eq!(cache_color("1h", Some(300), &cache), token(Token::Crit));
+        // Cold is settled: quiet, not an alarm.
+        assert_eq!(cache_color("5m", None, &cache), token(Token::Muted));
+    }
+
+    #[test]
+    fn cache_countdown_thresholds_can_be_set_per_item() {
+        let config = presets::get("hud").unwrap();
+        let palette = theme(&config).palette;
+        let item = ItemConfig {
+            metric: "cache".into(),
+            levels: Some(vec![(30.0, "warn".into()), (50.0, "crit".into())]),
+            ..ItemConfig::default()
+        };
+        // 3:42 of 5m left is 26% used.
+        assert_eq!(
+            cache_color("5m", Some(222), &item),
+            palette.get(Token::Cache)
+        );
+        // 2:30 left is 50% used.
+        assert_eq!(
+            cache_color("5m", Some(150), &item),
+            palette.get(Token::Crit)
+        );
+        assert_eq!(
+            cache_color("5m", Some(180), &item),
+            palette.get(Token::Warn)
+        );
+    }
+
     #[test]
     fn cometix_draws_one_classic_line() {
         let out = render("cometix", "normal", None);

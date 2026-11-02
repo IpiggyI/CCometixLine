@@ -227,8 +227,8 @@ pub const TEXT: &[(&str, &str)] = &[
         "在常规行下方显示提示缓存倒计时、命中率和未命中",
     ),
     (
-        "Labelled bars: context with used and window size, quotas with countdown and reset time",
-        "带标签的进度条：上下文（已用/窗口大小），额度（含倒计时和重置时间）",
+        "Labelled bars: context with used and window size, quotas with countdown and reset time, tool and agent activity",
+        "带标签的进度条：上下文（已用/窗口大小），额度（含倒计时和重置时间），工具与代理活动",
     ),
     (
         "A wide context gauge, its growth per turn and the room left before compaction",

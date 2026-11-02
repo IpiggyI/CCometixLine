@@ -11,12 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cost Metrics**: `cost.week` (spend since the 7-day limit window opened, with `{usd}` and `{since}`) and `cost.month` (spend since the first local day of the month)
 - **Display Options**: `countdown` (`compact`, `spaced` or `coarse`) and `reset_format` (a strftime format) on `quota.5h`, `quota.7d` and `quota.spend`; `token_style` (`short` or `decimal`, so `1.0M`) on `context`; the `depth` style and `depth` option on `dir`; `branch_prefixes` on `git`; a `{fast}` field on `model` that shows fast mode
 - **Links**: with terminals that support OSC 8, the `git` branch links to its page on the remote
-- **Transcript Metrics**: `advisor`, `session.start`, `session.last_reply`, `activity.skills` and `activity.hooks`, read from a bounded part of the session transcript (the first 64 KiB and the last 512 KiB), so they describe the recent past of a very long session; `mcp` lists the enabled MCP servers from user and project configuration and `.mcp.json`, not those that plugins provide
-- **Preset**: `hud`, two lines of labelled bars for context (used and window size) and the 5-hour and weekly quotas with countdown and reset time
+- **Transcript Metrics**: `advisor`, `session.start`, `session.last_reply` and the activity metrics, read from the session transcript over the whole session. Each render reads at most 8 MiB of new transcript and remembers where it stopped, so a very long transcript catches up over a few renders
+- **Activity Metrics**: the left of `⇒` is what is happening now, the right the session totals
+  - `activity.tools`: `◐ Bash cargo test | ✓ Edit lib.rs ⇒ Edit×1 Read×1`; the `top` option sets how many tools are counted
+  - `activity.agents`: `◐ Explore [haiku-4.5 · high] · desc (1m 2s) ⇒ Agent×1 (1 running)`
+  - `activity.todos`: the todo in progress and how many are done, such as `▸ cover the new segment (0/1)`
+  - `activity.skills`: `✓ review ⇒ 1 skill`
+  - `activity.hooks`: `✓ format ⇒ Post×1`, for the hook results since your latest prompt
+  - Without a transcript, `activity.tools` and `activity.agents` still show what the companion mod reports
+- **Environment**: `env` lists the `CLAUDE.md` files, rules, MCP servers and configured hooks
+- **MCP**: `mcp` lists the enabled MCP servers from user and project configuration, and those of the project's `.mcp.json` that `settings.json`, `.claude/settings.json` or `.claude/settings.local.json` approve (`enabledMcpjsonServers`, `enableAllProjectMcpServers`, `disabledMcpjsonServers`); Windows project paths match however they are written. Servers that plugins provide are not included
+- **Preset**: `hud`, labelled bars for context (used and window size) and the 5-hour and weekly quotas with countdown and reset time, and a line with `activity.tools`, `activity.agents`, `activity.todos` and `activity.skills`
 - **Idle Compaction**: the companion mod can compact an idle session shortly before its 1-hour prompt cache expires when Claude Code's own idle compaction can't run (for example with `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` set). Off by default; turn it on with `[idle_compact]` in `config.toml` (`enabled`, `margin_secs` within 30–900, default 180) or on the Claude Code page. It acts only at 200k tokens or more (`CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` changes this, with a floor of 100k)
 
 ### Changed
 - **Preset `cometix`**: the context no longer ends with the word "tokens"
+- **Cache Countdown Color**: the `cache` countdown now changes color with the share of the cache lifetime left, through the item's `levels` (percent of the lifetime used up; `[[75, "warn"], [90, "crit"]]` by default): the last quarter is a warning (1:15 of 5 minutes, 15:00 of 1 hour), the last tenth is critical (0:30, 6:00). A cold cache is muted instead of a warning. The 1-hour cache used to warn only in its last 5 minutes
+- **Palette `terminal`**: the session items (`session_name`, `duration`, `session.start`, `session.last_reply`) are bright cyan instead of green
 - **Companion Mod**: it no longer only passes data to ccline; with idle compaction turned on it also acts on the session
 
 ### Fixed

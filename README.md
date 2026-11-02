@@ -112,7 +112,7 @@ Or edit `~/.claude/settings.json` yourself:
 | `focus` | 2 | plain, Unicode | A wide context gauge, growth per turn, room before compaction, cache |
 | `zen` | 1 | ASCII, no color | Works in any terminal |
 | `powerline` | 1 | powerline, Tokyo Night | Powerline segments with a 5-hour gauge |
-| `hud` | 2 | plain, terminal colors | Labelled bars: context with used and window size; 5-hour and weekly quotas with countdown and reset time |
+| `hud` | 3 | plain, terminal colors | Labelled bars: context with used and window size; 5-hour and weekly quotas with countdown and reset time; tools, agents, todos and skills on one line |
 
 Apply one in the configurator: all of it, only its layout, or only its look. Save your own setup as a preset with `N` on the Presets page; it is a file in `~/.claude/ccline/presets/`.
 
@@ -150,15 +150,32 @@ The configurator speaks English and Chinese. `language` in `config.toml` picks `
 | Cost | `cost`, `cost.rate` (per hour), `cost.today` (all sessions), `cost.week` (since the 7-day window opened), `cost.month` (since the 1st) |
 | Cache | `cache` (time until cold, hit ratio, misses), `cache.cold_cost` |
 | Code | `dir`, `git`, `repo`, `pr`, `worktree`, `lines` |
-| Activity, timing | `activity.tools`¹, `activity.agents`¹, `activity.skills`², `activity.hooks`², `mcp`³, `timing.ttft`¹, `timing.tps`¹ |
+| Activity, timing | `activity.tools`², `activity.agents`², `activity.todos`², `activity.skills`², `activity.hooks`², `env`³, `mcp`³, `timing.ttft`¹, `timing.tps`¹ |
 | System | `cc_version`, `update` |
 | Custom | `cmd`: the first line of any shell command, cached and run in the background |
 
 ¹ Needs the companion mod and Claude Code 2.1.287+. `cache` and `quota.spend` need Claude Code 2.1.251+. The configurator marks what your Claude Code can't show and won't let you add it.
 
-² Read from the session transcript. ccline reads a bounded part of it (the first 64 KiB for the start time, the last 512 KiB for everything else), so `activity.skills`, `activity.hooks` and `session.last_reply` describe the recent past, not the whole session, and a very long transcript can show less than it holds. `activity.hooks` covers the hook results since your latest prompt.
+² Read from the session transcript, over the whole session. Each render reads at most 8 MiB of new transcript and remembers where it stopped, so a very long transcript catches up over a few renders and later renders read only what was appended. `activity.hooks` covers the hook results since your latest prompt. Without a transcript, `activity.tools` and `activity.agents` show what the companion mod reports.
 
-³ The enabled MCP servers from your user and project configuration and the project's `.mcp.json`. Servers that plugins provide are not included.
+³ `env` lists the `CLAUDE.md` files, rules and configured hooks of your user and project settings, and the MCP servers. `mcp` lists the enabled MCP servers: those in your user and project configuration, plus the servers in the project's `.mcp.json` that your `settings.json`, `.claude/settings.json` or `.claude/settings.local.json` approve (`enabledMcpjsonServers`, or `enableAllProjectMcpServers`, less `disabledMcpjsonServers`). Windows project paths match however they are written. Servers that plugins provide are not included.
+
+The activity metrics show what Claude is doing now on the left of `⇒` and the session totals on the right:
+
+```
+◐ Bash cargo test | ✓ Edit lib.rs ⇒ Edit×1 Read×1
+◐ Explore [haiku-4.5 · high] · scan the crate (1m 2s) ⇒ Agent×1 (1 running)
+▸ cover the new segment (0/1)
+✓ review ⇒ 1 skill
+✓ format ⇒ Post×1
+```
+
+- `activity.tools`: running tools (`◐`) and the latest finished ones (`✓`, `✗` when one failed) with their target, then the most used tools; `top` sets how many (default 4).
+- `activity.agents`: running subagents and those that ended in the last minute, with model, effort, description and run time, then how many ran and how many still run.
+- `activity.todos`: the todo in progress (`▸`) and how many are done.
+- `activity.skills`: the skill running or last used, and how many skills ran.
+- `activity.hooks`: the latest hook result since your last prompt, and counts per hook event.
+- `env`: `CLAUDE.md: …`, `rules: …`, `MCPs: …` and `hooks: …`, each only when there is something to list.
 
 Items show only when they have something to say: the cache when Claude Code reports one, the update when a newer ccline is out, `output_style` unless it is the default.
 
@@ -218,10 +235,12 @@ Each `[[line]]` has a `left` and a `right` group; the right one is flush right. 
 | `format`, `compact`, `minimal` | Text templates: `{field}` inserts a value, `[ … ]` drops its contents when a field inside is empty |
 | `icon` | Icon override; `""` for none |
 | `color`, `fg`, `icon_color` | A palette token (`accent`, `warn`, `cache` …), a color name (`bright_yellow`), `#rrggbb`, `256:n` or `16:n` |
-| `levels`, `coloring` | Warning thresholds such as `[[50, "warn"], [80, "crit"]]`; `steps` or `gradient` |
+| `levels`, `coloring` | Warning thresholds such as `[[50, "warn"], [80, "crit"]]`; `steps` or `gradient`. For `cache` they are percent of the cache lifetime used up |
 | `options` | Metric options, such as `dir`'s `style` or `cmd`'s `run` |
 
-Palettes: `terminal` (follows your terminal theme), `catppuccin-mocha`, `catppuccin-latte`, `dracula`, `nord`, `tokyo-night`, `rose-pine`, `gruvbox`, `anthropic-clay`, and v1's powerline colors as `powerline-dark`, `powerline-light`, `powerline-rose-pine` and `powerline-tokyo-night`. Your own go in `palettes/*.toml`; `[palette_overrides]` changes single tokens.
+Palettes: `terminal` (follows your terminal theme), `catppuccin-mocha`, `catppuccin-latte`, `dracula`, `nord`, `tokyo-night`, `rose-pine`, `gruvbox`, `anthropic-clay`, and v1's powerline colors as `powerline-dark`, `powerline-light`, `powerline-rose-pine` and `powerline-tokyo-night`. Your own go in `palettes/*.toml`; `[palette_overrides]` changes single tokens. The `terminal` palette shows session items in bright cyan.
+
+The `cache` countdown changes color with the share of the cache lifetime (5 minutes or 1 hour) that is left. With more than a quarter left it keeps the item's color; in the last quarter it turns `warn` (1:15 of 5 minutes, 15:00 of 1 hour), in the last tenth `crit` (0:30, 6:00). A cold cache is shown in the muted color. `levels` moves the thresholds, as percent of the lifetime used up: `levels = [[60, "warn"], [85, "crit"]]`.
 
 A config that fails to parse never blanks the status line: ccline draws the default preset and adds `! config` at the end.
 

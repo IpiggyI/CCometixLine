@@ -391,14 +391,19 @@ mod tests {
             ("advisor", "Identity"),
             ("session.start", "Session"),
             ("session.last_reply", "Session"),
+            ("activity.tools", "Activity"),
+            ("activity.agents", "Activity"),
+            ("activity.todos", "Activity"),
             ("activity.skills", "Activity"),
             ("activity.hooks", "Activity"),
+            ("env", "Activity"),
             ("mcp", "Activity"),
         ] {
             let cat = metrics::find(id).unwrap().meta.category;
             let name = GROUPS.iter().find(|(c, _)| *c == cat).map(|(_, n)| *n);
             assert_eq!(name, Some(group), "{id}");
         }
+        assert!(metrics::find("activity.tool_calls").is_none());
     }
 
     #[test]

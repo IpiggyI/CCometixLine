@@ -65,7 +65,11 @@ pub fn severity(reading: &Reading, levels: &[(f64, Severity)]) -> Severity {
     let Some(ratio) = reading.ratio else {
         return Severity::Normal;
     };
-    let pct = ratio * 100.0;
+    let pct = if reading.draining {
+        (1.0 - ratio) * 100.0
+    } else {
+        ratio * 100.0
+    };
     levels
         .iter()
         .filter(|(at, _)| pct >= *at)

@@ -10,6 +10,17 @@ use crate::widgets::WidgetKind;
 const FIVE_HOURS: i64 = 5 * 3600;
 const SEVEN_DAYS: i64 = 7 * 86_400;
 
+/// Thresholds for the cache countdown, in percent of the cache lifetime
+/// already used up (the reading drains; see `Reading::draining`). They are
+/// shares of the TTL so a 5-minute and a 1-hour cache warn alike:
+/// - warn at 75%: the last quarter, 1:15 left of 5m or 15:00 of 1h, enough
+///   to send a prompt and keep the cache;
+/// - crit at 90%: the last tenth, 0:30 left of 5m or 6:00 of 1h, about to go
+///   cold.
+///
+/// Plenty left (under 75%) keeps the item's own color.
+const CACHE_LEVELS: &[(f64, Severity)] = &[(75.0, Severity::Warn), (90.0, Severity::Crit)];
+
 fn meta(
     id: &'static str,
     category: Category,
@@ -172,6 +183,7 @@ pub(super) fn metrics() -> Vec<Metric> {
                 fields: &[
                     "left", "cold", "rewarm", "state", "ttl", "hit", "misses", "cause",
                 ],
+                levels: CACHE_LEVELS,
                 min_cc: Some(gate::PROMPT_CACHE),
                 priority: 2,
                 ..meta(
@@ -419,21 +431,18 @@ fn cache(ctx: &Ctx, _: &Options) -> Option<Reading> {
         .map(|t| t as i64 - ctx.now)
         .filter(|l| *l > 0 && pc.warm == Some(true));
     let mut r = match left {
-        // In its last minutes the countdown turns to a warning.
+        // The color follows the share of the lifetime left: see `CACHE_LEVELS`.
         Some(left) => Reading::default()
             .set("left", fmt::countdown(left))
             .set("state", "warm")
             .ratio(left as f64 / ttl as f64)
-            .severity(if left < (ttl / 5).clamp(60, 300) {
-                Severity::Warn
-            } else {
-                Severity::Normal
-            }),
+            .draining(),
+        // Cold is settled, not urgent: shown quietly, whatever the levels.
         None => Reading::default()
-            .set("cold", "cold")
+            .set_role("cold", "cold", Role::Muted)
             .set("state", "cold")
             .ratio(0.0)
-            .severity(Severity::Warn),
+            .severity(Severity::Normal),
     };
     if let Some((usd, _)) = projection::rewarm_cost(ctx) {
         r = r.set("rewarm", fmt::money(usd));
