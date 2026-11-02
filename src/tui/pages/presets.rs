@@ -6,7 +6,9 @@
 
 use super::{Cx, Env, Outcome, Page};
 use crate::config::Config;
+use crate::i18n::{self, t};
 use crate::presets::{self, Entry, Library, Origin, Parts};
+use crate::tf;
 use crate::tui::dialogs::{PresetDialog, PresetPrompt, shown_path};
 use crate::tui::doc::Doc;
 use crate::tui::ui;
@@ -58,8 +60,9 @@ fn title(name: &str) -> String {
         .unwrap_or_default()
 }
 
-fn plural(n: usize, word: &str) -> String {
-    format!("{n} {word}{}", if n == 1 { "" } else { "s" })
+/// `n lines`.
+fn lines_count(n: usize) -> String {
+    tf!("{n} line{s}", n = n, s = if n == 1 { "" } else { "s" })
 }
 
 /// `edited 2d ago`, from a file's modification time.
@@ -67,10 +70,10 @@ fn edited(modified: Option<std::time::SystemTime>, now: i64) -> Option<String> {
     let at = modified?.duration_since(UNIX_EPOCH).ok()?.as_secs() as i64;
     let secs = (now - at).max(0);
     Some(match secs {
-        0..=59 => "edited just now".into(),
-        60..=3_599 => format!("edited {}m ago", secs / 60),
-        3_600..=86_399 => format!("edited {}h ago", secs / 3_600),
-        _ => format!("edited {}d ago", secs / 86_400),
+        0..=59 => t("edited just now").into(),
+        60..=3_599 => tf!("edited {n}m ago", n = secs / 60),
+        3_600..=86_399 => tf!("edited {n}h ago", n = secs / 3_600),
+        _ => tf!("edited {n}d ago", n = secs / 86_400),
     })
 }
 
@@ -80,16 +83,16 @@ fn footer(entry: &Entry, now: i64) -> String {
         .config
         .as_ref()
         .ok()
-        .map(|c| plural(c.lines.len(), "line"));
+        .map(|c| lines_count(c.lines.len()));
     let parts: Vec<String> = match &entry.origin {
         Origin::Builtin => lines
             .into_iter()
-            .chain(entry.tags.iter().map(|t| t.to_string()))
+            .chain(entry.tags.iter().map(|tag| t(tag).to_string()))
             .collect(),
         Origin::Mine {
             modified, replaces, ..
-        } => std::iter::once("mine".to_string())
-            .chain(replaces.then(|| "replaces built-in".to_string()))
+        } => std::iter::once(t("mine").to_string())
+            .chain(replaces.then(|| t("replaces built-in").to_string()))
             .chain(lines)
             .chain(edited(*modified, now))
             .collect(),
@@ -124,11 +127,11 @@ impl Presets {
     }
 
     fn filter_line(&self) -> Line<'static> {
-        let mut spans = vec![Span::styled(" Filter  ", ui::muted())];
+        let mut spans = vec![Span::styled(format!(" {}  ", t("Filter")), ui::muted())];
         for (i, f) in FILTERS.iter().enumerate() {
             let on = i == self.filter;
             spans.push(Span::styled(
-                format!("{} {f}  ", ui::radio(on)),
+                format!("{} {}  ", ui::radio(on), t(f)),
                 if on { ui::accent() } else { Style::default() },
             ));
         }
@@ -150,8 +153,8 @@ impl Presets {
             ));
         if in_use {
             let note = match &entry.config {
-                Ok(config) if presets::matches(&cx.doc.config, config) => " ✓ in use ",
-                _ => " ✓ in use, modified ",
+                Ok(config) if presets::matches(&cx.doc.config, config) => t(" ✓ in use "),
+                _ => t(" ✓ in use, modified "),
             };
             block =
                 block.title_top(Line::styled(note, Style::default().fg(ui::OK)).right_aligned());
@@ -164,7 +167,7 @@ impl Presets {
                     .render(config, cx.doc, &registry, cx.env.tz, inner.width)
             }
             Err(e) => vec![
-                Line::styled("Can't read this file:", Style::default().fg(ui::BAD)),
+                Line::styled(t("Can't read this file:"), Style::default().fg(ui::BAD)),
                 Line::styled(e.clone(), ui::muted()),
             ],
         };
@@ -177,17 +180,17 @@ impl Presets {
     /// The two rows under the grid: the selected preset's summary and make.
     fn info(&self, entry: Option<&Entry>) -> Vec<Line<'static>> {
         let Some(e) = entry else {
-            let empty = if FILTERS[self.filter] == "mine" {
+            let empty = t(if FILTERS[self.filter] == "mine" {
                 " No presets of yours yet. N saves the current setup as one."
             } else {
                 " No preset has this tag."
-            };
+            });
             return vec![Line::styled(empty, ui::muted())];
         };
         let summary = if e.summary.is_empty() {
-            Span::styled("— your preset", ui::muted())
+            Span::styled(format!("— {}", t("your preset")), ui::muted())
         } else {
-            Span::raw(format!("— {}", e.summary))
+            Span::raw(format!("— {}", t(&e.summary)))
         };
         let file = match &e.origin {
             Origin::Mine { path, .. } => format!(" · {}", shown_path(path)),
@@ -195,12 +198,13 @@ impl Presets {
         };
         let make = match &e.config {
             Ok(config) => Line::styled(
-                format!(
-                    " {} · skin {} · palette {} · glyphs {}{file}",
-                    plural(config.lines.len(), "line"),
-                    format!("{:?}", config.skin).to_lowercase(),
-                    config.palette,
-                    format!("{:?}", config.glyphs).to_lowercase(),
+                tf!(
+                    " {lines} · skin {skin} · palette {palette} · glyphs {glyphs}{file}",
+                    lines = lines_count(config.lines.len()),
+                    skin = format!("{:?}", config.skin).to_lowercase(),
+                    palette = config.palette,
+                    glyphs = format!("{:?}", config.glyphs).to_lowercase(),
+                    file = file,
                 ),
                 ui::muted(),
             ),
@@ -294,23 +298,31 @@ impl Page for Presets {
                 let entry = shown[self.selected];
                 let config = match &entry.config {
                     Ok(c) => c.clone(),
-                    Err(e) => return Outcome::Toast(format!("Can't use {}: {e}", entry.name)),
+                    Err(e) => {
+                        return Outcome::Toast(tf!(
+                            "Can't use {name}: {e}",
+                            name = entry.name,
+                            e = e
+                        ));
+                    }
                 };
                 let name = entry.name.clone();
-                let (parts, what) = match key.code {
-                    KeyCode::Enter => (Parts::All, ""),
-                    KeyCode::Char('l' | 'L') => (Parts::Layout, "the layout of "),
-                    _ => (Parts::Style, "the look of "),
+                let (parts, done) = match key.code {
+                    KeyCode::Enter => (Parts::All, "Applied {name} (^Z undoes)"),
+                    KeyCode::Char('l' | 'L') => {
+                        (Parts::Layout, "Applied the layout of {name} (^Z undoes)")
+                    }
+                    _ => (Parts::Style, "Applied the look of {name} (^Z undoes)"),
                 };
                 doc.edit(|c, _| *c = presets::apply(c, &config, parts));
-                return Outcome::Toast(format!("Applied {what}{name} (^Z undoes)"));
+                return Outcome::Toast(i18n::fill(t(done), &[("name", &name)]));
             }
             KeyCode::Char('n' | 'N') => return Outcome::Open(Box::new(PresetDialog::new())),
             KeyCode::Char('w' | 'W' | 'e' | 'E' | 'x' | 'X') | KeyCode::Delete if n > 0 => {
                 let entry = shown[self.selected];
                 if !entry.is_mine() {
                     return Outcome::Toast(
-                        "Built-in presets stay as they are; N saves yours as a new one".into(),
+                        t("Built-in presets stay as they are; N saves yours as a new one").into(),
                     );
                 }
                 let name = entry.name.clone();
@@ -330,7 +342,7 @@ impl Page for Presets {
         let entry = self.shown(&doc.presets).get(self.selected).copied()?;
         let config = entry.config.as_ref().ok()?;
         Some((
-            format!("{} · enter applies", entry.name),
+            tf!("{name} · enter applies", name = entry.name),
             presets::apply(&doc.config, config, Parts::All),
         ))
     }

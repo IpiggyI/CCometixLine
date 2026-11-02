@@ -3,7 +3,9 @@
 //! and a file named like a built-in replaces it.
 
 use crate::config::{Config, DepthSetting, LineConfig};
+use crate::i18n::t;
 use crate::style::{Edges, FillStyle, GlyphTier, SkinKind};
+use crate::tf;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -269,13 +271,16 @@ pub fn slug(text: &str) -> String {
 /// Why `name` (a slug) can't name a new preset, if it can't.
 pub fn name_problem(name: &str) -> Option<String> {
     if name.is_empty() {
-        return Some("Give it a name.".into());
+        return Some(t("Give it a name.").into());
     }
     if name.chars().count() > NAME_MAX {
-        return Some(format!("Keep the name to {NAME_MAX} characters."));
+        return Some(tf!("Keep the name to {n} characters.", n = NAME_MAX));
     }
     if PRESETS.iter().any(|p| p.name == name) {
-        return Some(format!("{name} is a built-in preset; pick another name."));
+        return Some(tf!(
+            "{name} is a built-in preset; pick another name.",
+            name = name
+        ));
     }
     None
 }
@@ -498,19 +503,22 @@ impl Library {
     fn mine(&self, name: &str) -> Result<&Entry, String> {
         self.get(name)
             .filter(|e| e.is_mine())
-            .ok_or_else(|| format!("{name} isn't one of your presets"))
+            .ok_or_else(|| tf!("{name} isn't one of your presets", name = name))
     }
 
     fn taken(&self, name: &str) -> Result<(), String> {
         match self.get(name) {
-            Some(e) if e.is_mine() => Err(format!("You already have {name}; W on it replaces it.")),
+            Some(e) if e.is_mine() => Err(tf!(
+                "You already have {name}; W on it replaces it.",
+                name = name
+            )),
             _ => Ok(()),
         }
     }
 
     fn write(&self, path: &Path, summary: &str, config: &Config) -> Result<(), String> {
         crate::paths::write_atomic(path, &file_text(summary, config))
-            .map_err(|e| format!("couldn't write {}: {e}", path.display()))
+            .map_err(|e| tf!("couldn't write {path}: {e}", path = path.display(), e = e))
     }
 
     fn changed(&mut self, last: Option<&str>) {
@@ -557,16 +565,18 @@ impl Library {
         };
         if summary == entry.summary {
             if to != *path {
-                std::fs::rename(path, &to).map_err(|e| format!("couldn't rename {old}: {e}"))?;
+                std::fs::rename(path, &to)
+                    .map_err(|e| tf!("couldn't rename {old}: {e}", old = old, e = e))?;
             }
         } else {
             let config = entry
                 .config
                 .as_ref()
-                .map_err(|e| format!("can't read {old}: {e}"))?;
+                .map_err(|e| tf!("can't read {old}: {e}", old = old, e = e))?;
             self.write(&to, summary, config)?;
             if to != *path {
-                std::fs::remove_file(path).map_err(|e| format!("couldn't remove {old}: {e}"))?;
+                std::fs::remove_file(path)
+                    .map_err(|e| tf!("couldn't remove {old}: {e}", old = old, e = e))?;
             }
         }
         self.changed(Some(new));
@@ -579,7 +589,8 @@ impl Library {
         let Origin::Mine { path, .. } = &entry.origin else {
             unreachable!("mine() returns the user's presets")
         };
-        std::fs::remove_file(path).map_err(|e| format!("couldn't delete {name}: {e}"))?;
+        std::fs::remove_file(path)
+            .map_err(|e| tf!("couldn't delete {name}: {e}", name = name, e = e))?;
         self.changed(None);
         Ok(())
     }

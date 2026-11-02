@@ -3,6 +3,8 @@
 
 use super::{Action, Dialog, Reply};
 use crate::companion;
+use crate::i18n::t;
+use crate::tf;
 use crate::tui::doc::Doc;
 use crate::tui::pages::Cx;
 use crate::tui::ui;
@@ -33,12 +35,12 @@ impl Dialog for ModSteps {
         let steps = self.steps();
         let mut text = Vec::new();
         if self.install {
-            text.push(Line::raw(format!(
-                " ccline writes the mod to {}, then runs:",
-                crate::tui::dialogs::shown_path(&companion::dir())
+            text.push(Line::raw(tf!(
+                " ccline writes the mod to {path}, then runs:",
+                path = crate::tui::dialogs::shown_path(&companion::dir())
             )));
         } else {
-            text.push(Line::raw(" ccline runs:"));
+            text.push(Line::raw(t(" ccline runs:")));
         }
         text.push(Line::raw(""));
         for s in &steps {
@@ -52,11 +54,11 @@ impl Dialog for ModSteps {
         }
         text.push(Line::raw(""));
         text.push(Line::styled(
-            if self.install {
+            t(if self.install {
                 " Claude Code records the plugin in its settings. Restart it afterwards."
             } else {
                 " Claude Code drops the plugin and its marketplace from its settings."
-            },
+            }),
             ui::muted(),
         ));
         text.push(ui::hints(&[("Y", "run"), ("N", "cancel")]));
@@ -79,9 +81,9 @@ impl Dialog for ModSteps {
                 };
                 Reply::Then(match result {
                     Ok(()) if self.install => Action::Toast(
-                        "Installed the companion mod; restart Claude Code to load it".into(),
+                        t("Installed the companion mod; restart Claude Code to load it").into(),
                     ),
-                    Ok(()) => Action::Toast("Removed the companion mod".into()),
+                    Ok(()) => Action::Toast(t("Removed the companion mod").into()),
                     Err(e) => Action::Error(e),
                 })
             }

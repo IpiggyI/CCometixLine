@@ -2,6 +2,8 @@
 //! file that changed on disk.
 
 use super::{Action, Dialog, Reply};
+use crate::i18n::t;
+use crate::tf;
 use crate::tui::doc::Doc;
 use crate::tui::pages::Cx;
 use crate::tui::ui;
@@ -23,13 +25,14 @@ impl Dialog for Quit {
         let n = cx.doc.edits();
         let mut text = Vec::new();
         if n > 0 {
-            text.push(Line::raw(format!(
-                " {n} change{} since the last save.",
-                if n == 1 { "" } else { "s" }
+            text.push(Line::raw(tf!(
+                " {n} change{s} since the last save.",
+                n = n,
+                s = if n == 1 { "" } else { "s" }
             )));
         }
         if self.settings {
-            text.push(Line::raw(" A change to settings.json not applied yet."));
+            text.push(Line::raw(t(" A change to settings.json not applied yet.")));
         }
         text.push(Line::raw(""));
         text.push(ui::hints(&[
@@ -66,16 +69,16 @@ pub struct Conflict {
 impl Dialog for Conflict {
     fn render(&mut self, f: &mut Frame, area: Rect, _: &Cx) {
         let rect = ui::popup(f, area, 72, 8 + self.paths.len() as u16);
-        let mut text = vec![Line::raw(" Changed outside ccline since it was opened:")];
+        let mut text = vec![Line::raw(t(" Changed outside ccline since it was opened:"))];
         text.extend(
             self.paths
                 .iter()
                 .map(|p| Line::styled(format!("   {}", p.display()), ui::accent())),
         );
         text.push(Line::raw(""));
-        text.push(Line::raw(
+        text.push(Line::raw(t(
             " Overwriting loses those changes; reloading loses yours.",
-        ));
+        )));
         text.push(Line::raw(""));
         text.push(ui::hints(&[
             ("O", "overwrite"),

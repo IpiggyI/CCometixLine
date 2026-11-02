@@ -2,11 +2,13 @@
 //! and changed by cycling, typing or a dialog.
 
 use crate::config::ItemConfig;
+use crate::i18n::t;
 use crate::metrics::{MetricMeta, OptKind, OptSpec};
 use crate::style::color::ColorDepth;
 use crate::style::glyphs::{self, BarGlyphs, GlyphTier};
 use crate::style::palette::{Palette, TOKENS, Token};
 use crate::style::{Color, Severity};
+use crate::tf;
 use crate::tui::ui::{self, TextInput};
 use crate::widgets::{Coloring, Level, WidgetKind};
 use ratatui::style::Style;
@@ -122,23 +124,25 @@ pub fn fields(cfg: &ItemConfig, meta: &MetricMeta, one_line: bool) -> Vec<Field>
     f
 }
 
+/// The field's name; an option's is its key, as written in `options`.
 pub fn label(field: Field, meta: &MetricMeta) -> String {
-    match field {
-        Field::Opt(i) => meta.options[i].key.to_string(),
-        Field::Widget => "Widget".into(),
-        Field::Bar => "Bar".into(),
-        Field::Cells => "Cells".into(),
-        Field::Template(Level::Full) => "Full".into(),
-        Field::Template(Level::Compact) => "Compact".into(),
-        Field::Template(Level::Minimal) => "Minimal".into(),
-        Field::Icon => "Icon".into(),
-        Field::IconColor => "Icon color".into(),
-        Field::Color => "Color".into(),
-        Field::Text => "Text".into(),
-        Field::Levels => "Levels".into(),
-        Field::Coloring => "Coloring".into(),
-        Field::Priority => "Priority".into(),
-    }
+    let name = match field {
+        Field::Opt(i) => return meta.options[i].key.to_string(),
+        Field::Widget => "Widget",
+        Field::Bar => "Bar",
+        Field::Cells => "Cells",
+        Field::Template(Level::Full) => "Full",
+        Field::Template(Level::Compact) => "Compact",
+        Field::Template(Level::Minimal) => "Minimal",
+        Field::Icon => "Icon",
+        Field::IconColor => "Icon color",
+        Field::Color => "Color",
+        Field::Text => "Text",
+        Field::Levels => "Levels",
+        Field::Coloring => "Coloring",
+        Field::Priority => "Priority",
+    };
+    t(name).to_string()
 }
 
 pub fn change(field: Field, meta: &MetricMeta) -> Change {
@@ -364,7 +368,7 @@ pub fn set_text(
                 _ if text.is_empty() => None,
                 OptKind::Number => Some(toml::Value::Integer(
                     text.parse::<u32>()
-                        .map_err(|_| format!("{} takes a whole number", spec.key))?
+                        .map_err(|_| tf!("{key} takes a whole number", key = spec.key))?
                         .into(),
                 )),
                 _ => Some(toml::Value::String(text.to_string())),
@@ -415,7 +419,7 @@ pub fn levels_text(cfg: &ItemConfig, meta: &MetricMeta) -> String {
             .collect(),
     };
     if all.is_empty() {
-        "none".into()
+        t("none").into()
     } else {
         all.join(" · ")
     }
@@ -431,17 +435,19 @@ pub struct Look<'a> {
 /// The value column for `field`.
 pub fn value(field: Field, cfg: &ItemConfig, meta: &MetricMeta, look: &Look) -> Vec<Span<'static>> {
     let plain = |s: String| vec![Span::raw(s)];
-    let muted = |s: &str| vec![Span::styled(s.to_string(), ui::muted())];
+    // Values as they are; `muted` is for words.
+    let as_is = |s: &str| vec![Span::styled(s.to_string(), ui::muted())];
+    let muted = |s: &str| as_is(t(s));
     match field {
         Field::Opt(i) => {
             let spec = &meta.options[i];
             match spec.kind {
-                OptKind::Flag => vec![ui::choice(if flag(cfg, spec) { "on" } else { "off" })],
+                OptKind::Flag => vec![ui::choice(t(if flag(cfg, spec) { "on" } else { "off" }))],
                 OptKind::Choice(_) => vec![ui::choice(&opt_text(cfg, spec))],
                 OptKind::Text | OptKind::Number => match opt(cfg, spec) {
                     Some(_) => plain(opt_text(cfg, spec)),
                     None if spec.default.is_empty() => muted("none"),
-                    None => muted(spec.default),
+                    None => as_is(spec.default),
                 },
             }
         }
@@ -451,7 +457,7 @@ pub fn value(field: Field, cfg: &ItemConfig, meta: &MetricMeta, look: &Look) -> 
         Field::Template(l) => match template(cfg, l) {
             Some(t) if t.is_empty() => muted("hidden"),
             Some(t) => plain(t.clone()),
-            None => muted(meta.templates[l.index()]),
+            None => as_is(meta.templates[l.index()]),
         },
         Field::Icon => match &cfg.icon {
             Some(i) if i.is_empty() => muted("none"),
@@ -490,9 +496,9 @@ pub fn value(field: Field, cfg: &ItemConfig, meta: &MetricMeta, look: &Look) -> 
                 Span::styled("○".repeat(5 - p), ui::muted()),
                 Span::styled(
                     if p == 1 {
-                        "  first to go".to_string()
+                        format!("  {}", t("first to go"))
                     } else if p == 5 {
-                        "  kept longest".to_string()
+                        format!("  {}", t("kept longest"))
                     } else {
                         String::new()
                     },
@@ -517,7 +523,7 @@ pub fn row(
     let style = if on { ui::accent() } else { Style::default() };
     let mut spans = vec![
         marker,
-        Span::styled(format!("{:<LABEL$}", label(field, meta)), style),
+        Span::styled(ui::pad(&label(field, meta), LABEL), style),
     ];
     match editing {
         Some(input) if on => {

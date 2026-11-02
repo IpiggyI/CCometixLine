@@ -1,6 +1,7 @@
 //! `?`: every key that works here.
 
 use super::{Dialog, Reply};
+use crate::i18n::t;
 use crate::tui::doc::Doc;
 use crate::tui::pages::Cx;
 use crate::tui::ui;
@@ -34,8 +35,8 @@ fn rows(keys: &[(&str, &str)]) -> Vec<Line<'static>> {
     keys.iter()
         .map(|(k, d)| {
             Line::from(vec![
-                Span::styled(format!("  {k:<10}"), ui::accent()),
-                Span::raw(d.to_string()),
+                Span::styled(format!("  {}", ui::pad(t(k), 10)), ui::accent()),
+                Span::raw(t(d).to_string()),
             ])
         })
         .collect()
@@ -45,15 +46,16 @@ impl Dialog for Help {
     fn render(&mut self, f: &mut Frame, area: Rect, _: &Cx) {
         let height = (GLOBAL.len() + self.keys.len() + 6) as u16;
         let rect = ui::popup(f, area, 56, height);
-        let mut text = vec![Line::styled(" Everywhere", ui::title())];
+        let mut text = vec![Line::styled(format!(" {}", t("Everywhere")), ui::title())];
         text.extend(rows(&GLOBAL));
         text.push(Line::raw(""));
         text.push(Line::styled(format!(" {}", self.page), ui::strong()));
         text.extend(rows(&self.keys));
         f.render_widget(
-            Paragraph::new(text).block(
-                ui::panel("Keys").title_bottom(Line::styled(" any key closes ", ui::muted())),
-            ),
+            Paragraph::new(text).block(ui::panel("Keys").title_bottom(Line::styled(
+                format!(" {} ", t("any key closes")),
+                ui::muted(),
+            ))),
             rect,
         );
     }

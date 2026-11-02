@@ -4,6 +4,7 @@ pub mod companion;
 pub mod config;
 pub mod env;
 pub mod git;
+pub mod i18n;
 pub mod input;
 pub mod layout;
 pub mod metrics;

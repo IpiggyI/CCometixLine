@@ -5,11 +5,13 @@
 use super::edit::{self, Loc};
 use super::inspector::sev_name;
 use crate::config::ItemConfig;
+use crate::i18n::t;
 use crate::metrics::MetricMeta;
 use crate::style::Severity;
 use crate::style::glyphs::{self, BarGlyphs, GlyphTier, IconKey};
 use crate::style::palette::Token;
 use crate::style::skin;
+use crate::tf;
 use crate::tui::convert;
 use crate::tui::dialogs::{Action, Dialog, Reply};
 use crate::tui::doc::Doc;
@@ -58,7 +60,7 @@ impl ItemRef {
     }
 
     fn title(&self, what: &str) -> String {
-        format!("{what} · {}", self.meta.id)
+        format!("{} · {}", t(what), self.meta.id)
     }
 }
 
@@ -70,10 +72,13 @@ fn text_of(line: &Option<Line>) -> String {
 
 /// `Preview  <the item>` for the bottom of a dialog.
 fn sample_row(sample: Option<Line<'static>>) -> Line<'static> {
-    let mut spans = vec![Span::styled(" Preview   ", ui::muted())];
+    let mut spans = vec![Span::styled(
+        format!(" {}", ui::pad(t("Preview"), 10)),
+        ui::muted(),
+    )];
     match sample {
         Some(l) => spans.extend(l.spans),
-        None => spans.push(Span::styled("nothing in this scenario", ui::muted())),
+        None => spans.push(Span::styled(t("nothing in this scenario"), ui::muted())),
     }
     Line::from(spans)
 }
@@ -140,7 +145,7 @@ impl Dialog for WidgetDialog {
                 Span::styled(format!("{label:<15}"), style),
             ];
             if graphless {
-                spans.push(Span::styled("no graph for this metric", ui::muted()));
+                spans.push(Span::styled(t("no graph for this metric"), ui::muted()));
             } else if let Some(l) = sample {
                 spans.extend(l.spans);
             }
@@ -172,7 +177,7 @@ impl Dialog for WidgetDialog {
                         c.bar = (b != BarGlyphs::default()).then_some(b);
                     }
                 });
-                return Reply::Then(Action::Toast(format!("Widget: {label}")));
+                return Reply::Then(Action::Toast(tf!("Widget: {name}", name = label)));
             }
             _ => {}
         }
@@ -300,9 +305,9 @@ impl IconDialog {
         let mut out = vec![
             (
                 glyphs::icon(self.item.meta.icon, self.tier).to_string(),
-                "default".to_string(),
+                t("default").to_string(),
             ),
-            (String::new(), "none".to_string()),
+            (String::new(), t("none").to_string()),
         ];
         out.extend(
             IconKey::ALL
@@ -364,7 +369,7 @@ impl IconDialog {
             } else {
                 Style::default()
             };
-            spans.push(Span::styled(format!(" {label} "), style));
+            spans.push(Span::styled(format!(" {} ", t(label)), style));
             spans.push(Span::raw(" "));
         }
         spans
@@ -380,16 +385,20 @@ impl IconDialog {
         let all = nerd::all();
         let mut head = self.tabs();
         head.push(Span::styled(
-            format!("  {} of {}", thousands(b.found.len()), thousands(all.len())),
+            tf!(
+                "  {found} of {all}",
+                found = thousands(b.found.len()),
+                all = thousands(all.len())
+            ),
             ui::muted(),
         ));
         let prefixes: Vec<String> = nerd::classes()[..4]
             .iter()
             .map(|c| format!("{c}-"))
             .collect();
-        let placeholder = format!(
-            "a name, {} …, a codepoint, or paste an icon",
-            prefixes.join(" ")
+        let placeholder = tf!(
+            "a name, {prefixes} …, a codepoint, or paste an icon",
+            prefixes = prefixes.join(" ")
         );
         let mut search = vec![Span::styled(" / ", ui::accent())];
         search.extend(
@@ -436,19 +445,19 @@ impl IconDialog {
                 ];
                 if g.names.len() > 1 {
                     spans.push(Span::styled(
-                        format!("  also {}", g.names[1..].join(" ")),
+                        tf!("  also {names}", names = g.names[1..].join(" ")),
                         ui::muted(),
                     ));
                 }
                 if cx.doc.config.glyphs != GlyphTier::Nerd {
                     spans.push(Span::styled(
-                        "  needs a Nerd Font",
+                        t("  needs a Nerd Font"),
                         Style::default().fg(ui::WARN),
                     ));
                 }
                 Line::from(ui::clip(spans, (rect.width as usize).saturating_sub(2)))
             }
-            None => Line::styled(" No icon matches", ui::muted()),
+            None => Line::styled(t(" No icon matches"), ui::muted()),
         });
         let mut item = self.item.current(cx.doc);
         item.icon = self.candidate(cx.doc);
@@ -555,9 +564,8 @@ impl Dialog for IconDialog {
                 )));
                 spans.push(Span::styled(
                     format!(
-                        " {:<w$}",
-                        crate::render::width::truncate(name, ICON_NAME),
-                        w = ICON_NAME
+                        " {}",
+                        ui::pad(&crate::render::width::truncate(name, ICON_NAME), ICON_NAME)
                     ),
                     if on { ui::accent() } else { ui::muted() },
                 ));
@@ -567,14 +575,17 @@ impl Dialog for IconDialog {
         text.push(Line::raw(""));
         let custom = match &self.custom {
             Some(input) => {
-                let mut spans = vec![Span::styled(" Custom    ", ui::accent())];
-                spans.extend(input.line(20, true, "type any character").spans);
+                let mut spans = vec![Span::styled(
+                    format!(" {}", ui::pad(t("Custom"), 10)),
+                    ui::accent(),
+                )];
+                spans.extend(input.line(20, true, t("type any character")).spans);
                 Line::from(spans)
             }
             None => Line::from(vec![
-                Span::styled(" Custom    ", ui::muted()),
+                Span::styled(format!(" {}", ui::pad(t("Custom"), 10)), ui::muted()),
                 Span::styled("c", ui::accent()),
-                Span::styled(" type your own", ui::muted()),
+                Span::styled(format!(" {}", t("type your own")), ui::muted()),
             ]),
         };
         text.push(custom);
@@ -601,7 +612,7 @@ impl Dialog for IconDialog {
                 KeyCode::Enter => {
                     let icon = Some(input.text().trim().to_string());
                     self.item.apply(doc, |c| c.icon = icon);
-                    return Reply::Then(Action::Toast("Icon set".into()));
+                    return Reply::Then(Action::Toast(t("Icon set").into()));
                 }
                 _ => {
                     input.handle(key);
@@ -631,7 +642,7 @@ impl Dialog for IconDialog {
             KeyCode::Enter => {
                 let icon = self.icon(self.at, &self.entries(), doc.config.glyphs);
                 self.item.apply(doc, |c| c.icon = icon);
-                return Reply::Then(Action::Toast("Icon set".into()));
+                return Reply::Then(Action::Toast(t("Icon set").into()));
             }
             _ => {}
         }
@@ -792,7 +803,7 @@ impl Dialog for LevelsDialog {
             let mut spans = vec![
                 Span::styled(if on { ui::SELECTED } else { "  " }, ui::accent()),
                 Span::styled(
-                    format!("{label:<11}"),
+                    ui::pad(t(&label), 11),
                     if on { ui::accent() } else { Style::default() },
                 ),
             ];
@@ -816,15 +827,15 @@ impl Dialog for LevelsDialog {
         for (i, (at, sev)) in self.steps.iter().enumerate() {
             text.push(row(
                 i + 1,
-                format!("Step {}", i + 1),
+                tf!("Step {n}", n = i + 1),
                 vec![
-                    Span::raw(format!("from {at:>3}%   ")),
+                    Span::raw(tf!("from {at}%   ", at = format!("{at:>3}"))),
                     ui::choice(sev_name(*sev)),
                 ],
             ));
         }
         let add = self.steps.len() + 1;
-        text.push(row(add, "+ add step".into(), Vec::new()));
+        text.push(row(add, format!("+ {}", t("add step")), Vec::new()));
         text.push(Line::raw(""));
         let mut item = self.item.current(cx.doc);
         (item.levels, item.coloring) = self.settings();
@@ -889,9 +900,9 @@ impl Dialog for LevelsDialog {
                     c.levels = levels;
                     c.coloring = coloring;
                 });
-                return Reply::Then(Action::Toast(format!(
-                    "Levels: {}",
-                    super::inspector::levels_text(&self.item.current(doc), self.item.meta)
+                return Reply::Then(Action::Toast(tf!(
+                    "Levels: {levels}",
+                    levels = super::inspector::levels_text(&self.item.current(doc), self.item.meta)
                 )));
             }
             _ => {}

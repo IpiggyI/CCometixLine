@@ -2,7 +2,9 @@
 //! tier their font can draw.
 
 use super::{Action, Dialog, Reply};
+use crate::i18n::t;
 use crate::style::glyphs::{self, GlyphTier, IconKey};
+use crate::tf;
 use crate::tui::doc::Doc;
 use crate::tui::pages::Cx;
 use crate::tui::ui;
@@ -27,7 +29,7 @@ pub struct FontCheck;
 
 fn row(label: &str, glyphs: String) -> Line<'static> {
     Line::from(vec![
-        Span::styled(format!("   {label:<9}"), ui::muted()),
+        Span::styled(format!("   {}", ui::pad(label, 9)), ui::muted()),
         Span::styled(glyphs, ui::strong()),
     ])
 }
@@ -44,7 +46,7 @@ impl Dialog for FontCheck {
             .map(|k| glyphs::icon(*k, GlyphTier::Unicode))
             .collect();
         let text = vec![
-            Line::raw(" Do these show as icons, not boxes or question marks?"),
+            Line::raw(t(" Do these show as icons, not boxes or question marks?")),
             Line::raw(""),
             row(
                 "Nerd",
@@ -52,7 +54,10 @@ impl Dialog for FontCheck {
             ),
             row("Unicode", format!("{}    ▰▱ ▁▃▆█", unicode.join("  "))),
             Line::raw(""),
-            Line::styled(" Pill and powerline skins need the Nerd row.", ui::muted()),
+            Line::styled(
+                t(" Pill and powerline skins need the Nerd row."),
+                ui::muted(),
+            ),
             Line::raw(""),
             ui::hints(&[
                 ("N", "Nerd Font"),
@@ -73,9 +78,9 @@ impl Dialog for FontCheck {
             _ => return Reply::Stay,
         };
         doc.edit(|c, _| c.glyphs = tier);
-        Reply::Then(Action::Toast(format!(
-            "Glyphs: {}",
-            format!("{tier:?}").to_lowercase()
+        Reply::Then(Action::Toast(tf!(
+            "Glyphs: {tier}",
+            tier = format!("{tier:?}").to_lowercase()
         )))
     }
 }

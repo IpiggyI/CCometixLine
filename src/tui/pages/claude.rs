@@ -1,11 +1,14 @@
 //! 6 Claude Code: the status line and agent panel settings in Claude
 //! Code's `settings.json` (edited as a draft, written after a diff), the
-//! update check, and what the companion mod will add.
+//! update check and the TUI's language, and what the companion mod will
+//! add.
 
 use super::{Cx, Env, Outcome, Page, PageId};
 use crate::cc_settings::{self, Settings, StatusLine};
 use crate::companion::{self, Status};
+use crate::i18n::{Language, t};
 use crate::state::update;
+use crate::tf;
 use crate::tui::dialogs::{ModSteps, SettingsDiff, shown_path};
 use crate::tui::doc::Doc;
 use crate::tui::ui;
@@ -30,7 +33,7 @@ enum Pane {
 /// In the order they sit on screen: left to right, top to bottom.
 const PANES: [Pane; 4] = [Pane::StatusLine, Pane::Mod, Pane::Agents, Pane::Updates];
 /// Rows per pane; the status line's last row applies the draft.
-const ROWS: [usize; 4] = [5, 2, 2, 3];
+const ROWS: [usize; 4] = [5, 2, 2, 4];
 const REFRESH: [Option<u64>; 7] = [
     None,
     Some(1),
@@ -75,7 +78,7 @@ fn step<T: PartialEq + Copy>(all: &[T], current: T, forward: bool) -> T {
 }
 
 fn on_off(on: bool) -> Span<'static> {
-    ui::choice(if on { "on" } else { "off" })
+    ui::choice(t(if on { "on" } else { "off" }))
 }
 
 impl ClaudePage {
@@ -120,7 +123,7 @@ impl ClaudePage {
     /// Change the status line; there must be one first.
     fn edit_line(&mut self, f: impl FnOnce(&mut StatusLine)) -> Outcome {
         let Some(mut line) = self.current().and_then(Settings::status_line) else {
-            return Outcome::Toast("Set the command first".into());
+            return Outcome::Toast(t("Set the command first").into());
         };
         f(&mut line);
         self.edit(|d| d.set_status_line(Some(&line)));
@@ -138,7 +141,7 @@ impl ClaudePage {
     fn review(&self) -> Outcome {
         match self.diff() {
             Some(diff) => Outcome::Open(Box::new(diff)),
-            None => Outcome::Toast("No changes to apply".into()),
+            None => Outcome::Toast(t("No changes to apply").into()),
         }
     }
 
@@ -165,7 +168,7 @@ impl ClaudePage {
         let mut spans = vec![
             Span::styled(if on { ui::SELECTED } else { "  " }, ui::accent()),
             Span::styled(
-                format!("{label:<w$}"),
+                ui::pad(t(label), w),
                 if on { ui::accent() } else { Style::default() },
             ),
         ];
@@ -176,7 +179,7 @@ impl ClaudePage {
     /// A row that only shows something, aligned with `pane`'s rows.
     fn info(pane: Pane, label: &str, value: Span<'static>, width: usize) -> Line<'static> {
         let w = label_width(pane);
-        let mut spans = vec![Span::raw(format!("  {label:<w$}"))];
+        let mut spans = vec![Span::raw(format!("  {}", ui::pad(t(label), w)))];
         spans.extend(ui::clip(vec![value], width.saturating_sub(2 + w)));
         Line::from(spans)
     }
@@ -188,10 +191,13 @@ impl ClaudePage {
         let at = (cx, width);
         let lines = match (&self.base, self.current()) {
             (Some(Err(e)), _) => vec![
-                Line::styled(format!("Can't edit it: {e}"), Style::default().fg(ui::BAD)),
-                Line::styled("Fix the file by hand, then come back.", ui::muted()),
+                Line::styled(
+                    tf!("Can't edit it: {e}", e = e),
+                    Style::default().fg(ui::BAD),
+                ),
+                Line::styled(t("Fix the file by hand, then come back."), ui::muted()),
             ],
-            (_, None) => vec![Line::styled("Reading…", ui::muted())],
+            (_, None) => vec![Line::styled(t("Reading…"), ui::muted())],
             (_, Some(s)) => {
                 let line = s.status_line();
                 let room = width.saturating_sub(2 + label_width(Pane::StatusLine) + 2);
@@ -206,9 +212,12 @@ impl ClaudePage {
                             &l.command,
                             room.saturating_sub(11),
                         )),
-                        Span::styled("  not ccline", Style::default().fg(ui::WARN)),
+                        Span::styled(
+                            format!("  {}", t("not ccline")),
+                            Style::default().fg(ui::WARN),
+                        ),
                     ],
-                    None => vec![Span::styled("not set", Style::default().fg(ui::WARN))],
+                    None => vec![Span::styled(t("not set"), Style::default().fg(ui::WARN))],
                 };
                 let l = line.clone().unwrap_or_default();
                 let has = line.is_some();
@@ -222,8 +231,8 @@ impl ClaudePage {
                 let refresh = match l.refresh_interval {
                     Some(n) => vec![ui::choice(&format!("{n}s"))],
                     None => vec![
-                        ui::choice("not set"),
-                        Span::styled("  2s keeps timers live", ui::muted()),
+                        ui::choice(t("not set")),
+                        Span::styled(format!("  {}", t("2s keeps timers live")), ui::muted()),
                     ],
                 };
                 let pane = Pane::StatusLine;
@@ -247,9 +256,12 @@ impl ClaudePage {
                     Line::raw(""),
                 ];
                 let apply = if self.pending() {
-                    Span::styled("review and apply changes…", Style::default().fg(ui::WARN))
+                    Span::styled(
+                        t("review and apply changes…"),
+                        Style::default().fg(ui::WARN),
+                    )
                 } else {
-                    Span::styled("no changes", ui::muted())
+                    Span::styled(t("no changes"), ui::muted())
                 };
                 let on = cx.focused && self.pane == pane && self.rows[0] == 4;
                 out.push(Line::from(vec![
@@ -264,7 +276,7 @@ impl ClaudePage {
                     out.push(Line::from(ui::clip(
                         vec![
                             Span::styled("enter", ui::accent()),
-                            Span::styled(" on command uses ", ui::muted()),
+                            Span::styled(t(" on command uses "), ui::muted()),
                             Span::raw(cc_settings::suggested_command()),
                         ],
                         width,
@@ -278,7 +290,11 @@ impl ClaudePage {
 
     fn render_agents(&self, f: &mut Frame, area: Rect, cx: &Cx) {
         let pane = Pane::Agents;
-        let block = self.block("Agent panel · subagentStatusLine".into(), Some(pane), cx);
+        let block = self.block(
+            format!("{} · subagentStatusLine", t("Agent panel")),
+            Some(pane),
+            cx,
+        );
         let width = block.inner(area).width as usize;
         let enabled = self
             .current()
@@ -311,7 +327,9 @@ impl ClaudePage {
             ),
             Line::raw(""),
             Line::styled(
-                "One row per background agent, every 5 seconds. Enter on the row above edits it in Layout (t switches lines).",
+                t(
+                    "One row per background agent, every 5 seconds. Enter on the row above edits it in Layout (t switches lines).",
+                ),
                 ui::muted(),
             ),
         ];
@@ -323,15 +341,17 @@ impl ClaudePage {
 
     fn render_updates(&self, f: &mut Frame, area: Rect, cx: &Cx) {
         let pane = Pane::Updates;
-        let block = self.block("Updates".into(), Some(pane), cx);
+        let block = self.block(t("Updates & language").into(), Some(pane), cx);
         let width = block.inner(area).width as usize;
         let u = &cx.doc.config.update;
+        let language = cx.doc.config.language;
         let latest = match &cx.env.update.latest {
-            Some(v) if update::is_newer(v, update::CURRENT) => {
-                Span::styled(format!("{v}  ↑ available"), Style::default().fg(ui::WARN))
-            }
-            Some(v) => Span::raw(format!("{v}  up to date")),
-            None => Span::styled("not checked yet", ui::muted()),
+            Some(v) if update::is_newer(v, update::CURRENT) => Span::styled(
+                tf!("{v}  ↑ available", v = v),
+                Style::default().fg(ui::WARN),
+            ),
+            Some(v) => Span::raw(tf!("{v}  up to date", v = v)),
+            None => Span::styled(t("not checked yet"), ui::muted()),
         };
         let text = vec![
             self.row(pane, 0, "check", vec![on_off(u.check)], (cx, width)),
@@ -343,11 +363,20 @@ impl ClaudePage {
                 (cx, width),
             ),
             self.row(pane, 2, "upgrade", vec![Span::raw(UPGRADE)], (cx, width)),
+            self.row(
+                pane,
+                3,
+                "language",
+                vec![ui::choice(language.label())],
+                (cx, width),
+            ),
             Self::info(pane, "current", Span::raw(update::CURRENT), width),
             Self::info(pane, "latest", latest, width),
             Line::raw(""),
             Line::styled(
-                "Checked in the background; never slows the status line. Enter on upgrade copies the command.",
+                t(
+                    "Checked in the background; never slows the status line. Enter on upgrade copies the command.",
+                ),
                 ui::muted(),
             ),
         ];
@@ -359,29 +388,29 @@ impl ClaudePage {
 
     fn render_mod(&self, f: &mut Frame, area: Rect, cx: &Cx) {
         let pane = Pane::Mod;
-        let block = self.block("Companion mod".into(), Some(pane), cx);
+        let block = self.block(t("Companion mod").into(), Some(pane), cx);
         let width = block.inner(area).width as usize;
         let at = (cx, width);
         let ok = |t: String| Span::styled(t, Style::default().fg(ui::OK));
         let warn = |t: String| Span::styled(t, Style::default().fg(ui::WARN));
         let status = match companion::status() {
             Status::NotInstalled => vec![
-                Span::styled("not installed", ui::muted()),
-                Span::styled("  enter installs", ui::muted()),
+                Span::styled(t("not installed"), ui::muted()),
+                Span::styled(format!("  {}", t("enter installs")), ui::muted()),
             ],
             Status::Outdated(i) => vec![
-                warn(format!(
-                    "{} installed, {} here",
-                    i.version.as_deref().unwrap_or("?"),
-                    companion::version()
+                warn(tf!(
+                    "{old} installed, {new} here",
+                    old = i.version.as_deref().unwrap_or("?"),
+                    new = companion::version()
                 )),
-                Span::styled("  enter updates", ui::muted()),
+                Span::styled(format!("  {}", t("enter updates")), ui::muted()),
             ],
-            Status::Current(_) => vec![ok(format!("installed {} ✓", companion::version()))],
+            Status::Current(_) => vec![ok(tf!("installed {v} ✓", v = companion::version()))],
         };
         let needs = match cx.env.cc_version() {
             Some(v) if v >= MODS => ok(format!("Claude Code ≥ {MODS} ✓")),
-            Some(v) => warn(format!("Claude Code ≥ {MODS}, running {v}")),
+            Some(v) => warn(tf!("Claude Code ≥ {min}, running {v}", min = MODS, v = v)),
             None => Span::raw(format!("Claude Code ≥ {MODS}")),
         };
         // Whether the mod wrote anything for the last session seen.
@@ -393,11 +422,11 @@ impl ClaudePage {
             .and_then(|i| i.get("session_id")?.as_str().map(str::to_string));
         let now_ms = chrono::Utc::now().timestamp_millis();
         let bridge = match session.and_then(|id| crate::state::bridge::read(&id, now_ms)) {
-            Some(b) => ok(format!(
-                "live, {} ago",
-                crate::metrics::fmt::duration_ms((now_ms - b.updated_at).max(0) as u64)
+            Some(b) => ok(tf!(
+                "live, {time} ago",
+                time = crate::metrics::fmt::duration_ms((now_ms - b.updated_at).max(0) as u64)
             )),
-            None => Span::styled("no data for the last session", ui::muted()),
+            None => Span::styled(t("no data for the last session"), ui::muted()),
         };
         let installed = !matches!(companion::status(), Status::NotInstalled);
         let text = vec![
@@ -407,7 +436,11 @@ impl ClaudePage {
                 1,
                 "remove",
                 vec![Span::styled(
-                    if installed { "enter removes it" } else { "—" },
+                    if installed {
+                        t("enter removes it")
+                    } else {
+                        "—"
+                    },
                     ui::muted(),
                 )],
                 at,
@@ -417,10 +450,10 @@ impl ClaudePage {
             Self::info(
                 pane,
                 "adds",
-                Span::raw("context by kind, compact point,"),
+                Span::raw(t("context by kind, compact point,")),
                 width,
             ),
-            Self::info(pane, "", Span::raw("tools, agents, turn timing"), width),
+            Self::info(pane, "", Span::raw(t("tools, agents, turn timing")), width),
         ];
         f.render_widget(Paragraph::new(text).block(block), area);
     }
@@ -432,7 +465,7 @@ impl ClaudePage {
             (1, KeyCode::Enter) if installed => {
                 Outcome::Open(Box::new(ModSteps { install: false }))
             }
-            (1, KeyCode::Enter) => Outcome::Toast("The companion mod isn't installed".into()),
+            (1, KeyCode::Enter) => Outcome::Toast(t("The companion mod isn't installed").into()),
             _ => Outcome::Ignored,
         }
     }
@@ -495,7 +528,9 @@ impl ClaudePage {
                     .filter(|c| cc_settings::is_ccline(c))
                     .unwrap_or_else(cc_settings::suggested_command);
                 self.edit(|d| d.set_subagent((!on).then_some(command.as_str())));
-                Outcome::Toast("Changed the draft; apply it from the statusLine panel (a)".into())
+                Outcome::Toast(
+                    t("Changed the draft; apply it from the statusLine panel (a)").into(),
+                )
             }
             (1, KeyCode::Enter) => Outcome::Goto(PageId::Layout),
             _ => Outcome::Ignored,
@@ -516,6 +551,10 @@ impl ClaudePage {
                 Outcome::Consumed
             }
             (2, KeyCode::Enter) => Outcome::Copy(UPGRADE.into()),
+            (3, KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Left | KeyCode::Right) => {
+                doc.edit(|c, _| c.language = step(&Language::ALL, c.language, forward));
+                Outcome::Consumed
+            }
             _ => Outcome::Ignored,
         }
     }

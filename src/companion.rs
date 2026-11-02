@@ -5,6 +5,7 @@
 //! Claude Code records the install itself.
 
 use crate::process::{self, Outcome};
+use crate::tf;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
@@ -267,13 +268,19 @@ pub fn run(steps: &[Vec<String>]) -> Result<(), String> {
                     .rev()
                     .find(|l| !l.trim().is_empty())
                     .unwrap_or("");
-                return Err(format!("`{}` failed: {}", shown(argv), last.trim()));
+                return Err(tf!(
+                    "`{command}` failed: {output}",
+                    command = shown(argv),
+                    output = last.trim()
+                ));
             }
-            Outcome::TimedOut => return Err(format!("`{}` took too long", shown(argv))),
+            Outcome::TimedOut => {
+                return Err(tf!("`{command}` took too long", command = shown(argv)));
+            }
             Outcome::Failed => {
-                return Err(format!(
-                    "couldn't run `{}`; is Claude Code's `claude` on the PATH?",
-                    argv[0]
+                return Err(tf!(
+                    "couldn't run `{command}`; is Claude Code's `claude` on the PATH?",
+                    command = argv[0]
                 ));
             }
         }
@@ -286,7 +293,8 @@ pub fn install() -> Result<(), String> {
     // Planned before writing: the files decide nothing, the records do.
     let steps = install_plan();
     let root = dir();
-    write_files(&root).map_err(|e| format!("couldn't write {}: {e}", root.display()))?;
+    write_files(&root)
+        .map_err(|e| tf!("couldn't write {path}: {e}", path = root.display(), e = e))?;
     run(&steps)
 }
 

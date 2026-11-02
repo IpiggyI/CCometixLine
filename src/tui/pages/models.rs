@@ -3,9 +3,11 @@
 //! that shows how any id resolves.
 
 use super::{Cx, Env, Outcome, Page};
+use crate::i18n::t;
 use crate::metrics::fmt::grouped;
 use crate::models::builtin::{self, RULES};
 use crate::models::{MatchKind, NameSource, Registry};
+use crate::tf;
 use crate::tui::dialogs::{ModifierDialog, RuleDialog};
 use crate::tui::doc::Doc;
 use crate::tui::ui::{self, TextInput};
@@ -74,12 +76,12 @@ fn seen_ids(env: &Env) -> Vec<(String, Option<u64>)> {
         .collect()
 }
 
-fn ago(now: i64, t: i64) -> String {
-    match (now - t).max(0) {
-        s if s < 60 => "just now".into(),
-        s if s < 3_600 => format!("{}m ago", s / 60),
-        s if s < 86_400 => format!("{}h ago", s / 3_600),
-        s => format!("{}d ago", s / 86_400),
+fn ago(now: i64, at: i64) -> String {
+    match (now - at).max(0) {
+        s if s < 60 => t("just now").into(),
+        s if s < 3_600 => tf!("{n}m ago", n = s / 60),
+        s if s < 86_400 => tf!("{n}h ago", n = s / 3_600),
+        s => tf!("{n}d ago", n = s / 86_400),
     }
 }
 
@@ -111,11 +113,15 @@ fn test_id(
     let assumed = cc_assumes(id);
     let r = registry.resolve(id, None, Some(assumed));
     let source = match r.source {
-        NameSource::UserRule(i) => format!("rule #{} ({})", i + 1, kind_name(rules[i].match_kind)),
-        NameSource::ClaudeCode => "Claude Code's name".into(),
-        NameSource::Builtin if builtin::claude_model(id).is_some() => "Claude model".into(),
-        NameSource::Builtin => "built-in rule".into(),
-        NameSource::RawId => "not recognized".into(),
+        NameSource::UserRule(i) => tf!(
+            "rule #{n} ({kind})",
+            n = i + 1,
+            kind = kind_name(rules[i].match_kind)
+        ),
+        NameSource::ClaudeCode => t("Claude Code's name").into(),
+        NameSource::Builtin if builtin::claude_model(id).is_some() => t("Claude model").into(),
+        NameSource::Builtin => t("built-in rule").into(),
+        NameSource::RawId => t("not recognized").into(),
     };
     let window = r.window.unwrap_or(assumed);
     let line = Line::from(vec![
@@ -161,10 +167,10 @@ impl Models {
     fn render_unrecognized(&self, f: &mut Frame, area: Rect, cx: &Cx, list: &[Unrecognized]) {
         let focused = cx.focused && self.pane == Pane::Unrecognized;
         let block = focused_panel("Unrecognized ids", focused)
-            .title_top(Line::styled(" from recent sessions ", ui::muted()).right_aligned());
+            .title_top(Line::styled(t(" from recent sessions "), ui::muted()).right_aligned());
         let lines: Vec<Line> = if list.is_empty() {
             vec![Line::styled(
-                " · Every model id seen recently is recognized.",
+                t(" · Every model id seen recently is recognized."),
                 ui::muted(),
             )]
         } else {
@@ -184,13 +190,14 @@ impl Models {
                             format!("{:<28}", u.id),
                             if on { ui::accent() } else { Style::default() },
                         ),
-                        Span::raw(format!(
-                            "seen {:<5} {:<9}  CC assumes {window:<11}",
-                            format!("{}×", u.count),
-                            ago(cx.env.now, u.last)
+                        Span::raw(tf!(
+                            "seen {count} {ago}  CC assumes {window}",
+                            count = ui::pad(&format!("{}×", u.count), 5),
+                            ago = ui::pad(&ago(cx.env.now, u.last), 9),
+                            window = ui::pad(&window, 11)
                         )),
                         Span::styled("A", ui::accent()),
-                        Span::raw(" add rule"),
+                        Span::raw(format!(" {}", t("add rule"))),
                     ])
                 })
                 .collect()
@@ -216,10 +223,10 @@ impl Models {
             .enumerate()
             .map(|(i, r)| {
                 let warning = if r.regex_error().is_some() {
-                    Span::styled("! bad regex", Style::default().fg(ui::BAD))
+                    Span::styled(t("! bad regex"), Style::default().fg(ui::BAD))
                 } else if let Some(by) = shadowed[i] {
                     Span::styled(
-                        format!("! #{} matches first", by + 1),
+                        tf!("! #{n} matches first", n = by + 1),
                         Style::default().fg(ui::WARN),
                     )
                 } else {
@@ -243,7 +250,7 @@ impl Models {
             rows.push(Row::new(vec![
                 Cell::from(""),
                 Cell::from(Span::styled(
-                    "No rules yet. Press N to add one, or A for an id above.",
+                    t("No rules yet. Press N to add one, or A for an id above."),
                     ui::muted(),
                 )),
             ]));
@@ -253,12 +260,12 @@ impl Models {
                 rows.push(
                     Row::new(vec![
                         Cell::from("·"),
-                        Cell::from("built-in"),
+                        Cell::from(t("built-in")),
                         Cell::from(b.pattern),
                         Cell::from(b.name),
                         Cell::from(Line::from(grouped(b.window)).right_aligned()),
                         Cell::from(""),
-                        Cell::from("read-only"),
+                        Cell::from(t("read-only")),
                     ])
                     .style(ui::muted()),
                 );
@@ -266,24 +273,27 @@ impl Models {
             rows.push(
                 Row::new(vec![
                     Cell::from("·"),
-                    Cell::from("built-in"),
-                    Cell::from(
+                    Cell::from(t("built-in")),
+                    Cell::from(t(
                         "Claude ids in any provider's spelling (Bedrock, Vertex, OpenRouter…)",
-                    ),
+                    )),
                 ])
                 .style(ui::muted()),
             );
         }
 
-        let header = Row::new([
-            "#",
-            "match",
-            "pattern",
-            "display name",
-            "context",
-            "hits",
-            "",
-        ])
+        let header = Row::new(
+            [
+                "#",
+                "match",
+                "pattern",
+                "display name",
+                "context",
+                "hits",
+                "",
+            ]
+            .map(t),
+        )
         .style(ui::muted());
         let widths = [
             Constraint::Length(3),
@@ -306,7 +316,7 @@ impl Models {
             Line::raw("")
         };
         let block = focused_panel("Rules", focused)
-            .title_top(Line::styled(" first match wins ", ui::muted()).right_aligned())
+            .title_top(Line::styled(t(" first match wins "), ui::muted()).right_aligned())
             .title_bottom(hints);
         let table = Table::new(rows, widths)
             .header(header)
@@ -350,7 +360,11 @@ impl Models {
         lines.push(Line::from(vec![
             Span::raw("  "),
             Span::styled(
-                format!("{}   built-in", describe("[1m]", " 1M", Some(CC_1M))),
+                format!(
+                    "{}   {}",
+                    describe("[1m]", " 1M", Some(CC_1M)),
+                    t("built-in")
+                ),
                 ui::muted(),
             ),
         ]));
@@ -375,7 +389,7 @@ impl Models {
                     Span::styled(ui::SELECTED, ui::accent()),
                 ],
                 self.tester
-                    .line(width, focused, "type or paste a model id")
+                    .line(width, focused, t("type or paste a model id"))
                     .spans,
             ]
             .concat(),
@@ -384,7 +398,7 @@ impl Models {
         let id = id.trim();
         if id.is_empty() {
             lines.push(Line::styled(
-                "Shows how an id resolves, as you type.",
+                t("Shows how an id resolves, as you type."),
                 ui::muted(),
             ));
         } else {
@@ -392,9 +406,9 @@ impl Models {
             lines.push(result);
             if let Some(fix) = fix {
                 lines.push(Line::styled(
-                    format!(
-                        "! Claude Code assumes {} for it. Set",
-                        grouped(cc_assumes(id))
+                    tf!(
+                        "! Claude Code assumes {window} for it. Set",
+                        window = grouped(cc_assumes(id))
                     ),
                     Style::default().fg(ui::WARN),
                 ));
@@ -403,7 +417,7 @@ impl Models {
                     Span::styled(fix, ui::accent()),
                 ]));
                 lines.push(Line::styled(
-                    "  so auto-compact uses the real window.",
+                    t("  so auto-compact uses the real window."),
                     ui::muted(),
                 ));
             }
@@ -485,7 +499,7 @@ impl Page for Models {
                     match test_id(id.trim(), &registry, &doc.models.rules).1 {
                         Some(fix) if !id.trim().is_empty() => Outcome::Copy(fix),
                         _ => Outcome::Toast(
-                            "Nothing to copy: Claude Code already uses this window".into(),
+                            t("Nothing to copy: Claude Code already uses this window").into(),
                         ),
                     }
                 }
@@ -498,7 +512,7 @@ impl Page for Models {
             let pick = list.get(self.unrec).or(list.first());
             return match pick {
                 Some(u) => self.open_rule(env, Some(&u.id)),
-                None => Outcome::Toast("Every model id seen recently is recognized".into()),
+                None => Outcome::Toast(t("Every model id seen recently is recognized").into()),
             };
         }
 
@@ -543,7 +557,7 @@ impl Page for Models {
                         doc.edit(|_, m| {
                             m.rules.remove(i);
                         });
-                        return Outcome::Toast(format!("Deleted rule #{} (^Z undoes)", i + 1));
+                        return Outcome::Toast(tf!("Deleted rule #{n} (^Z undoes)", n = i + 1));
                     }
                     _ => return Outcome::Ignored,
                 }
@@ -569,7 +583,7 @@ impl Page for Models {
                         doc.edit(|_, m| {
                             m.context_modifiers.remove(i);
                         });
-                        return Outcome::Toast("Deleted modifier (^Z undoes)".into());
+                        return Outcome::Toast(t("Deleted modifier (^Z undoes)").into());
                     }
                     _ => return Outcome::Ignored,
                 }

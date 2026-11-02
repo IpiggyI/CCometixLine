@@ -8,6 +8,8 @@ use super::pages::{
 };
 use super::preview::{self, Preview};
 use super::ui;
+use crate::i18n::t;
+use crate::tf;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::{Constraint, Layout};
@@ -98,11 +100,15 @@ impl App {
     }
 
     pub fn render(&mut self, f: &mut Frame) {
+        crate::i18n::set(self.doc.config.language.resolve(self.env.locale));
         let area = f.area();
         if area.width < MIN_SIZE.0 || area.height < MIN_SIZE.1 {
-            let msg = format!(
-                "ccline needs a terminal of at least {}×{} (this one is {}×{}).",
-                MIN_SIZE.0, MIN_SIZE.1, area.width, area.height
+            let msg = tf!(
+                "ccline needs a terminal of at least {w}×{h} (this one is {width}×{height}).",
+                w = MIN_SIZE.0,
+                h = MIN_SIZE.1,
+                width = area.width,
+                height = area.height
             );
             f.render_widget(Paragraph::new(msg), area);
             return;
@@ -313,7 +319,7 @@ impl App {
         if taken {
             self.tabs_focused = false;
         } else {
-            self.toast("Nothing here takes pasted text", false);
+            self.toast(t("Nothing here takes pasted text"), false);
         }
     }
 
@@ -371,7 +377,7 @@ impl App {
         let mut out = std::io::stdout();
         let _ = write!(out, "\x1b]52;c;{}\x07", base64(text.as_bytes()));
         let _ = out.flush();
-        self.toast(format!("Copied: {text}"), false);
+        self.toast(tf!("Copied: {text}", text = text), false);
     }
 
     /// The first-run setup, over whatever is showing.
@@ -403,17 +409,17 @@ impl App {
             Action::Scenario(i) => self.preview.scenario = i,
             Action::Replay => {
                 if !self.preview.toggle_replay() {
-                    self.toast("No session recorded yet to replay", false);
+                    self.toast(t("No session recorded yet to replay"), false);
                 }
             }
             Action::Undo => {
                 if !self.doc.undo() {
-                    self.toast("Nothing to undo", false);
+                    self.toast(t("Nothing to undo"), false);
                 }
             }
             Action::Redo => {
                 if !self.doc.redo() {
-                    self.toast("Nothing to redo", false);
+                    self.toast(t("Nothing to redo"), false);
                 }
             }
             Action::AskQuit => self.request_quit(),
@@ -428,7 +434,7 @@ impl App {
             Action::SavePreset => self.dialogs.push(Box::new(dialogs::PresetDialog::new())),
             Action::Reload => {
                 self.doc.reload();
-                self.toast("Reloaded from disk", false);
+                self.toast(t("Reloaded from disk"), false);
             }
             // ccline's files, then any drafted change to Claude Code's
             // settings, which is written only once its diff is accepted.
@@ -436,9 +442,9 @@ impl App {
                 (dirty, Ok(())) => {
                     let diff = self.unapplied();
                     if dirty {
-                        self.toast("Saved", false);
+                        self.toast(t("Saved"), false);
                     } else if diff.is_none() {
-                        self.toast("Nothing to save", false);
+                        self.toast(t("Nothing to save"), false);
                     }
                     match diff {
                         Some(mut diff) => {
@@ -452,7 +458,7 @@ impl App {
                     self.dialogs
                         .push(Box::new(dialogs::Conflict { paths, then_quit }));
                 }
-                (_, Err(SaveError::Io(e))) => self.toast(format!("Couldn't save: {e}"), true),
+                (_, Err(SaveError::Io(e))) => self.toast(tf!("Couldn't save: {e}", e = e), true),
             },
         }
     }
@@ -536,6 +542,8 @@ pub(crate) mod tests {
             seen: Default::default(),
             settings: std::env::temp_dir().join("ccline-test-no-settings.json"),
             update: Default::default(),
+            // Tests read English whatever the machine's locale.
+            locale: crate::i18n::Lang::En,
         }
     }
 
@@ -560,6 +568,30 @@ pub(crate) mod tests {
             tight.contains("? help") && !tight.contains("n new line"),
             "{tight}"
         );
+    }
+
+    #[test]
+    fn draws_in_the_language_set_on_the_claude_code_page() {
+        let (dir, paths) = temp_paths("app-language");
+        let mut app = App::new(Doc::open(paths), env());
+        app.doc.config.language = crate::i18n::Language::En;
+        // Wide characters take two cells; the second reads as a space.
+        let text = |app: &mut App| screen(app, 100, 30).replace(' ', "");
+        assert!(text(&mut app).contains("Health"));
+        app.open_page(PageId::Claude);
+        for k in [KeyCode::Tab, KeyCode::Tab, KeyCode::Tab] {
+            app.handle_key(key(k));
+        }
+        for _ in 0..3 {
+            app.handle_key(key(KeyCode::Down));
+        }
+        app.handle_key(key(KeyCode::Right));
+        assert_eq!(app.doc.config.language, crate::i18n::Language::Zh);
+        let zh = text(&mut app);
+        assert!(zh.contains("更新与语言") && zh.contains("‹中文›"), "{zh}");
+        app.open_page(PageId::Home);
+        assert!(text(&mut app).contains("健康检查"));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

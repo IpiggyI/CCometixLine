@@ -1,5 +1,6 @@
 //! The configuration (`~/.claude/ccline/config.toml`) and loading it.
 
+use crate::i18n::Language;
 use crate::presets;
 use crate::style::{BarGlyphs, ColorDepth, Edges, FillStyle, GlyphTier, SkinKind};
 use crate::widgets::{Coloring, WidgetKind};
@@ -184,6 +185,8 @@ pub struct Config {
     /// The preset this config started from, for "modified" indicators.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preset: Option<String>,
+    /// The configuration TUI's language.
+    pub language: Language,
     pub palette: String,
     pub skin: SkinKind,
     /// How pill and powerline segments are colored.
@@ -215,6 +218,7 @@ impl Default for Config {
         Config {
             version: VERSION,
             preset: None,
+            language: Language::Auto,
             palette: "terminal".into(),
             skin: SkinKind::Plain,
             fill: FillStyle::Solid,
@@ -300,6 +304,21 @@ mod tests {
         let c: Config =
             toml::from_str("version = 2\n[layout]\noverflow = \"shrink\"\nreserve = 2\n").unwrap();
         assert_eq!(c.layout.reserve, 2);
+    }
+
+    #[test]
+    fn an_unknown_language_keeps_the_rest() {
+        let dir = std::env::temp_dir().join(format!("ccline-lang-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.toml");
+        std::fs::write(&path, "language = \"fr\"\npalette = \"dracula\"\n").unwrap();
+        let (config, note) = load_from(&path);
+        assert_eq!(note, LoadNote::Fine);
+        assert_eq!(
+            (config.language, config.palette.as_str()),
+            (Language::Auto, "dracula")
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

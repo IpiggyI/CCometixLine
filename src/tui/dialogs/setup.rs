@@ -4,8 +4,10 @@
 use super::{Action, Dialog, Reply};
 use crate::cc_settings::{self, Mark, Settings};
 use crate::config::LoadNote;
+use crate::i18n::{Language, t};
 use crate::presets::{self, PRESETS, Parts};
 use crate::style::glyphs::{self, GlyphTier, IconKey};
+use crate::tf;
 use crate::tui::doc::Doc;
 use crate::tui::pages::Cx;
 use crate::tui::ui;
@@ -47,7 +49,7 @@ impl Setup {
             } else {
                 ("○", ui::muted())
             };
-            spans.push(Span::styled(format!("{dot} {name}   "), style));
+            spans.push(Span::styled(format!("{dot} {}   ", t(name)), style));
         }
         Line::from(spans)
     }
@@ -69,33 +71,37 @@ impl Setup {
     fn detect(&self, cx: &Cx) -> Vec<Line<'static>> {
         let row = |label: &str, value: String| {
             Line::from(vec![
-                Span::styled(format!("  {label:<14}"), ui::muted()),
+                Span::styled(format!("  {}", ui::pad(t(label), 14)), ui::muted()),
                 Span::raw(value),
             ])
         };
         let cc = match cx.env.cc_version() {
-            Some(v) => format!("{v}, from your last session"),
-            None => "not seen yet; fine for a first run".into(),
+            Some(v) => tf!("{v}, from your last session", v = v),
+            None => t("not seen yet; fine for a first run").into(),
         };
         let status = match Settings::load(&self.settings).map(|s| s.status_line()) {
-            Ok(Some(l)) if cc_settings::is_ccline(&l.command) => "runs ccline".to_string(),
-            Ok(Some(l)) => format!("runs {}", crate::render::width::truncate(&l.command, 40)),
-            Ok(None) => "not set".into(),
+            Ok(Some(l)) if cc_settings::is_ccline(&l.command) => t("runs ccline").to_string(),
+            Ok(Some(l)) => tf!(
+                "runs {command}",
+                command = crate::render::width::truncate(&l.command, 40)
+            ),
+            Ok(None) => t("not set").into(),
             Err(e) => e,
         };
         let config = match &cx.doc.note {
-            LoadNote::Missing => "none yet".to_string(),
-            LoadNote::Invalid(e) => format!("unreadable ({e}); replaced when saved"),
-            LoadNote::Fine => "your config.toml".into(),
+            LoadNote::Missing => t("none yet").to_string(),
+            LoadNote::Invalid(e) => tf!("unreadable ({e}); replaced when saved", e = e),
+            LoadNote::Fine => t("your config.toml").into(),
         };
         let depth = format!("{:?}", crate::env::color_depth()).to_lowercase();
         vec![
-            Line::raw(" ccline found:"),
+            Line::raw(t(" ccline found:")),
             Line::raw(""),
             row("Claude Code", cc),
             row("statusLine", status),
             row("config", config),
             row("colors", depth),
+            row("language", cx.doc.config.language.label().into()),
         ]
     }
 
@@ -114,7 +120,7 @@ impl Setup {
             .join("  ")
         };
         vec![
-            Line::raw(" Do these show as icons, not boxes or question marks?"),
+            Line::raw(t(" Do these show as icons, not boxes or question marks?")),
             Line::raw(""),
             Line::from(vec![
                 Span::styled("   Nerd      ", ui::muted()),
@@ -133,7 +139,9 @@ impl Setup {
     fn presets(&self, cx: &Cx) -> Vec<Line<'static>> {
         let registry = cx.doc.registry();
         let mut lines = vec![
-            Line::raw(" Pick a starting point; everything can be changed later."),
+            Line::raw(t(
+                " Pick a starting point; everything can be changed later.",
+            )),
             Line::raw(""),
         ];
         for (i, p) in PRESETS.iter().enumerate() {
@@ -145,7 +153,7 @@ impl Setup {
                         format!("{:<14}", p.name),
                         if on { ui::accent() } else { Style::default() },
                     ),
-                    Span::styled(p.summary.to_string(), ui::muted()),
+                    Span::styled(t(p.summary).to_string(), ui::muted()),
                 ],
                 WIDTH as usize - 3,
             )));
@@ -174,18 +182,18 @@ impl Setup {
         match self.connection() {
             Err(e) => {
                 lines.push(Line::styled(
-                    format!(" Can't change settings.json: {e}"),
+                    tf!(" Can't change settings.json: {e}", e = e),
                     Style::default().fg(ui::BAD),
                 ));
             }
             Ok(None) => {
                 lines.push(Line::styled(
-                    " Claude Code already runs ccline.",
+                    t(" Claude Code already runs ccline."),
                     Style::default().fg(ui::OK),
                 ));
             }
             Ok(Some((base, draft))) => {
-                lines.push(Line::raw(" Point Claude Code's status line at ccline:"));
+                lines.push(Line::raw(t(" Point Claude Code's status line at ccline:")));
                 lines.push(Line::raw(""));
                 for (mark, line) in draft.diff(&base).into_iter().take(10) {
                     let (sign, style) = match mark {
@@ -200,11 +208,11 @@ impl Setup {
                 }
                 lines.push(Line::raw(""));
                 lines.push(Line::styled(
-                    if base.exists() {
+                    t(if base.exists() {
                         " The old file is kept as settings.json.ccline-bak."
                     } else {
                         " There is no settings.json yet; this creates it."
-                    },
+                    }),
                     ui::muted(),
                 ));
             }
@@ -214,7 +222,7 @@ impl Setup {
 
     fn hints(&self) -> Line<'static> {
         match self.step {
-            0 => ui::hints(&[("enter", "next"), ("esc", "skip setup")]),
+            0 => ui::hints(&[("enter", "next"), ("L", "language"), ("esc", "skip setup")]),
             1 => ui::hints(&[
                 ("N", "Nerd Font"),
                 ("U", "Unicode only"),
@@ -256,11 +264,11 @@ impl Dialog for Setup {
         text.extend(body);
         text.push(Line::raw(""));
         text.push(self.hints());
-        let title = format!(
-            "Setup · step {} of {} · {}",
-            self.step + 1,
-            STEPS.len(),
-            STEPS[self.step].to_lowercase()
+        let title = tf!(
+            "Setup · step {n} of {total} · {step}",
+            n = self.step + 1,
+            total = STEPS.len(),
+            step = t(STEPS[self.step]).to_lowercase()
         );
         f.render_widget(Paragraph::new(text).block(ui::panel(&title)), rect);
     }
@@ -271,6 +279,11 @@ impl Dialog for Setup {
         }
         match (self.step, key.code) {
             (0, KeyCode::Enter) => self.step = 1,
+            (0, KeyCode::Char('l' | 'L')) => doc.edit(|c, _| {
+                let all = Language::ALL;
+                let i = all.iter().position(|l| *l == c.language).unwrap_or(0);
+                c.language = all[(i + 1) % all.len()];
+            }),
             (1, KeyCode::Char(c)) => {
                 let tier = match c.to_ascii_lowercase() {
                     'n' => GlyphTier::Nerd,
@@ -298,8 +311,9 @@ impl Dialog for Setup {
                 if let Ok(Some((base, draft))) = self.connection()
                     && let Err(e) = draft.save(&base)
                 {
-                    return Reply::Then(Action::Error(format!(
-                        "Couldn't write settings.json: {e}"
+                    return Reply::Then(Action::Error(tf!(
+                        "Couldn't write settings.json: {e}",
+                        e = e
                     )));
                 }
                 return self.finish();

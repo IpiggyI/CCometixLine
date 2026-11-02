@@ -7,6 +7,7 @@ use super::ui;
 use crate::config::{Config, ItemConfig, LineConfig};
 use crate::env::AutoCompact;
 use crate::git::GitInfo;
+use crate::i18n::t;
 use crate::input::{Input, SubagentInput};
 use crate::metrics::{Commands, GitSource};
 use crate::models::Registry;
@@ -16,6 +17,7 @@ use crate::state::session::{Sample, SessionState};
 use crate::statusline::{self, Frame, Report};
 use crate::style::GlyphTier;
 use crate::style::color::ColorDepth;
+use crate::tf;
 use chrono::FixedOffset;
 use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
@@ -371,7 +373,7 @@ impl Preview {
     ) -> Line<'static> {
         let depth = match DEPTHS[self.depth] {
             Some(d) => depth_name(d).to_string(),
-            None => format!("auto·{}", depth_name(self.depth(doc))),
+            None => format!("{}·{}", t("auto"), depth_name(self.depth(doc))),
         };
         let tier = match TIERS[self.tier] {
             Some(t) => tier_name(t).to_string(),
@@ -379,9 +381,9 @@ impl Preview {
         };
         let width = match self.width {
             Some(w) => w.to_string(),
-            None => format!("fit {}", self.fit),
+            None => tf!("fit {n}", n = self.fit),
         };
-        let scenario = self.scenario_name().to_string();
+        let scenario = t(self.scenario_name()).to_string();
         let values = [
             ("scenario", scenario),
             ("width", width),
@@ -389,15 +391,15 @@ impl Preview {
             ("glyphs", tier),
         ];
         let heading = match (showing, target) {
-            (Some(name), _) => format!(" Preview · {name} "),
-            (None, Target::Status) => " Preview ".to_string(),
-            (None, Target::Subagent) => " Preview · subagent ".to_string(),
+            (Some(name), _) => format!(" {} · {name} ", t("Preview")),
+            (None, Target::Status) => format!(" {} ", t("Preview")),
+            (None, Target::Subagent) => format!(" {} · {} ", t("Preview"), t("subagent")),
         };
         let build = |labels: bool| {
             let mut spans = vec![Span::styled(heading.clone(), ui::title())];
             for (label, value) in &values {
                 spans.push(Span::raw(if labels {
-                    format!(" {label} ")
+                    format!(" {} ", t(label))
                 } else {
                     " ".into()
                 }));

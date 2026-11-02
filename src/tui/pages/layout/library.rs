@@ -1,7 +1,9 @@
 //! The library: every metric by category, marked with what it needs.
 
+use crate::i18n::t;
 use crate::metrics::{self, Metric, MetricMeta};
 use crate::style::Category;
+use crate::tf;
 use crate::tui::preview::Target;
 use crate::tui::ui::{self, TextInput};
 use crate::version::Version;
@@ -120,6 +122,7 @@ impl Library {
                     q.is_empty()
                         || m.meta.id.contains(&q)
                         || m.meta.name.to_lowercase().contains(&q)
+                        || t(m.meta.name).to_lowercase().contains(&q)
                 })
                 .collect();
             if found.is_empty() {
@@ -249,12 +252,12 @@ impl Library {
             spans.extend(self.search.line(width.saturating_sub(3), true, "").spans);
             Line::from(spans)
         } else if self.query().is_empty() {
-            Line::styled("/ search", ui::muted())
+            Line::styled(format!("/ {}", t("search")), ui::muted())
         } else {
             Line::from(vec![
                 Span::styled("/ ", ui::muted()),
                 Span::styled(self.search.text(), ui::accent()),
-                Span::styled("  esc clear", ui::muted()),
+                Span::styled(format!("  esc {}", t("clear")), ui::muted()),
             ])
         };
         f.render_widget(Paragraph::new(search_line), search);
@@ -281,9 +284,11 @@ impl Library {
                         name, count, open, ..
                     } => {
                         let arrow = if *open { "▼" } else { "▶" };
-                        let label = format!("{arrow} {name}");
+                        let label = format!("{arrow} {}", t(name));
                         let count = count.to_string();
-                        let gap = width.saturating_sub(2 + label.chars().count() + count.len() + 1);
+                        let gap = width.saturating_sub(
+                            2 + crate::render::width::display_width(&label) + count.len() + 1,
+                        );
                         Line::from(vec![
                             marker,
                             Span::styled(label, style.add_modifier(ratatui::style::Modifier::BOLD)),
@@ -320,14 +325,14 @@ impl Library {
         let mut text = Vec::new();
         if let Some(m) = self.selected() {
             let note = match avail_of(&m.meta) {
-                Avail::Yes => m.meta.summary.to_string(),
-                Avail::Needs(v) => format!("Needs Claude Code {v}"),
-                Avail::TaskOnly => "Only on the subagent line (t)".into(),
+                Avail::Yes => t(m.meta.summary).to_string(),
+                Avail::Needs(v) => tf!("Needs Claude Code {v}", v = v),
+                Avail::TaskOnly => t("Only on the subagent line (t)").into(),
             };
             text.push(Line::styled(note, ui::muted()));
         }
         let about_rows = about.height as usize;
-        let legend = Line::styled("S history · 251+ CC · sub task", ui::muted());
+        let legend = Line::styled(t("S history · 251+ CC · sub task"), ui::muted());
         let mut p = text;
         while p.len() + 1 < about_rows {
             p.push(Line::raw(""));
