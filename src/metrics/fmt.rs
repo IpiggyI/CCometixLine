@@ -12,6 +12,15 @@ pub fn tokens(n: u64) -> String {
     }
 }
 
+/// Keep one decimal for millions when requested.
+pub fn tokens_style(n: u64, style: &str) -> String {
+    if style == "decimal" && n >= 1_000_000 {
+        format!("{:.1}M", n as f64 / 1_000_000.0)
+    } else {
+        tokens(n)
+    }
+}
+
 /// `256,000`.
 pub fn grouped(n: u64) -> String {
     let digits = n.to_string();
@@ -94,6 +103,38 @@ pub fn countdown(secs: i64) -> String {
     }
 }
 
+/// Time left with optional spaces or only the largest whole unit.
+pub fn countdown_style(secs: i64, style: &str) -> String {
+    if !matches!(style, "spaced" | "coarse") {
+        return countdown(secs);
+    }
+    let secs = secs.max(0);
+    let (value, unit, remainder) = match secs {
+        0..=59 => (secs, "s", None),
+        60..=3_599 => (secs / 60, "m", None),
+        3_600..=86_399 => (secs / 3_600, "h", Some((secs % 3_600 / 60, "m"))),
+        _ => (secs / 86_400, "d", Some((secs % 86_400 / 3_600, "h"))),
+    };
+    match remainder {
+        Some((n, next)) if style == "spaced" && n > 0 => format!("{value}{unit} {n}{next}"),
+        _ => format!("{value}{unit}"),
+    }
+}
+
+/// Format a reset time, falling back to the default for invalid formats.
+pub fn clock_format(epoch: i64, now: i64, tz: FixedOffset, format: Option<&str>) -> String {
+    use std::fmt::Write;
+
+    let format = format.filter(|format| !format.trim().is_empty());
+    if let (Some(format), Some(at)) = (format, DateTime::from_timestamp(epoch, 0)) {
+        let mut text = String::new();
+        if write!(text, "{}", at.with_timezone(&tz).format(format)).is_ok() {
+            return text;
+        }
+    }
+    clock(epoch, now, tz)
+}
+
 /// Wall-clock time of `epoch` in `tz`: `14:20` today, `Mon 14:20` within a
 /// week, `10-28 14:20` otherwise.
 pub fn clock(epoch: i64, now: i64, tz: FixedOffset) -> String {
@@ -170,6 +211,61 @@ mod tests {
         assert_eq!(countdown(3_900), "1h05m");
         assert_eq!(countdown(187_200), "2d4h");
         assert_eq!(countdown(-5), "0:00");
+    }
+
+    #[test]
+    fn formats_countdown_styles() {
+        for (secs, spaced, coarse) in [
+            (-1, "0s", "0s"),
+            (30, "30s", "30s"),
+            (2_700, "45m", "45m"),
+            (7_620, "2h 7m", "2h"),
+            (352_800, "4d 2h", "4d"),
+            (3_600, "1h", "1h"),
+        ] {
+            assert_eq!(countdown_style(secs, "compact"), countdown(secs));
+            assert_eq!(countdown_style(secs, "spaced"), spaced);
+            assert_eq!(countdown_style(secs, "coarse"), coarse);
+            assert_eq!(countdown_style(secs, "unknown"), countdown(secs));
+        }
+    }
+
+    #[test]
+    fn formats_decimal_millions_only() {
+        for n in [0, 999, 45_200, 120_000, 999_999, 1_000_000, 1_200_000] {
+            assert_eq!(tokens_style(n, "short"), tokens(n));
+            if n < 1_000_000 {
+                assert_eq!(tokens_style(n, "decimal"), tokens(n));
+            }
+        }
+        assert_eq!(tokens_style(1_000_000, "decimal"), "1.0M");
+        assert_eq!(tokens_style(1_200_000, "decimal"), "1.2M");
+    }
+
+    #[test]
+    fn blank_clock_formats_use_the_default() {
+        let now = 1_790_812_800;
+        let tz = FixedOffset::east_opt(8 * 3600).unwrap();
+        for format in ["", " ", "\t\n", "\u{2003}"] {
+            for at in [now, now + 86_400, now + 10 * 86_400] {
+                assert_eq!(clock_format(at, now, tz, Some(format)), clock(at, now, tz));
+            }
+        }
+        assert_eq!(clock_format(now, now, tz, Some(" %H:%M ")), " 08:00 ");
+    }
+
+    #[test]
+    fn custom_clock_uses_timezone_and_falls_back_on_format_errors() {
+        let now = 1_790_812_800;
+        let tz = FixedOffset::east_opt(8 * 3600).unwrap();
+        assert_eq!(
+            clock_format(now, now, tz, Some("%-m月%-d日 %H:%M")),
+            "10月1日 08:00"
+        );
+        for format in [None, Some("%Q"), Some("%"), Some("%H %Q")] {
+            assert_eq!(clock_format(now, now, tz, format), clock(now, now, tz));
+        }
+        assert_eq!(clock_format(i64::MAX, now, tz, Some("%H")), "");
     }
 
     #[test]

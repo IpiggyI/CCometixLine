@@ -36,12 +36,22 @@ pub(super) fn metrics() -> Vec<Metric> {
         Metric {
             meta: MetricMeta {
                 priority: 4,
-                options: &[OptSpec {
-                    key: "style",
-                    kind: OptKind::Choice(&["name", "parent", "tilde", "short", "full"]),
-                    default: "name",
-                    summary: "How much of the path to show",
-                }],
+                options: &[
+                    OptSpec {
+                        key: "style",
+                        kind: OptKind::Choice(&[
+                            "name", "parent", "tilde", "short", "full", "depth",
+                        ]),
+                        default: "name",
+                        summary: "How much of the path to show",
+                    },
+                    OptSpec {
+                        key: "depth",
+                        kind: OptKind::Number,
+                        default: "3",
+                        summary: "Last path components for depth style, at least 1",
+                    },
+                ],
                 ..meta(
                     "dir",
                     Category::Workspace,
@@ -57,12 +67,20 @@ pub(super) fn metrics() -> Vec<Metric> {
         Metric {
             meta: MetricMeta {
                 priority: 4,
-                options: &[OptSpec {
-                    key: "sha",
-                    kind: OptKind::Flag,
-                    default: "false",
-                    summary: "Add the short commit id",
-                }],
+                options: &[
+                    OptSpec {
+                        key: "sha",
+                        kind: OptKind::Flag,
+                        default: "false",
+                        summary: "Add the short commit id",
+                    },
+                    OptSpec {
+                        key: "branch_prefixes",
+                        kind: OptKind::Text,
+                        default: "",
+                        summary: "Comma-separated prefix=replacement pairs for the displayed branch",
+                    },
+                ],
                 ..meta(
                     "git",
                     Category::Vcs,
@@ -169,6 +187,21 @@ fn dir(ctx: &Ctx, opts: &Options) -> Option<Reading> {
         "full" => path.to_string(),
         "tilde" => tilde(),
         "parent" => parts[parts.len().saturating_sub(2)..].join("/"),
+        "depth" => {
+            let depth = opts
+                .get("depth")
+                .and_then(|v| v.as_integer())
+                .unwrap_or(3)
+                .max(1) as usize;
+            let tail = parts[parts.len().saturating_sub(depth)..].join("/");
+            if parts.len() > depth {
+                format!("…/{tail}")
+            } else if parts.is_empty() {
+                name.to_string()
+            } else {
+                tail
+            }
+        }
         "short" => {
             let t = tilde();
             let segs: Vec<&str> = t.split('/').collect();
@@ -213,9 +246,10 @@ fn git(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     };
     let (up, down) = if ascii { ("+", "-") } else { ("↑", "↓") };
     let mut r = Reading::default()
-        .set("branch", branch)
+        .set("branch", branch_name(&branch, opts))
         .set("status", status)
-        .set("dirty", if info.dirty() { "*" } else { "" });
+        .set("dirty", if info.dirty() { "*" } else { "" })
+        .link(info.branch.as_deref().and_then(|b| branch_link(ctx, b)));
     if info.ahead > 0 {
         r = r.set("ahead", format!("{up}{}", info.ahead));
     }
@@ -241,6 +275,62 @@ fn git(ctx: &Ctx, opts: &Options) -> Option<Reading> {
         r = r.severity(Severity::Crit);
     }
     Some(r)
+}
+
+fn branch_name(branch: &str, opts: &Options) -> String {
+    opts.get("branch_prefixes")
+        .and_then(|v| v.as_str())
+        .into_iter()
+        .flat_map(|s| s.split(','))
+        .filter_map(|s| s.trim().split_once('='))
+        .filter(|(prefix, _)| !prefix.is_empty() && branch.starts_with(prefix))
+        .max_by_key(|(prefix, _)| prefix.len())
+        .map_or_else(
+            || branch.to_string(),
+            |(prefix, replacement)| format!("{replacement}{}", &branch[prefix.len()..]),
+        )
+}
+
+fn branch_link(ctx: &Ctx, branch: &str) -> Option<String> {
+    let repo = ctx.input.workspace.as_ref()?.repo.as_ref()?;
+    let host = repo.host.as_deref().unwrap_or("github.com");
+    let route = if host.eq_ignore_ascii_case("github.com") {
+        "tree"
+    } else if host
+        .split('.')
+        .any(|part| part.eq_ignore_ascii_case("gitlab"))
+    {
+        "-/tree"
+    } else {
+        return None;
+    };
+    let owner = repo.owner.as_deref()?;
+    let name = repo.name.as_deref()?;
+    let owner = owner
+        .split('/')
+        .map(url_segment)
+        .collect::<Vec<_>>()
+        .join("/");
+    let branch = branch
+        .split('/')
+        .map(url_segment)
+        .collect::<Vec<_>>()
+        .join("/");
+    Some(format!(
+        "https://{host}/{owner}/{}/{route}/{branch}",
+        url_segment(name)
+    ))
+}
+
+fn url_segment(text: &str) -> String {
+    text.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                char::from(b).to_string()
+            }
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
 }
 
 fn repo(ctx: &Ctx, _: &Options) -> Option<Reading> {
@@ -313,4 +403,152 @@ fn lines(ctx: &Ctx, _: &Options) -> Option<Reading> {
         r = r.set_role("removed", format!("-{removed}"), Role::Bad);
     }
     Some(r)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{git::GitInfo, input::Input, metrics::GitSource, models::Registry};
+    use chrono::FixedOffset;
+
+    #[test]
+    fn directory_depth_handles_both_separators_and_clamps_to_one() {
+        let registry = Registry::default();
+        for (path, depth, expected) in [
+            ("/one/two/three/four", None, "…/two/three/four"),
+            (r"C:\one\two\three", Some(2), "…/two/three"),
+            ("/one/two", Some(3), "one/two"),
+            ("/one/two/", Some(0), "…/two"),
+            ("/one/two", Some(-2), "…/two"),
+            ("/", Some(1), "/"),
+        ] {
+            let input = Input {
+                cwd: Some(path.into()),
+                ..Input::default()
+            };
+            let ctx = Ctx::new(
+                &input,
+                &registry,
+                0,
+                FixedOffset::east_opt(0).unwrap(),
+                GlyphTier::Unicode,
+            );
+            let mut opts: Options = toml::from_str("style = 'depth'").unwrap();
+            if let Some(depth) = depth {
+                opts.insert("depth".into(), toml::Value::Integer(depth));
+            }
+            assert_eq!(
+                dir(&ctx, &opts).unwrap().get("path").unwrap().text,
+                expected
+            );
+        }
+        let metric = metrics().into_iter().find(|m| m.meta.id == "dir").unwrap();
+        assert!(
+            metric
+                .meta
+                .options
+                .iter()
+                .any(|o| o.key == "depth" && o.kind == OptKind::Number)
+        );
+    }
+
+    #[test]
+    fn branch_prefix_uses_longest_match_and_skips_malformed_entries() {
+        let opts = toml::from_str(
+            "branch_prefixes = 'broken,=bad,feature/=✨,feature/ui/=UI-,fix/=🐛,hyy/='",
+        )
+        .unwrap();
+        for (branch, expected) in [
+            ("feature/ui/button", "UI-button"),
+            ("feature/button", "✨button"),
+            ("fix/bug", "🐛bug"),
+            ("hyy/topic", "topic"),
+            ("main", "main"),
+        ] {
+            assert_eq!(branch_name(branch, &opts), expected);
+        }
+        assert_eq!(branch_name("feature/test", &Options::new()), "feature/test");
+        assert!(
+            metrics()
+                .into_iter()
+                .find(|m| m.meta.id == "git")
+                .unwrap()
+                .meta
+                .options
+                .iter()
+                .any(|o| o.key == "branch_prefixes")
+        );
+    }
+
+    #[test]
+    fn branch_links_preserve_path_separators() {
+        let registry = Registry::default();
+        for (host, route) in [("github.com", "tree"), ("gitlab.com", "-/tree")] {
+            let input = Input::parse(&format!(
+                r#"{{"workspace":{{"repo":{{"host":"{host}","owner":"acme","name":"app"}}}}}}"#
+            ))
+            .unwrap();
+            let ctx = Ctx::new(
+                &input,
+                &registry,
+                0,
+                FixedOffset::east_opt(0).unwrap(),
+                GlyphTier::Unicode,
+            );
+            assert_eq!(
+                branch_link(&ctx, "feature/auth#%?/你好"),
+                Some(format!(
+                    "https://{host}/acme/app/{route}/feature/auth%23%25%3F/%E4%BD%A0%E5%A5%BD"
+                ))
+            );
+        }
+    }
+
+    #[test]
+    fn git_links_use_the_real_encoded_branch_on_supported_hosts() {
+        let registry = Registry::default();
+        for (host, owner, route) in [
+            ("github.com", "acme", Some("tree")),
+            ("gitlab.com", "acme/team", Some("-/tree")),
+            ("gitlab.example.com", "acme", Some("-/tree")),
+            ("example.com", "acme", None),
+        ] {
+            let input = Input::parse(&format!(
+                r#"{{"workspace":{{"repo":{{"host":"{host}","owner":"{owner}","name":"app"}}}}}}"#
+            ))
+            .unwrap();
+            let ctx = Ctx::new(
+                &input,
+                &registry,
+                0,
+                FixedOffset::east_opt(0).unwrap(),
+                GlyphTier::Unicode,
+            )
+            .with_git(GitSource::Fixed(Some(GitInfo {
+                branch: Some("feature/你好#%?".into()),
+                ..GitInfo::default()
+            })));
+            let opts = toml::from_str("branch_prefixes = 'feature/=✨'").unwrap();
+            let reading = git(&ctx, &opts).unwrap();
+            assert_eq!(reading.get("branch").unwrap().text, "✨你好#%?");
+            assert_eq!(
+                reading.link,
+                route.map(|route| format!(
+                    "https://{host}/{owner}/app/{route}/feature/%E4%BD%A0%E5%A5%BD%23%25%3F"
+                ))
+            );
+            let detached = Ctx::new(
+                &input,
+                &registry,
+                0,
+                FixedOffset::east_opt(0).unwrap(),
+                GlyphTier::Unicode,
+            )
+            .with_git(GitSource::Fixed(Some(GitInfo {
+                oid: Some("123456789".into()),
+                ..GitInfo::default()
+            })));
+            assert!(git(&detached, &Options::new()).unwrap().link.is_none());
+        }
+    }
 }
