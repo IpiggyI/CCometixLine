@@ -37,9 +37,9 @@ pub fn write_json<T: Serialize>(path: &Path, value: &T) -> std::io::Result<()> {
     crate::paths::write_atomic(path, &text)
 }
 
-fn fnv1a(s: &str) -> u64 {
+fn fnv1a(bytes: &[u8]) -> u64 {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in s.bytes() {
+    for &b in bytes {
         h ^= b as u64;
         h = h.wrapping_mul(0x0100_0000_01b3);
     }
@@ -48,12 +48,12 @@ fn fnv1a(s: &str) -> u64 {
 
 /// A stable file name for `s` (FNV-1a, hex).
 pub fn file_key(s: &str) -> String {
-    format!("{:016x}", fnv1a(s))
+    format!("{:016x}", fnv1a(s.as_bytes()))
 }
 
 /// A short stable key for a prompt id; samples only compare them.
 pub fn prompt_key(id: &str) -> u32 {
-    fnv1a(id) as u32
+    fnv1a(id.as_bytes()) as u32
 }
 
 /// Session ids become file names; keep only safe characters.

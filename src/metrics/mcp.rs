@@ -19,15 +19,75 @@ const CONFIG_BYTES: u64 = 8 * 1024 * 1024;
 struct Config {
     servers: Vec<String>,
     projects: BTreeMap<String, Project>,
+    approval: Approval,
 }
 
 #[derive(Default, Deserialize, Serialize)]
 struct Project {
     servers: Vec<String>,
+    approval: Approval,
+    disabled_mcp: Vec<String>,
+}
+
+#[derive(Clone, Default, Deserialize, Serialize)]
+struct Approval {
     enabled: Vec<String>,
     disabled: Vec<String>,
-    disabled_mcp: Vec<String>,
     all: bool,
+}
+
+impl Approval {
+    fn parse(value: &Value) -> Self {
+        Self {
+            enabled: strings(&value["enabledMcpjsonServers"]),
+            disabled: strings(&value["disabledMcpjsonServers"]),
+            all: value["enableAllProjectMcpServers"]
+                .as_bool()
+                .unwrap_or(false),
+        }
+    }
+
+    fn merge(&mut self, other: Self) {
+        self.enabled.extend(other.enabled);
+        self.disabled.extend(other.disabled);
+        self.all |= other.all;
+    }
+
+    fn load(
+        project: Option<&Project>,
+        settings: Option<PathBuf>,
+        dir: Option<&Path>,
+        cache: &Path,
+    ) -> Self {
+        let mut approval = project.map(|p| p.approval.clone()).unwrap_or_default();
+        let paths = settings.into_iter().chain(dir.into_iter().flat_map(|d| {
+            [
+                d.join(".claude/settings.json"),
+                d.join(".claude/settings.local.json"),
+            ]
+        }));
+        for path in paths {
+            if let Some(settings) = load(&path, cache) {
+                approval.merge(settings.approval);
+            }
+        }
+        approval
+    }
+}
+
+fn project_key(path: &str) -> String {
+    let path = path.replace('\\', "/");
+    let mut key = path.trim_end_matches('/').to_owned();
+    if key.is_empty() && path.starts_with('/') {
+        key.push('/');
+    }
+    if key.as_bytes().get(1) == Some(&b':') && key.as_bytes()[0].is_ascii_alphabetic() {
+        key.replace_range(..1, &key[..1].to_ascii_lowercase());
+        if key.len() == 2 && path.ends_with('/') {
+            key.push('/');
+        }
+    }
+    key
 }
 
 fn names(value: &Value) -> Vec<String> {
@@ -55,13 +115,11 @@ fn parse(value: &Value) -> Option<Config> {
         .flatten()
         .map(|(dir, p)| {
             (
-                dir.clone(),
+                project_key(dir),
                 Project {
                     servers: names(&p["mcpServers"]),
-                    enabled: strings(&p["enabledMcpjsonServers"]),
-                    disabled: strings(&p["disabledMcpjsonServers"]),
+                    approval: Approval::parse(p),
                     disabled_mcp: strings(&p["disabledMcpServers"]),
-                    all: p["enableAllProjectMcpServers"].as_bool().unwrap_or(false),
                 },
             )
         })
@@ -69,6 +127,7 @@ fn parse(value: &Value) -> Option<Config> {
     Some(Config {
         servers: names(&value["mcpServers"]),
         projects,
+        approval: Approval::parse(value),
     })
 }
 
@@ -98,21 +157,25 @@ pub(super) fn servers(input: &Input) -> Option<Vec<String>> {
     servers_at(
         &config_path(std::env::var_os("CLAUDE_CONFIG_DIR"), dirs::home_dir())?,
         input.project_dir().map(Path::new),
-        &crate::state::dir().join("mcp-v1"),
+        &crate::state::dir().join("mcp-v2"),
     )
 }
 
 fn servers_at(config: &Path, dir: Option<&Path>, cache: &Path) -> Option<Vec<String>> {
+    let settings = config.parent().map(|p| p.join("settings.json"));
     let config = load(config, cache).unwrap_or_default();
-    let project = dir.and_then(|d| config.projects.get(d.to_str()?));
-    let mut enabled: BTreeSet<_> = config.servers.iter().cloned().collect();
+    let project = dir.and_then(|d| config.projects.get(&project_key(d.to_str()?)));
+    let mut enabled: BTreeSet<_> = config.servers.into_iter().collect();
+    let approval = Approval::load(project, settings, dir, cache);
     if let Some(project) = project {
         enabled.extend(project.servers.iter().cloned());
-        if let Some(local) = dir.and_then(|d| load(&d.join(".mcp.json"), cache)) {
-            enabled.extend(local.servers.into_iter().filter(|s| {
-                (project.all || project.enabled.contains(s)) && !project.disabled.contains(s)
-            }));
-        }
+    }
+    if let Some(local) = dir.and_then(|d| load(&d.join(".mcp.json"), cache)) {
+        enabled.extend(local.servers.into_iter().filter(|s| {
+            (approval.all || approval.enabled.contains(s)) && !approval.disabled.contains(s)
+        }));
+    }
+    if let Some(project) = project {
         enabled.retain(|s| !project.disabled_mcp.contains(s));
     }
     (!enabled.is_empty()).then(|| enabled.into_iter().collect())
@@ -225,6 +288,99 @@ mod tests {
             .set_len(CONFIG_BYTES + 1)
             .unwrap();
         assert!(f.servers("a").is_none());
+    }
+
+    #[test]
+    fn project_settings_approve_mcp_json_without_a_project_entry() {
+        let f = Fixture::new("settings");
+        std::fs::create_dir_all(f.0.join("a/.claude")).unwrap();
+        f.write("a/.mcp.json", json!({"mcpServers":{"idea":{}}}));
+        f.write(
+            "a/.claude/settings.local.json",
+            json!({
+                "enabledMcpjsonServers":["idea"], "enableAllProjectMcpServers":true
+            }),
+        );
+        assert_eq!(f.servers("a"), Some(vec!["idea".into()]));
+    }
+
+    #[test]
+    fn normalizes_project_separators_trailing_slashes_and_drive_letters() {
+        let f = Fixture::new("paths");
+        f.write(
+            ".claude.json",
+            json!({"projects":{
+                "D:/Tellhow/Projects/Idea/gxdd/jiaohe/": {"mcpServers":{"idea":{}}}
+            }}),
+        );
+        assert_eq!(
+            servers_at(
+                &f.0.join(".claude.json"),
+                Some(Path::new(r"d:\Tellhow\Projects\Idea\gxdd\jiaohe\")),
+                &f.0.join("cache")
+            ),
+            Some(vec!["idea".into()])
+        );
+        assert_eq!(project_key("/"), "/");
+        assert_eq!(project_key(r"C:\"), "c:/");
+        assert_eq!(project_key("/Project/"), "/Project");
+        assert_ne!(project_key("/Project"), project_key("/project"));
+    }
+
+    #[test]
+    fn merges_all_approval_sources_and_any_disable_wins() {
+        let f = Fixture::new("approvals");
+        std::fs::create_dir_all(f.0.join("a/.claude")).unwrap();
+        let key = format!("{}\\", f.0.join("a").to_string_lossy().replace('/', "\\"));
+        f.write(
+            ".claude.json",
+            json!({"projects":{key:{
+                "enabledMcpjsonServers":["entry", "blocked-settings", "blocked-local"],
+                "disabledMcpjsonServers":["blocked-entry"], "disabledMcpServers":["off"]
+            }}}),
+        );
+        f.write(
+            "settings.json",
+            json!({"enabledMcpjsonServers":["user", "blocked-entry"],
+            "disabledMcpjsonServers":["blocked-settings"]}),
+        );
+        f.write(
+            "a/.claude/settings.json",
+            json!({"enabledMcpjsonServers":["shared"],
+            "disabledMcpjsonServers":["blocked-shared"]}),
+        );
+        f.write(
+            "a/.claude/settings.local.json",
+            json!({"enabledMcpjsonServers":["local", "off", "blocked-shared"],
+            "disabledMcpjsonServers":["blocked-local"]}),
+        );
+        f.write(
+            "a/.mcp.json",
+            json!({"mcpServers":{
+                "entry":{}, "user":{}, "shared":{}, "local":{}, "unapproved":{}, "off":{},
+                "blocked-entry":{}, "blocked-settings":{}, "blocked-shared":{}, "blocked-local":{}
+            }}),
+        );
+        assert_eq!(
+            f.servers("a").unwrap(),
+            ["entry", "local", "shared", "user"]
+        );
+        for source in [
+            "settings.json",
+            "a/.claude/settings.json",
+            "a/.claude/settings.local.json",
+        ] {
+            f.write(
+                source,
+                json!({"enableAllProjectMcpServers":true, "disabledMcpjsonServers":["unapproved"]}),
+            );
+            let servers = f.servers("a").unwrap();
+            assert!(servers.contains(&"shared".into()));
+            assert!(!servers.contains(&"unapproved".into()));
+            assert!(!servers.contains(&"off".into()));
+            assert!(!servers.contains(&"blocked-entry".into()));
+            f.write(source, json!({}));
+        }
     }
 
     #[test]

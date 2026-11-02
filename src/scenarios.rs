@@ -516,7 +516,7 @@ pub fn find(name: &str) -> Option<&'static Scenario> {
 impl Scenario {
     /// Fixed session data, independent of the machine showing the preview.
     pub fn transcript(&self, now: i64) -> Option<crate::state::transcript::Summary> {
-        use crate::state::transcript::{Hooks, Skills, Summary};
+        use crate::state::transcript::{Hooks, Skills, Summary, ToolCalls};
         (self.name != "old-cc").then(|| Summary {
             start: Some(now - 3 * 3600 - 12 * 60),
             last_reply: Some(now - 45),
@@ -531,6 +531,17 @@ impl Scenario {
                 counts: [("PreToolUse".into(), 5), ("Stop".into(), 1)].into(),
                 ..Hooks::default()
             },
+            tool_calls: Box::new(ToolCalls {
+                counts: [
+                    ("Bash".into(), 47),
+                    ("Edit".into(), 11),
+                    ("Grep".into(), 5),
+                    ("Skill".into(), 2),
+                ]
+                .into(),
+                count: 65,
+                last: Some(("Bash".into(), false)),
+            }),
         })
     }
 

@@ -856,8 +856,8 @@ pub const TEXT: &[(&str, &str)] = &[
         "shell 命令输出的第一行；该命令从 stdin 读取状态栏 JSON",
     ),
     (
-        "Hook results since the latest user prompt in the transcript tail",
-        "会话记录末尾中，最近一次提问以来的钩子结果",
+        "Hook results since the latest user prompt in the session transcript",
+        "会话记录中，最近一次提问以来的钩子结果",
     ),
     (
         "How long a running background task has been going (subagent lines)",
@@ -902,8 +902,8 @@ pub const TEXT: &[(&str, &str)] = &[
         "来自 /rename 或自动生成的标题；max_len（默认 30）",
     ),
     (
-        "Newest assistant reply in the transcript tail",
-        "会话记录末尾最新的助手回复",
+        "Newest assistant reply in the session transcript",
+        "会话记录中最新的助手回复",
     ),
     (
         "Open PR or MR for the branch, with review state",
@@ -939,8 +939,17 @@ pub const TEXT: &[(&str, &str)] = &[
     ),
     ("Session wall-clock time", "会话的实际经过时间"),
     (
-        "Skill calls in the transcript tail",
-        "会话记录末尾的技能调用",
+        "Skill calls in the session transcript",
+        "会话记录中的技能调用",
+    ),
+    ("Tool calls", "工具调用"),
+    (
+        "Tool calls in the session transcript",
+        "会话记录中的工具调用",
+    ),
+    (
+        "Number of most-used tools to show",
+        "显示调用次数最多的工具数量",
     ),
     ("Skills", "技能"),
     (

@@ -1,8 +1,9 @@
 //! Session and activity metrics from the bounded transcript summary.
 
-use super::{Ctx, Metric, MetricMeta, Options, Reading, fmt};
+use super::{Ctx, Metric, MetricMeta, OptKind, OptSpec, Options, Reading, fmt};
 use crate::style::{Category, GlyphTier, IconKey};
 use crate::widgets::WidgetKind;
+use std::collections::BTreeMap;
 
 fn meta(
     id: &'static str,
@@ -62,7 +63,7 @@ pub(super) fn metrics() -> Vec<Metric> {
                 "session.last_reply",
                 Category::Session,
                 "Last reply",
-                "Newest assistant reply in the transcript tail",
+                "Newest assistant reply in the session transcript",
                 IconKey::LastReply,
                 ["{at}[ · {ago} ago]", "{at}", "{ago}"],
                 &["at", "ago"],
@@ -74,7 +75,7 @@ pub(super) fn metrics() -> Vec<Metric> {
                 "activity.skills",
                 Category::Activity,
                 "Skills",
-                "Skill calls in the transcript tail",
+                "Skill calls in the session transcript",
                 IconKey::Skills,
                 [
                     "{count} calls[ · {running}][ · {done}]",
@@ -86,11 +87,31 @@ pub(super) fn metrics() -> Vec<Metric> {
             compute: skills,
         },
         Metric {
+            meta: MetricMeta {
+                options: &[OptSpec {
+                    key: "top",
+                    kind: OptKind::Number,
+                    default: "4",
+                    summary: "Number of most-used tools to show",
+                }],
+                ..meta(
+                    "activity.tool_calls",
+                    Category::Activity,
+                    "Tool calls",
+                    "Tool calls in the session transcript",
+                    IconKey::Tools,
+                    ["{counts}", "{counts}", "{count}"],
+                    &["counts", "count", "last"],
+                )
+            },
+            compute: tool_calls,
+        },
+        Metric {
             meta: meta(
                 "activity.hooks",
                 Category::Activity,
                 "Hooks",
-                "Hook results since the latest user prompt in the transcript tail",
+                "Hook results since the latest user prompt in the session transcript",
                 IconKey::Hooks,
                 ["{last}[ · {counts}]", "{last}", "{last}"],
                 &["last", "counts", "failed"],
@@ -145,28 +166,59 @@ fn skills(ctx: &Ctx, _: &Options) -> Option<Reading> {
     })
 }
 
-fn hooks(ctx: &Ctx, _: &Options) -> Option<Reading> {
-    let hooks = &ctx.transcript()?.hooks;
-    let name = hooks.last.as_ref()?;
+fn tool_calls(ctx: &Ctx, opts: &Options) -> Option<Reading> {
+    let calls = &ctx.transcript()?.tool_calls;
+    if calls.count == 0 {
+        return None;
+    }
+    let top = opts
+        .get("top")
+        .and_then(|v| v.as_integer())
+        .unwrap_or(4)
+        .max(1) as usize;
     let ascii = ctx.glyphs == GlyphTier::Ascii;
-    let mark = match (ascii, hooks.last_failed) {
+    let last = calls
+        .last
+        .as_ref()
+        .map(|(name, failed)| format!("{name} {}", mark(ascii, *failed)))
+        .unwrap_or_default();
+    Some(
+        Reading::default()
+            .set("counts", counts(&calls.counts, top, ascii))
+            .set("count", calls.count.to_string())
+            .set("last", last),
+    )
+}
+
+fn mark(ascii: bool, failed: bool) -> &'static str {
+    match (ascii, failed) {
         (true, false) => "ok",
         (true, true) => "x",
         (false, false) => "✓",
         (false, true) => "✗",
-    };
-    let mut counts: Vec<_> = hooks.counts.iter().collect();
+    }
+}
+
+fn counts(values: &BTreeMap<String, usize>, top: usize, ascii: bool) -> String {
+    let mut counts: Vec<_> = values.iter().collect();
     counts.sort_by(|(a, x), (b, y)| y.cmp(x).then_with(|| a.cmp(b)));
     let times = if ascii { "x" } else { "×" };
-    let counts = counts
-        .iter()
+    counts
+        .into_iter()
+        .take(top)
         .map(|(event, n)| format!("{event}{times}{n}"))
         .collect::<Vec<_>>()
-        .join(" ");
+        .join(" ")
+}
+
+fn hooks(ctx: &Ctx, _: &Options) -> Option<Reading> {
+    let hooks = &ctx.transcript()?.hooks;
+    let name = hooks.last.as_ref()?;
+    let ascii = ctx.glyphs == GlyphTier::Ascii;
     Some(
         Reading::default()
-            .set("last", format!("{name} {mark}"))
-            .set("counts", counts)
+            .set("last", format!("{name} {}", mark(ascii, hooks.last_failed)))
+            .set("counts", counts(&hooks.counts, usize::MAX, ascii))
             .set(
                 "failed",
                 if hooks.failed == 0 {
@@ -184,7 +236,7 @@ mod tests {
     use crate::input::Input;
     use crate::metrics::{McpSource, TranscriptSource};
     use crate::models::Registry;
-    use crate::state::transcript::{Hooks, Skills, Summary};
+    use crate::state::transcript::{Hooks, Skills, Summary, ToolCalls};
     use chrono::FixedOffset;
 
     fn reading(ctx: &Ctx, id: &str) -> Option<Reading> {
@@ -211,6 +263,18 @@ mod tests {
                 counts: [("Stop".into(), 1), ("PreToolUse".into(), 5)].into(),
                 failed: 1,
             },
+            tool_calls: Box::new(ToolCalls {
+                counts: [
+                    ("Bash".into(), 47),
+                    ("Edit".into(), 11),
+                    ("Grep".into(), 5),
+                    ("Read".into(), 5),
+                    ("Skill".into(), 2),
+                ]
+                .into(),
+                count: 70,
+                last: Some(("Edit".into(), false)),
+            }),
         }
     }
 
@@ -251,6 +315,10 @@ mod tests {
         assert_eq!(text(&hooks, "last"), "Stop ✗");
         assert_eq!(text(&hooks, "counts"), "PreToolUse×5 Stop×1");
         assert_eq!(text(&hooks, "failed"), "1");
+        let calls = reading(&ctx, "activity.tool_calls").unwrap();
+        assert_eq!(text(&calls, "counts"), "Bash×47 Edit×11 Grep×5 Read×5");
+        assert_eq!(text(&calls, "count"), "70");
+        assert_eq!(text(&calls, "last"), "Edit ✓");
         let mcp = reading(&ctx, "mcp").unwrap();
         assert_eq!(text(&mcp, "names"), "a, z");
         assert_eq!(text(&mcp, "count"), "2");
@@ -283,6 +351,30 @@ mod tests {
     }
 
     #[test]
+    fn tool_call_top_is_clamped_and_ascii_marks_follow_the_glyph_tier() {
+        let input = Input::default();
+        let registry = Registry::default();
+        let mut summary = summary();
+        summary.tool_calls.last = Some(("Grep".into(), true));
+        let ctx = Ctx::new(
+            &input,
+            &registry,
+            0,
+            FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Ascii,
+        )
+        .with_transcript(TranscriptSource::Fixed(Some(summary)));
+        for (top, expected) in [(0, "Bashx47"), (-2, "Bashx47"), (2, "Bashx47 Editx11")] {
+            let opts = [("top".into(), toml::Value::Integer(top))]
+                .into_iter()
+                .collect();
+            let reading = tool_calls(&ctx, &opts).unwrap();
+            assert_eq!(text(&reading, "counts"), expected);
+            assert_eq!(text(&reading, "last"), "Grep x");
+        }
+    }
+
+    #[test]
     fn absent_or_empty_sources_hide_metrics() {
         let input = Input::default();
         let registry = Registry::default();
@@ -301,6 +393,7 @@ mod tests {
                 "session.start",
                 "session.last_reply",
                 "activity.skills",
+                "activity.tool_calls",
                 "activity.hooks",
                 "mcp",
             ] {
