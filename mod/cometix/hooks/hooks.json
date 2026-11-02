@@ -1,4 +1,4 @@
 {
-  "description": "Writes session data for the ccline status line",
+  "description": "Writes session data for ccline and, when explicitly enabled, compacts eligible idle sessions",
   "modules": ["./ccline.ts"]
 }
