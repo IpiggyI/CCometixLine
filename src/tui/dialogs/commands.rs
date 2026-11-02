@@ -3,11 +3,13 @@
 
 use super::{Action, Dialog, Reply};
 use crate::config::{Config, ItemSpec, LineConfig};
+use crate::i18n::{Language, t};
 use crate::metrics;
 use crate::presets::{self, Library, Parts};
 use crate::scenarios::SCENARIOS;
 use crate::style::palette;
 use crate::style::{GlyphTier, SkinKind};
+use crate::tf;
 use crate::tui::doc::Doc;
 use crate::tui::pages::{Cx, PageId};
 use crate::tui::ui::{self, TextInput};
@@ -30,27 +32,52 @@ enum Run {
 }
 
 struct Command {
+    /// In English.
     group: &'static str,
+    /// In English, for searching in English whatever the language.
+    en: String,
+    /// As shown.
     label: String,
     run: Run,
 }
 
-fn app(group: &'static str, label: impl Into<String>, action: Action) -> Command {
+/// A label in English and as shown.
+struct Label(String, String);
+
+impl From<&'static str> for Label {
+    /// Text with a translation.
+    fn from(en: &'static str) -> Label {
+        Label(en.into(), t(en).into())
+    }
+}
+
+impl From<String> for Label {
+    /// A name, the same in every language.
+    fn from(name: String) -> Label {
+        Label(name.clone(), name)
+    }
+}
+
+fn app(group: &'static str, label: impl Into<Label>, action: Action) -> Command {
+    let Label(en, label) = label.into();
     Command {
         group,
-        label: label.into(),
+        en,
+        label,
         run: Run::App(action),
     }
 }
 
 fn edit(
     group: &'static str,
-    label: impl Into<String>,
+    label: impl Into<Label>,
     f: impl Fn(&mut Config) + 'static,
 ) -> Command {
+    let Label(en, label) = label.into();
     Command {
         group,
-        label: label.into(),
+        en,
+        label,
         run: Run::Edit(Box::new(f)),
     }
 }
@@ -62,7 +89,11 @@ fn lower<T: std::fmt::Debug>(v: T) -> String {
 fn all(presets: &Library) -> Vec<Command> {
     let mut out = Vec::new();
     for p in PageId::ALL {
-        out.push(app("Go", format!("to {}", p.title()), Action::Goto(p)));
+        let label = Label(
+            format!("to {}", p.name()),
+            tf!("to {page}", page = p.title()),
+        );
+        out.push(app("Go", label, Action::Goto(p)));
     }
     out.push(app(
         "File",
@@ -82,7 +113,11 @@ fn all(presets: &Library) -> Vec<Command> {
         let Ok(preset) = entry.config.clone() else {
             continue;
         };
-        out.push(edit("Preset", format!("apply {}", entry.name), move |c| {
+        let label = Label(
+            format!("apply {}", entry.name),
+            tf!("apply {name}", name = entry.name),
+        );
+        out.push(edit("Preset", label, move |c| {
             *c = presets::apply(c, &preset, Parts::All);
         }));
     }
@@ -112,7 +147,11 @@ fn all(presets: &Library) -> Vec<Command> {
             continue;
         }
         // Like the library: on the lines once, or not at all.
-        out.push(edit("Layout", format!("add or remove {id}"), move |c| {
+        let label = Label(
+            format!("add or remove {id}"),
+            tf!("add or remove {id}", id = id),
+        );
+        out.push(edit("Layout", label, move |c| {
             let had = c
                 .lines
                 .iter()
@@ -134,13 +173,17 @@ fn all(presets: &Library) -> Vec<Command> {
         }));
     }
     for (i, s) in SCENARIOS.iter().enumerate() {
-        out.push(app(
-            "Preview",
+        let label = Label(
             format!("scenario {}", s.name),
-            Action::Scenario(i),
-        ));
+            tf!("scenario {name}", name = t(s.name)),
+        );
+        out.push(app("Preview", label, Action::Scenario(i)));
     }
     out.push(app("Preview", "replay your last session", Action::Replay));
+    for language in Language::ALL {
+        let label = Label(language.name().into(), language.label().into());
+        out.push(edit("Language", label, move |c| c.language = language));
+    }
     out
 }
 
@@ -186,8 +229,13 @@ impl Commands {
             .all
             .iter()
             .filter_map(|c| {
-                let text = format!("{} {}", c.group, c.label).to_lowercase();
-                Some((score(&q, &text)?, c))
+                let en = format!("{} {}", c.group, c.en).to_lowercase();
+                let shown = format!("{} {}", t(c.group), c.label).to_lowercase();
+                let s = match (score(&q, &en), score(&q, &shown)) {
+                    (Some(a), Some(b)) => a.min(b),
+                    (a, b) => a.or(b)?,
+                };
+                Some((s, c))
             })
             .collect();
         found.sort_by_key(|(s, _)| *s);
@@ -207,7 +255,7 @@ impl Dialog for Commands {
                 [
                     vec![Span::styled(" > ", ui::accent())],
                     self.input
-                        .line(WIDTH as usize - 6, true, "type to search")
+                        .line(WIDTH as usize - 6, true, t("type to search"))
                         .spans,
                 ]
                 .concat(),
@@ -218,7 +266,7 @@ impl Dialog for Commands {
             let on = i == self.row;
             text.push(Line::from(vec![
                 Span::styled(if on { ui::SELECTED } else { "  " }, ui::accent()),
-                Span::styled(format!("{:<9}", c.group), ui::muted()),
+                Span::styled(ui::pad(t(c.group), 9), ui::muted()),
                 Span::styled(
                     c.label.clone(),
                     if on { ui::accent() } else { Style::default() },
@@ -226,7 +274,10 @@ impl Dialog for Commands {
             ]));
         }
         if matches.is_empty() {
-            text.push(Line::styled("  nothing matches", ui::muted()));
+            text.push(Line::styled(
+                format!("  {}", t("nothing matches")),
+                ui::muted(),
+            ));
         }
         while text.len() < SHOWN + 2 {
             text.push(Line::raw(""));
@@ -253,7 +304,7 @@ impl Dialog for Commands {
                     Run::App(action) => Reply::Then(action.clone()),
                     Run::Edit(f) => {
                         doc.edit(|config, _| f(config));
-                        Reply::Then(Action::Toast(format!("{} {}", c.group, c.label)))
+                        Reply::Then(Action::Toast(format!("{} {}", t(c.group), c.label)))
                     }
                 };
             }

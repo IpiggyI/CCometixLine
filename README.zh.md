@@ -127,7 +127,7 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 | 3 Layout | 从指标库挑选指标，安排到各行和左右两侧，再细调选中的条目：形态、进度条字形与格数、文字模板、图标、颜色、阈值 |
 | 4 Style | 骨架、调色板、字形、色深、填充方式，以及在调色板之上的颜色覆盖 |
 | 5 Models | 模型登记表：最近会话里没认出的模型 id、你的规则及命中次数、解析测试器 |
-| 6 Claude Code | `statusLine`、`subagentStatusLine`、`refreshInterval`、更新检查、配套 mod |
+| 6 Claude Code | `statusLine`、`subagentStatusLine`、`refreshInterval`、更新检查与配置器语言、配套 mod |
 
 ![Layout 页](assets/tui-layout.webp)
 
@@ -136,6 +136,8 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 ![图标选择器](assets/tui-icons.webp)
 
 全局按键：`^S` 保存，`^Z` / `^Y` 撤销与重做，`^P` 命令面板，`[` `]` 切换示例会话，`-` `+` 调整预览宽度，`{` 色深，`}` 字形，`?` 帮助，`q` 退出。
+
+配置器支持英文和中文。`config.toml` 里的 `language` 可以设为 `en` 或 `zh`。默认值 `auto` 会依次查看 `LC_ALL`、`LC_MESSAGES`、`LANG`，取第一个已设置的值：它以 `zh` 开头时用中文，否则用英文。可以在 Claude Code 页、首次设置向导（按 `L`）或 `^P` 命令面板里切换。状态栏本身的内容不翻译。
 
 ## 指标
 
@@ -178,7 +180,7 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 | `dir` | `style`、`depth` | `style = "depth"` 显示路径的最后 `depth` 级（默认 3） |
 | `git` | `branch_prefixes` | 缩短分支名：`"feature/=✨, fix/=🐛"` 把 `feature/login` 显示为 `✨login`（取最长的匹配前缀） |
 
-`model` 还有 `fast` 字段 `{fast}`，快速模式开启时显示（`Opus 5.5 · xHigh · fast`）。在支持 OSC 8 超链接的终端里，`git` 分支会链接到它在 GitHub 或 GitLab 上的页面，额度条目会链接到 Claude 的用量页面。
+`model` 还有 `fast` 字段 `{fast}`，快速模式开启时显示（`Opus 5.5 · xHigh · fast`）。在支持 OSC 8 超链接的终端里，`git` 分支会链接到它在 GitHub 或 GitLab 上的页面。
 
 ## 配置
 

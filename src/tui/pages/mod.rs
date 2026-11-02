@@ -52,6 +52,11 @@ impl PageId {
     }
 
     pub fn title(self) -> &'static str {
+        crate::i18n::t(self.name())
+    }
+
+    /// The title in English.
+    pub fn name(self) -> &'static str {
         match self {
             PageId::Home => "Home",
             PageId::Presets => "Presets",
@@ -76,6 +81,8 @@ pub struct Env {
     pub settings: std::path::PathBuf,
     /// The last update check.
     pub update: crate::state::update::UpdateState,
+    /// The locale's language, for `language = "auto"`.
+    pub locale: crate::i18n::Lang,
 }
 
 impl Env {
@@ -87,6 +94,7 @@ impl Env {
             seen: crate::state::models_seen::load(),
             settings: crate::cc_settings::Settings::user_path(),
             update: crate::state::update::last(),
+            locale: crate::i18n::locale(),
         }
     }
 

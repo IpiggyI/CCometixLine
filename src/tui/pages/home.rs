@@ -5,7 +5,9 @@
 use super::{Cx, Env, Outcome, Page, PageId};
 use crate::cc_settings::{self, Settings};
 use crate::config::LoadNote;
+use crate::i18n::t;
 use crate::state::update;
+use crate::tf;
 use crate::tui::dialogs::SettingsDiff;
 use crate::tui::doc::Doc;
 use crate::tui::ui;
@@ -75,46 +77,52 @@ fn checks(cx: &Cx) -> Vec<Check> {
         Some(v) if v >= MIN_SUPPORTED => check(Mark::Ok, format!("Claude Code {v}")),
         Some(v) => check(
             Mark::Warn,
-            format!("Claude Code {v} is older than {MIN_SUPPORTED}"),
+            tf!(
+                "Claude Code {v} is older than {min}",
+                v = v,
+                min = MIN_SUPPORTED
+            ),
         ),
-        None => check(Mark::Info, "Claude Code version not seen yet"),
+        None => check(Mark::Info, t("Claude Code version not seen yet")),
     });
     match Settings::load(&cx.env.settings) {
         Err(e) => out.push(check(Mark::Warn, e)),
         Ok(s) => match s.status_line() {
             Some(l) if cc_settings::is_ccline(&l.command) => {
-                out.push(check(Mark::Ok, "statusLine runs ccline"));
+                out.push(check(Mark::Ok, t("statusLine runs ccline")));
                 if l.refresh_interval.is_none() {
-                    out.push(check(Mark::Info, "refreshInterval not set").fix("i", "set 2s"));
+                    out.push(check(Mark::Info, t("refreshInterval not set")).fix("i", "set 2s"));
                 }
             }
-            Some(_) => out
-                .push(check(Mark::Warn, "statusLine runs another command").fix("s", "use ccline")),
-            None => out.push(check(Mark::Warn, "statusLine not set").fix("s", "connect")),
+            Some(_) => out.push(
+                check(Mark::Warn, t("statusLine runs another command")).fix("s", "use ccline"),
+            ),
+            None => out.push(check(Mark::Warn, t("statusLine not set")).fix("s", "connect")),
         },
     }
     out.push(match &cx.doc.note {
-        LoadNote::Fine => check(Mark::Ok, "config.toml valid"),
-        LoadNote::Missing => check(Mark::Info, "no config.toml yet: the default preset"),
-        LoadNote::Invalid(e) => check(Mark::Warn, format!("config.toml invalid: {e}")),
+        LoadNote::Fine => check(Mark::Ok, t("config.toml valid")),
+        LoadNote::Missing => check(Mark::Info, t("no config.toml yet: the default preset")),
+        LoadNote::Invalid(e) => check(Mark::Warn, tf!("config.toml invalid: {e}", e = e)),
     });
     out.push(match &cx.doc.models_error {
-        Some(e) => check(Mark::Warn, format!("models.toml unreadable: {e}")),
+        Some(e) => check(Mark::Warn, tf!("models.toml unreadable: {e}", e = e)),
         None => {
             let unknown = super::models::unrecognized(cx.env, &cx.doc.registry()).len();
             if unknown > 0 {
                 check(
                     Mark::Info,
-                    format!(
-                        "{unknown} unrecognized model id{}",
-                        if unknown == 1 { "" } else { "s" }
+                    tf!(
+                        "{n} unrecognized model id{s}",
+                        n = unknown,
+                        s = if unknown == 1 { "" } else { "s" }
                     ),
                 )
                 .fix("m", "review")
             } else {
                 check(
                     Mark::Ok,
-                    format!("models.toml: {} rules", cx.doc.models.rules.len()),
+                    tf!("models.toml: {n} rules", n = cx.doc.models.rules.len()),
                 )
             }
         }
@@ -122,7 +130,7 @@ fn checks(cx: &Cx) -> Vec<Check> {
     if let Some(v) = &cx.env.update.latest
         && update::is_newer(v, update::CURRENT)
     {
-        out.push(check(Mark::Info, format!("ccline {v} available")).fix("u", "copy upgrade"));
+        out.push(check(Mark::Info, tf!("ccline {v} available", v = v)).fix("u", "copy upgrade"));
     }
     out
 }
@@ -138,7 +146,7 @@ fn health_line(c: &Check, width: usize) -> Line<'static> {
         .map(|(key, what)| {
             vec![
                 Span::styled(key.to_string(), ui::accent()),
-                Span::styled(format!(" {what}"), ui::muted()),
+                Span::styled(format!(" {}", t(what)), ui::muted()),
             ]
         })
         .unwrap_or_default();
@@ -171,7 +179,7 @@ fn change_settings(env: &Env, refresh: bool) -> Outcome {
     let mut draft = base.clone();
     draft.set_status_line(Some(&line));
     if !draft.differs(&base) {
-        return Outcome::Toast("Already set".into());
+        return Outcome::Toast(t("Already set").into());
     }
     Outcome::Open(Box::new(SettingsDiff::new(base, draft)))
 }
@@ -186,13 +194,17 @@ impl Home {
             None => (cx.preview.clone(), "no session yet: a sample session"),
         };
         let lines = preview.render(&cx.doc.config, cx.doc, &registry, cx.env.tz, width);
-        (lines, title.to_string())
+        (lines, t(title).to_string())
     }
 
     fn render_now(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>, title: String) {
         let width = area.width.saturating_sub(2);
         let block = ui::panel("Your status line now").title_top(
-            Line::styled(format!(" {title} · {width} cols "), ui::muted()).right_aligned(),
+            Line::styled(
+                format!(" {title} · {} ", tf!("{n} cols", n = width)),
+                ui::muted(),
+            )
+            .right_aligned(),
         );
         f.render_widget(Paragraph::new(lines).block(block), area);
     }
@@ -213,7 +225,7 @@ impl Page for Home {
         .areas(area);
         f.render_widget(
             Paragraph::new(Line::styled(
-                "  ccline — compose your Claude Code status line",
+                t("  ccline — compose your Claude Code status line"),
                 ui::strong(),
             )),
             head,
@@ -235,7 +247,7 @@ impl Page for Home {
                 let style = if on { ui::accent() } else { Style::default() };
                 Line::from(vec![
                     Span::styled(marker, ui::accent()),
-                    Span::styled(label.to_string(), style),
+                    Span::styled(t(label).to_string(), style),
                 ])
             })
             .collect();

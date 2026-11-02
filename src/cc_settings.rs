@@ -27,7 +27,9 @@ pub enum SaveError {
 impl std::fmt::Display for SaveError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SaveError::Changed => write!(f, "settings.json changed on disk; reload and try again"),
+            SaveError::Changed => f.write_str(crate::i18n::t(
+                "settings.json changed on disk; reload and try again",
+            )),
             SaveError::Io(e) => write!(f, "{e}"),
         }
     }
@@ -105,8 +107,8 @@ impl Settings {
             None | Some("") => Value::Object(Map::new()),
             Some(t) => match serde_json::from_str::<Value>(t) {
                 Ok(v @ Value::Object(_)) => v,
-                Ok(_) => return Err("settings.json isn't a JSON object".into()),
-                Err(e) => return Err(format!("settings.json isn't plain JSON: {e}")),
+                Ok(_) => return Err(crate::i18n::t("settings.json isn't a JSON object").into()),
+                Err(e) => return Err(crate::tf!("settings.json isn't plain JSON: {e}", e = e)),
             },
         };
         Ok(Settings {

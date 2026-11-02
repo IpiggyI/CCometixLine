@@ -127,7 +127,7 @@ Run `ccline` (or `ccline -c`). Six pages, switched with `1`–`6`; every change 
 | 3 Layout | Pick metrics from the library, arrange them on lines and sides, and tune the selected item: form, bar glyphs and cells, templates, icon, colors, thresholds |
 | 4 Style | Skin, palette, glyphs, color depth, fill, and color overrides on top of the palette |
 | 5 Models | The model registry: unrecognized ids from recent sessions, your rules with hit counts, and a tester |
-| 6 Claude Code | `statusLine`, `subagentStatusLine` and `refreshInterval`, update checks, the companion mod |
+| 6 Claude Code | `statusLine`, `subagentStatusLine` and `refreshInterval`, update checks and the configurator's language, the companion mod |
 
 ![Layout page](assets/tui-layout.webp)
 
@@ -136,6 +136,8 @@ The icon picker covers all 10,617 icons of Nerd Fonts 3.5.1, searchable by name,
 ![Icon picker](assets/tui-icons.webp)
 
 Keys everywhere: `^S` save, `^Z` / `^Y` undo and redo, `^P` command palette, `[` `]` sample session, `-` `+` preview width, `{` color depth, `}` glyphs, `?` help, `q` quit.
+
+The configurator speaks English and Chinese. `language` in `config.toml` picks `en` or `zh`; `auto`, the default, uses Chinese when the first of `LC_ALL`, `LC_MESSAGES` and `LANG` that is set starts with `zh`, and English otherwise. Change it on the Claude Code page, with `L` in the first-run setup, or from `^P`. The status line itself is not translated.
 
 ## Metrics
 
@@ -178,7 +180,7 @@ These are set per item under `options`, or in the inspector on the Layout page:
 | `dir` | `style`, `depth` | `style = "depth"` shows the last `depth` path components (default 3) |
 | `git` | `branch_prefixes` | Shortens branch names: `"feature/=✨, fix/=🐛"` shows `feature/login` as `✨login` (the longest matching prefix wins) |
 
-`model` also has a `fast` field, `{fast}`, shown when fast mode is on (`Opus 5.5 · xHigh · fast`). In terminals that support OSC 8 hyperlinks, the `git` branch links to its page on GitHub or GitLab and the quota items link to Claude's usage page.
+`model` also has a `fast` field, `{fast}`, shown when fast mode is on (`Opus 5.5 · xHigh · fast`). In terminals that support OSC 8 hyperlinks, the `git` branch links to its page on GitHub or GitLab.
 
 ## Configuration
 

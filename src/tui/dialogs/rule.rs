@@ -2,8 +2,10 @@
 
 use super::form::{Field, Form, FormKey};
 use super::{Action, Dialog, Reply};
+use crate::i18n::t;
 use crate::metrics::fmt::grouped;
 use crate::models::{MatchKind, Modifier, Rule, parse_window};
+use crate::tf;
 use crate::tui::doc::Doc;
 use crate::tui::pages::Cx;
 use crate::tui::ui;
@@ -54,11 +56,11 @@ pub fn guess_name(id: &str) -> String {
 /// `= 256,000 tokens`, or what's wrong with the text.
 fn window_note(text: &str) -> Span<'static> {
     if text.trim().is_empty() {
-        return Span::styled("keep Claude Code's", ui::muted());
+        return Span::styled(t("keep Claude Code's"), ui::muted());
     }
     match parse_window(text) {
-        Some(n) => Span::styled(format!("= {} tokens", grouped(n)), ui::muted()),
-        None => Span::styled("use 256k, 1m or 256000", Style::default().fg(ui::BAD)),
+        Some(n) => Span::styled(tf!("= {n} tokens", n = grouped(n)), ui::muted()),
+        None => Span::styled(t("use 256k, 1m or 256000"), Style::default().fg(ui::BAD)),
     }
 }
 
@@ -128,13 +130,13 @@ impl RuleDialog {
         let f = &self.form.fields;
         let pattern = f[1].value();
         if pattern.is_empty() {
-            return Err("The pattern can't be empty.".into());
+            return Err(t("The pattern can't be empty.").into());
         }
         let window = f[3].value();
         let context_limit = if window.is_empty() {
             None
         } else {
-            Some(parse_window(&window).ok_or("The context isn't a size like 256k.")?)
+            Some(parse_window(&window).ok_or(t("The context isn't a size like 256k."))?)
         };
         let name = f[2].value();
         let rule = Rule {
@@ -144,9 +146,9 @@ impl RuleDialog {
             match_kind: kind_at(f[0].choice),
         };
         if let Some(e) = rule.regex_error() {
-            return Err(format!(
-                "Not a valid regex: {}",
-                e.lines().last().unwrap_or("")
+            return Err(tf!(
+                "Not a valid regex: {e}",
+                e = e.lines().last().unwrap_or("")
             ));
         }
         Ok(rule)
@@ -163,7 +165,7 @@ impl RuleDialog {
             }
         };
         if self.seen.is_empty() {
-            return vec![Line::styled("   No model ids seen yet.", ui::muted())];
+            return vec![Line::styled(t("   No model ids seen yet."), ui::muted())];
         }
         self.seen
             .iter()
@@ -173,7 +175,7 @@ impl RuleDialog {
                     let name = rule
                         .display_name
                         .clone()
-                        .unwrap_or_else(|| "(name unchanged)".into());
+                        .unwrap_or_else(|| t("(name unchanged)").into());
                     let window = rule
                         .context_limit
                         .or(*cc_window)
@@ -184,7 +186,7 @@ impl RuleDialog {
                         Span::raw(format!("{id:<28} → {name}{window}")),
                     ])
                 } else {
-                    Line::styled(format!("   · {id:<28}   not matched"), ui::muted())
+                    Line::styled(format!("   · {id:<28}   {}", t("not matched")), ui::muted())
                 }
             })
             .collect()
@@ -209,7 +211,7 @@ impl Dialog for RuleDialog {
         ];
         let mut text = self.form.lines(WIDTH as usize - 2, &notes);
         text.push(Line::raw(""));
-        text.push(Line::raw(" Against ids seen recently:"));
+        text.push(Line::raw(t(" Against ids seen recently:")));
         text.extend(matches);
         if let Some(e) = &self.error {
             text.push(Line::styled(format!(" {e}"), Style::default().fg(ui::BAD)));
@@ -222,8 +224,8 @@ impl Dialog for RuleDialog {
             ("←→", "match"),
         ]));
         let title = match self.index {
-            Some(i) => format!("Edit rule #{}", i + 1),
-            None => "New rule".into(),
+            Some(i) => tf!("Edit rule #{n}", n = i + 1),
+            None => t("New rule").into(),
         };
         f.render_widget(Paragraph::new(text).block(ui::panel(&title)), rect);
     }
@@ -242,7 +244,7 @@ impl Dialog for RuleDialog {
                     doc.edit(|_, m| match index {
                         Some(i) => {
                             m.rules[i] = rule;
-                            message = format!("Updated rule #{}", i + 1);
+                            message = tf!("Updated rule #{n}", n = i + 1);
                         }
                         None => {
                             // Go before the first rule that would take this
@@ -252,7 +254,7 @@ impl Dialog for RuleDialog {
                                 .flatten()
                                 .unwrap_or(m.rules.len());
                             m.rules.insert(at, rule);
-                            message = format!("Added rule #{}", at + 1);
+                            message = tf!("Added rule #{n}", n = at + 1);
                         }
                     });
                     Reply::Then(Action::Toast(message))
@@ -298,13 +300,13 @@ impl ModifierDialog {
         let f = &self.form.fields;
         let pattern = f[0].value();
         if pattern.is_empty() {
-            return Err("The pattern can't be empty.".into());
+            return Err(t("The pattern can't be empty.").into());
         }
         let window = f[2].value();
         let context_limit = if window.is_empty() {
             None
         } else {
-            Some(parse_window(&window).ok_or("The context isn't a size like 1m.")?)
+            Some(parse_window(&window).ok_or(t("The context isn't a size like 1m."))?)
         };
         // Keep the suffix's leading space: it separates it from the name.
         Ok(Modifier {
@@ -330,7 +332,7 @@ impl Dialog for ModifierDialog {
         ];
         let mut text = self.form.lines(WIDTH as usize - 2, &notes);
         text.push(Line::styled(
-            " Ids containing the pattern get the suffix and, if set, the context.",
+            t(" Ids containing the pattern get the suffix and, if set, the context."),
             ui::muted(),
         ));
         if let Some(e) = &self.error {
@@ -364,7 +366,7 @@ impl Dialog for ModifierDialog {
                         Some(i) => m.context_modifiers[i] = modifier,
                         None => m.context_modifiers.push(modifier),
                     });
-                    Reply::Then(Action::Toast("Saved modifier".into()))
+                    Reply::Then(Action::Toast(t("Saved modifier").into()))
                 }
             },
             _ => {

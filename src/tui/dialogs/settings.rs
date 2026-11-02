@@ -3,6 +3,8 @@
 
 use super::{Action, Dialog, Reply};
 use crate::cc_settings::{Mark, Settings};
+use crate::i18n::t;
+use crate::tf;
 use crate::tui::doc::Doc;
 use crate::tui::pages::Cx;
 use crate::tui::ui;
@@ -52,7 +54,7 @@ impl Dialog for SettingsDiff {
         let rect = ui::popup(f, area, WIDTH, shown as u16 + more + 7);
         let room = WIDTH as usize - 2;
         let mut text = vec![
-            Line::raw(" ccline will write this to your Claude Code settings:"),
+            Line::raw(t(" ccline will write this to your Claude Code settings:")),
             Line::raw(""),
         ];
         for (mark, line) in diff.iter().take(shown) {
@@ -68,13 +70,13 @@ impl Dialog for SettingsDiff {
         }
         if diff.len() > shown {
             text.push(Line::styled(
-                format!("    … {} more lines", diff.len() - shown),
+                format!("    … {}", tf!("{n} more lines", n = diff.len() - shown)),
                 ui::muted(),
             ));
         }
         text.push(Line::raw(""));
         text.push(Line::from(vec![
-            Span::styled(" Backup  ", ui::muted()),
+            Span::styled(format!(" {}  ", t("Backup")), ui::muted()),
             Span::raw(format!(
                 "{}.ccline-bak",
                 self.base
@@ -90,7 +92,7 @@ impl Dialog for SettingsDiff {
             "apply"
         };
         text.push(ui::hints(&[("Y", apply), ("N", "cancel")]));
-        let title = format!("Change {}", shown_path(&self.base.path));
+        let title = tf!("Change {path}", path = shown_path(&self.base.path));
         f.render_widget(Paragraph::new(text).block(ui::panel(&title)), rect);
     }
 
@@ -99,10 +101,16 @@ impl Dialog for SettingsDiff {
             KeyCode::Char('y' | 'Y') => match self.draft.save(&self.base) {
                 Ok(_) if self.then_quit => Reply::Then(Action::Quit),
                 Ok(backup) => Reply::Then(Action::Toast(match backup {
-                    Some(b) => format!("Updated settings.json · old file in {}", shown_path(&b)),
-                    None => "Created settings.json".into(),
+                    Some(b) => tf!(
+                        "Updated settings.json · old file in {path}",
+                        path = shown_path(&b)
+                    ),
+                    None => t("Created settings.json").into(),
                 })),
-                Err(e) => Reply::Then(Action::Error(format!("Couldn't write settings.json: {e}"))),
+                Err(e) => Reply::Then(Action::Error(tf!(
+                    "Couldn't write settings.json: {e}",
+                    e = e
+                ))),
             },
             KeyCode::Char('n' | 'N') | KeyCode::Esc => Reply::Close,
             _ => Reply::Stay,

@@ -10,8 +10,10 @@ mod library;
 
 use super::{Cx, Env, Outcome, Page};
 use crate::config::{ItemConfig, ItemSpec, LineConfig};
+use crate::i18n::t;
 use crate::metrics::{self, Metric, MetricMeta};
 use crate::statusline::Report;
+use crate::tf;
 use crate::tui::dialogs::ColorDialog;
 use crate::tui::doc::Doc;
 use crate::tui::preview::Target;
@@ -42,11 +44,11 @@ const PANES: [Pane; 3] = [Pane::Library, Pane::Canvas, Pane::Inspector];
 
 impl Pane {
     fn title(self) -> &'static str {
-        match self {
+        t(match self {
             Pane::Library => "Library",
             Pane::Canvas => "Canvas",
             Pane::Inspector => "Inspector",
-        }
+        })
     }
 }
 
@@ -119,8 +121,8 @@ impl LayoutPage {
         let width = inner.width as usize;
         let Some((_, cfg, meta)) = self.selected(lines) else {
             let text = Paragraph::new(vec![
-                Line::styled("Pick an item on the canvas", ui::muted()),
-                Line::styled("to see its settings here.", ui::muted()),
+                Line::styled(t("Pick an item on the canvas"), ui::muted()),
+                Line::styled(t("to see its settings here."), ui::muted()),
             ]);
             f.render_widget(text, inner);
             return;
@@ -134,9 +136,9 @@ impl LayoutPage {
         let mut text = vec![
             Line::from(vec![
                 Span::styled(meta.id, ui::strong()),
-                Span::styled(format!("  {}", meta.name), ui::muted()),
+                Span::styled(format!("  {}", t(meta.name)), ui::muted()),
             ]),
-            Line::styled(meta.summary, ui::muted()),
+            Line::styled(t(meta.summary), ui::muted()),
             Line::raw(""),
         ];
         let fields = inspector::fields(&cfg, meta, self.target == Target::Subagent);
@@ -157,7 +159,7 @@ impl LayoutPage {
             && on
         {
             text.push(Line::styled(
-                format!("  {}", meta.options[i].summary),
+                format!("  {}", t(meta.options[i].summary)),
                 ui::muted(),
             ));
         }
@@ -169,31 +171,31 @@ impl LayoutPage {
             .item_levels(cx.doc, &registry, cx.env.tz, self.target, &cfg)
         {
             Some(levels) => {
-                text.push(Line::styled("Shows", ui::muted()));
+                text.push(Line::styled(t("Shows"), ui::muted()));
                 for (name, line) in ["full", "compact", "minimal"].iter().zip(levels) {
                     let mut spans = vec![Span::styled(
-                        format!("  {name:<w$}", w = inspector::LABEL),
+                        format!("  {}", ui::pad(t(name), inspector::LABEL)),
                         ui::muted(),
                     )];
                     let room = width.saturating_sub(2 + inspector::LABEL);
                     match line {
                         Some(l) => spans.extend(ui::clip(l.spans, room)),
-                        None => spans.push(Span::styled("nothing", ui::muted())),
+                        None => spans.push(Span::styled(t("nothing"), ui::muted())),
                     }
                     text.push(Line::from(spans));
                 }
             }
             None => text.push(Line::styled(
-                "Nothing to show in this scenario",
+                t("Nothing to show in this scenario"),
                 ui::muted(),
             )),
         }
         let mut notes = Vec::new();
         if let Some(v) = meta.min_cc {
-            notes.push(format!("needs CC {v}"));
+            notes.push(tf!("needs CC {v}", v = v));
         }
         if meta.stateful {
-            notes.push("keeps history".into());
+            notes.push(t("keeps history").into());
         }
         if !notes.is_empty() {
             text.push(Line::styled(notes.join(" · "), ui::muted()));
@@ -221,13 +223,16 @@ impl LayoutPage {
         let lines = edit::lines(&doc.config, self.target);
         if id != "cmd" && edit::has_metric(&lines, id) {
             self.apply(doc, |lines, at| Some(edit::remove_metric(lines, id, at)));
-            return Outcome::Toast(format!("Removed {id}"));
+            return Outcome::Toast(tf!("Removed {id}", id = id));
         }
         match library::avail(&m.meta, self.target, env.cc_version()) {
-            Avail::Needs(v) => return Outcome::Toast(format!("{id} needs Claude Code {v}")),
+            Avail::Needs(v) => {
+                return Outcome::Toast(tf!("{id} needs Claude Code {v}", id = id, v = v));
+            }
             Avail::TaskOnly => {
-                return Outcome::Toast(format!(
-                    "{id} describes a background task; t edits the subagent line"
+                return Outcome::Toast(tf!(
+                    "{id} describes a background task; t edits the subagent line",
+                    id = id
                 ));
             }
             Avail::Yes => {}
@@ -240,11 +245,11 @@ impl LayoutPage {
             self.pane = Pane::Inspector;
             self.field = 0;
             self.editing = Some(TextInput::default());
-            return Outcome::Toast("Type the command to run, then enter".into());
+            return Outcome::Toast(t("Type the command to run, then enter").into());
         }
         Outcome::Toast(match self.target {
-            Target::Status => format!("Added {id} to line {}", self.cursor.line + 1),
-            Target::Subagent => format!("Added {id} to the subagent line"),
+            Target::Status => tf!("Added {id} to line {n}", id = id, n = self.cursor.line + 1),
+            Target::Subagent => tf!("Added {id} to the subagent line", id = id),
         })
     }
 
@@ -290,7 +295,7 @@ impl LayoutPage {
                     l.remove(n);
                     Some(at)
                 });
-                return Outcome::Toast(format!("Removed line {}", n + 1));
+                return Outcome::Toast(tf!("Removed line {n}", n = n + 1));
             }
             KeyCode::Char('n') if grow => {
                 let n = self.cursor.line;
@@ -370,8 +375,8 @@ impl LayoutPage {
                         });
                     });
                     let title = match field {
-                        Field::IconColor => format!("{} icon", meta.id),
-                        Field::Text => format!("{} text", meta.id),
+                        Field::IconColor => tf!("{id} icon", id = meta.id),
+                        Field::Text => tf!("{id} text", id = meta.id),
                         _ => meta.id.to_string(),
                     };
                     let current = inspector::color_of(field, &cfg);
@@ -449,7 +454,10 @@ impl Page for LayoutPage {
                 spans.push(Span::styled(format!(" {} ", p.title()), style));
                 spans.push(Span::raw(" "));
             }
-            spans.push(Span::styled(" tab next pane", ui::muted()));
+            spans.push(Span::styled(
+                format!(" tab {}", t("next pane")),
+                ui::muted(),
+            ));
             f.render_widget(Paragraph::new(Line::from(spans)), tabs);
             let none = Rect::default();
             match self.pane {
@@ -490,7 +498,7 @@ impl Page for LayoutPage {
             };
             let title = vec![
                 Span::styled(" t ", ui::muted()),
-                ui::choice(target_name),
+                ui::choice(t(target_name)),
                 Span::raw(" "),
             ];
             let block = self

@@ -314,7 +314,6 @@ fn five_hour(ctx: &Ctx, opts: &Options) -> Option<Reading> {
         ctx,
         opts,
     )
-    .map(|r| r.link(Some("https://claude.ai/settings/usage".into())))
 }
 
 fn seven_day(ctx: &Ctx, opts: &Options) -> Option<Reading> {
@@ -325,7 +324,6 @@ fn seven_day(ctx: &Ctx, opts: &Options) -> Option<Reading> {
         ctx,
         opts,
     )
-    .map(|r| r.link(Some("https://claude.ai/settings/usage".into())))
 }
 
 /// A spend limit as a window, and the window's length.
@@ -510,14 +508,7 @@ mod tests {
                 let reading = (metric.compute)(&ctx, &opts).unwrap();
                 assert_eq!(reading.get("left").unwrap().text, expected);
                 assert_eq!(reading.get("reset").unwrap().text, "02:07:00");
-                assert_eq!(
-                    reading.link.as_deref(),
-                    if id == "quota.spend" {
-                        None
-                    } else {
-                        Some("https://claude.ai/settings/usage")
-                    }
-                );
+                assert_eq!(reading.link, None);
             }
         }
         assert!(

@@ -4,8 +4,10 @@
 
 use super::{Cx, Env, Outcome, Page};
 use crate::config::{Config, DepthSetting, ItemSpec, LineConfig};
+use crate::i18n;
 use crate::style::palette::{self, Category, Palette, TOKENS, Token};
 use crate::style::{Edge, FillStyle, GlyphTier, SkinKind};
+use crate::tf;
 use crate::tui::dialogs::{ColorDialog, ColorTarget, FontCheck};
 use crate::tui::doc::Doc;
 use crate::tui::ui;
@@ -84,7 +86,7 @@ fn lower<T: std::fmt::Debug>(v: T) -> String {
 
 fn depth_label(d: DepthSetting) -> String {
     match d {
-        DepthSetting::Auto => format!("auto: {}", lower(d.resolve())),
+        DepthSetting::Auto => format!("{}: {}", i18n::t("auto"), lower(d.resolve())),
         DepthSetting::TrueColor => "truecolor".into(),
         DepthSetting::Ansi256 => "256".into(),
         DepthSetting::Ansi16 => "16".into(),
@@ -94,7 +96,7 @@ fn depth_label(d: DepthSetting) -> String {
 
 fn separator_label(s: Option<&str>) -> String {
     match s {
-        None => "skin default".into(),
+        None => i18n::t("skin default").into(),
         Some(s) => format!("\"{s}\""),
     }
 }
@@ -200,9 +202,9 @@ impl StylePage {
             let (marker, style) = self.row_marker(Pane::Skin, SKINS.len() + i, self.skin_row, cx);
             Line::from(vec![
                 marker,
-                Span::styled(format!("{label:<11}"), style),
+                Span::styled(ui::pad(i18n::t(label), 11), style),
                 ui::choice(&value),
-                Span::styled(format!("  {note}"), ui::muted()),
+                Span::styled(format!("  {}", i18n::t(&note)), ui::muted()),
             ])
         };
         // The edge's glyphs, so the choice shows what it draws.
@@ -244,7 +246,7 @@ impl StylePage {
                     spans.push(ui::swatch(p.color(t), depth));
                 }
                 if p.light {
-                    spans.push(Span::styled(" light", ui::muted()));
+                    spans.push(Span::styled(format!(" {}", i18n::t("light")), ui::muted()));
                 }
                 Line::from(spans)
             })
@@ -261,9 +263,9 @@ impl StylePage {
             let (marker, style) = self.row_marker(Pane::Look, i, self.look_row, cx);
             Line::from(vec![
                 marker,
-                Span::styled(format!("{label:<13}"), style),
+                Span::styled(ui::pad(i18n::t(label), 13), style),
                 ui::choice(&value),
-                Span::styled(format!("  {note}"), ui::muted()),
+                Span::styled(format!("  {}", i18n::t(note)), ui::muted()),
             ])
         };
         let tier_note = match c.glyphs {
@@ -282,9 +284,9 @@ impl StylePage {
             row(2, "Fill", lower(c.fill), fill_note),
             Line::from(vec![
                 marker,
-                Span::styled(format!("{:<13}", "Font check"), style),
+                Span::styled(ui::pad(i18n::t("Font check"), 13), style),
                 Span::styled("enter", ui::accent()),
-                Span::styled("  show test glyphs", ui::muted()),
+                Span::styled(format!("  {}", i18n::t("show test glyphs")), ui::muted()),
             ]),
         ];
         f.render_widget(
@@ -332,7 +334,7 @@ impl StylePage {
             let sel = on(0, r);
             let value = color
                 .map(|c| c.notation())
-                .unwrap_or_else(|| "default".into());
+                .unwrap_or_else(|| i18n::t("default").into());
             vec![
                 Span::styled(if sel { ui::SELECTED } else { "  " }, ui::accent()),
                 Span::styled(
@@ -349,14 +351,14 @@ impl StylePage {
             let row_on = focused && self.tcol > 0 && self.trow == r;
             let name = Token::from(cat);
             let name = if cat == Category::Custom {
-                "custom"
+                i18n::t("custom")
             } else {
                 name.name()
             };
             let mut spans = vec![
                 Span::styled(if row_on { ui::SELECTED } else { "  " }, ui::accent()),
                 Span::styled(
-                    format!("{name:<10}"),
+                    ui::pad(name, 10),
                     if row_on {
                         ui::accent()
                     } else {
@@ -379,14 +381,16 @@ impl StylePage {
 
         let mut lines = vec![Line::from(vec![
             Span::styled(
-                format!("  {:<w$}", "Semantic", w = SEMANTIC_CELL),
+                format!("  {}", ui::pad(i18n::t("Semantic"), SEMANTIC_CELL)),
                 ui::muted(),
             ),
             Span::styled(
                 format!(
-                    "    {:<10}{}",
-                    "Category",
-                    SEGMENT_COLUMNS.map(|c| format!(" {c:<5}")).concat()
+                    "    {}{}",
+                    ui::pad(i18n::t("Category"), 10),
+                    SEGMENT_COLUMNS
+                        .map(|c| format!(" {}", ui::pad(i18n::t(c), 5)))
+                        .concat()
                 ),
                 ui::muted(),
             ),
@@ -421,13 +425,17 @@ impl StylePage {
                 format!(" {}  ", color.map(|c| c.notation()).unwrap_or_default()),
                 Style::default().fg(ratatui::style::Color::Reset),
             ),
-            Span::styled(format!("{from} "), ui::muted()),
+            Span::styled(format!("{} ", i18n::t(from)), ui::muted()),
         ]);
         let overridden = overrides.len();
         let block = self
             .block("Tokens", Pane::Tokens, cx)
             .title_top(
-                Line::styled(format!(" {overridden} overridden "), ui::muted()).right_aligned(),
+                Line::styled(
+                    format!(" {} ", tf!("{n} overridden", n = overridden)),
+                    ui::muted(),
+                )
+                .right_aligned(),
             )
             .title_bottom(detail);
         f.render_widget(Paragraph::new(lines).block(block), area);
@@ -569,12 +577,18 @@ impl Page for StylePage {
                     KeyCode::Delete | KeyCode::Backspace => {
                         let name = token_at(self.tcol, self.trow).name();
                         if !doc.config.palette_overrides.contains_key(name) {
-                            return Outcome::Toast(format!("{name} already follows the palette"));
+                            return Outcome::Toast(tf!(
+                                "{name} already follows the palette",
+                                name = name
+                            ));
                         }
                         doc.edit(|c, _| {
                             c.palette_overrides.remove(name);
                         });
-                        return Outcome::Toast(format!("{name} follows the palette again"));
+                        return Outcome::Toast(tf!(
+                            "{name} follows the palette again",
+                            name = name
+                        ));
                     }
                     _ => return Outcome::Ignored,
                 }

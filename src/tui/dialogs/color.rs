@@ -3,8 +3,10 @@
 //! 256-color grids.
 
 use super::{Action, Dialog, Reply};
+use crate::i18n;
 use crate::style::Color;
 use crate::style::palette::{TOKENS, Token};
+use crate::tf;
 use crate::tui::doc::Doc;
 use crate::tui::pages::Cx;
 use crate::tui::ui::{self, TextInput};
@@ -124,7 +126,9 @@ impl ColorDialog {
             Mode::Palette => Ok(Picked::Token(TOKENS[self.token])),
             Mode::Typed => Color::parse(&self.input.text())
                 .map(Picked::Color)
-                .ok_or_else(|| "Use #rrggbb, 256:n, 16:n or a name like bright_blue.".into()),
+                .ok_or_else(|| {
+                    i18n::t("Use #rrggbb, 256:n, 16:n or a name like bright_blue.").into()
+                }),
             Mode::Ansi16 => Ok(Picked::Color(Color::Ansi16(self.at16 as u8))),
             Mode::Ansi256 => Ok(Picked::Color(Color::Ansi256(self.at256 as u8))),
         }
@@ -144,7 +148,7 @@ impl ColorDialog {
             } else {
                 Style::default()
             };
-            spans.push(Span::styled(format!(" {label} "), style));
+            spans.push(Span::styled(format!(" {} ", i18n::t(label)), style));
             spans.push(Span::raw(" "));
         }
         Line::from(spans)
@@ -154,7 +158,7 @@ impl ColorDialog {
         let palette = crate::statusline::theme(&cx.doc.config).palette;
         let depth = cx.preview.depth(cx.doc);
         let mut lines = vec![Line::styled(
-            " Tokens follow the palette when you switch it:",
+            i18n::t(" Tokens follow the palette when you switch it:"),
             ui::muted(),
         )];
         for row in TOKENS.chunks(ROW_TOKENS).enumerate() {
@@ -219,14 +223,14 @@ impl ColorDialog {
                 vec![
                     Line::from(
                         [
-                            vec![Span::raw(" Color  ")],
+                            vec![Span::raw(format!(" {}  ", i18n::t("Color")))],
                             self.input.line(24, true, "").spans,
                             vec![Span::raw("   "), preview],
                         ]
                         .concat(),
                     ),
                     Line::styled(
-                        " #rrggbb, #rgb, 256:n, 16:n or a name like bright_blue",
+                        i18n::t(" #rrggbb, #rgb, 256:n, 16:n or a name like bright_blue"),
                         ui::muted(),
                     ),
                 ]
@@ -284,7 +288,11 @@ impl Dialog for ColorDialog {
             ("esc", "cancel"),
         ]));
         f.render_widget(
-            Paragraph::new(text).block(ui::panel(&format!("Color · {}", self.target.title()))),
+            Paragraph::new(text).block(ui::panel(&format!(
+                "{} · {}",
+                i18n::t("Color"),
+                self.target.title()
+            ))),
             rect,
         );
     }
@@ -315,9 +323,10 @@ impl Dialog for ColorDialog {
                             }
                             Target::Custom { apply, .. } => apply(doc, value.clone()),
                         }
-                        Reply::Then(Action::Toast(format!(
-                            "{} is now {value}",
-                            self.target.title()
+                        Reply::Then(Action::Toast(tf!(
+                            "{name} is now {value}",
+                            name = self.target.title(),
+                            value = value
                         )))
                     }
                     Err(e) => {

@@ -1,6 +1,7 @@
 //! Labelled fields for small editing dialogs: text fields and `‹choice›`
 //! fields, Tab or ↑↓ to move, ←→ to cycle a choice.
 
+use crate::i18n::t;
 use crate::tui::ui::{self, TextInput};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::style::Style;
@@ -126,12 +127,15 @@ impl Form {
                 } else {
                     Style::default()
                 };
-                let mut spans = vec![Span::styled(format!(" {:<LABEL$}", f.label), label_style)];
+                let mut spans = vec![Span::styled(
+                    format!(" {}", ui::pad(t(f.label), LABEL)),
+                    label_style,
+                )];
                 let room = width.saturating_sub(LABEL + 2);
                 match f.kind {
                     Kind::Text { placeholder } => {
                         let field_width = room.min(28);
-                        let line = f.input.line(field_width, focused, placeholder);
+                        let line = f.input.line(field_width, focused, t(placeholder));
                         let used: usize = line.spans.iter().map(|s| s.width()).sum();
                         spans.extend(line.spans);
                         spans.push(Span::raw(" ".repeat(field_width.saturating_sub(used) + 2)));

@@ -3,8 +3,10 @@
 
 use super::edit::{self, Cursor};
 use crate::config::{ItemSpec, LineConfig};
+use crate::i18n::t;
 use crate::statusline::Report;
 use crate::style::skin::Side;
+use crate::tf;
 use crate::tui::preview::Target;
 use crate::tui::ui;
 use crate::widgets::Level;
@@ -84,8 +86,8 @@ fn line_rows(view: &View, n: usize, width: usize) -> Vec<Line<'static>> {
     let mut rows = Vec::new();
 
     let heading = match view.target {
-        Target::Status => format!("Line {}", n + 1),
-        Target::Subagent => "Each task".to_string(),
+        Target::Status => tf!("Line {n}", n = n + 1),
+        Target::Subagent => t("Each task").to_string(),
     };
     let mut head = vec![Span::styled(heading.clone(), ui::strong())];
     if let Some(r) = report.filter(|_| edit::count(line) > 0) {
@@ -99,9 +101,17 @@ fn line_rows(view: &View, n: usize, width: usize) -> Vec<Line<'static>> {
         };
         let meter = match r.breaks.len() {
             0 => format!("{}/{cols}", r.natural),
-            n => format!("{}/{cols} → {} lines", r.natural, n + 1),
+            n => tf!(
+                "{used}/{cols} → {n} lines",
+                used = r.natural,
+                cols = cols,
+                n = n + 1
+            ),
         };
-        let gap = width.saturating_sub(heading.chars().count() + meter.len());
+        let gap = width.saturating_sub(
+            crate::render::width::display_width(&heading)
+                + crate::render::width::display_width(&meter),
+        );
         head.push(Span::raw(" ".repeat(gap)));
         head.push(Span::styled(meter, Style::default().fg(color)));
     }
@@ -115,7 +125,7 @@ fn line_rows(view: &View, n: usize, width: usize) -> Vec<Line<'static>> {
     if edit::count(line) == 0 {
         rows.push(Line::from(vec![
             marker,
-            Span::styled("empty · add from the library", ui::muted()),
+            Span::styled(t("empty · add from the library"), ui::muted()),
         ]));
         return rows;
     }
@@ -218,23 +228,26 @@ fn narrow_rows(view: &View) -> Vec<Line<'static>> {
     // Gray items are this sample's doing, not the config's.
     let gray = view.reports.iter().any(|r| !r.empty.is_empty()).then(|| {
         Line::styled(
-            format!("gray: nothing to show in ‹{}›", view.scenario),
+            tf!(
+                "gray: nothing to show in ‹{scenario}›",
+                scenario = t(view.scenario)
+            ),
             ui::muted(),
         )
     });
     if merged.is_empty() {
         let mut rows = vec![
-            Line::styled(format!("Fits in {cols} columns."), ui::muted()),
+            Line::styled(tf!("Fits in {cols} columns.", cols = cols), ui::muted()),
             Line::from(vec![
                 Span::styled("-", ui::accent()),
-                Span::styled(" narrows the preview", ui::muted()),
+                Span::styled(t(" narrows the preview"), ui::muted()),
             ]),
         ];
         rows.extend(gray);
         return rows;
     }
     let mut rows = vec![Line::styled(
-        format!("Too narrow at {cols} columns:"),
+        tf!("Too narrow at {cols} columns:", cols = cols),
         ui::muted(),
     )];
     for (i, (n, label, change)) in merged.into_iter().enumerate() {
@@ -243,10 +256,10 @@ fn narrow_rows(view: &View) -> Vec<Line<'static>> {
             Target::Subagent => String::new(),
         };
         let change = match change {
-            Change::Wraps => Span::styled("↵ wraps here", Style::default().fg(ui::WARN)),
-            Change::Level(_, None) => Span::styled("dropped", Style::default().fg(ui::BAD)),
+            Change::Wraps => Span::styled(t("↵ wraps here"), Style::default().fg(ui::WARN)),
+            Change::Level(_, None) => Span::styled(t("dropped"), Style::default().fg(ui::BAD)),
             Change::Level(from, to) => Span::styled(
-                format!("{} → {}", level_name(Some(from)), level_name(to)),
+                format!("{} → {}", t(level_name(Some(from))), t(level_name(to))),
                 Style::default().fg(ui::WARN),
             ),
         };
@@ -284,7 +297,10 @@ pub fn render(f: &mut Frame, area: Rect, block: Block<'static>, view: &View) {
         } else {
             (Span::raw("  "), ui::muted())
         };
-        rows.push(Line::from(vec![marker, Span::styled("+ new line", style)]));
+        rows.push(Line::from(vec![
+            marker,
+            Span::styled(format!("+ {}", t("new line")), style),
+        ]));
         rows.push(Line::raw(""));
     }
     rows.extend(narrow_rows(view));

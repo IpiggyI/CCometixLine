@@ -188,8 +188,8 @@ pub fn hints(keys: &[(&str, &str)]) -> Line<'static> {
         if i > 0 {
             spans.push(Span::styled("   ", text));
         }
-        spans.push(Span::styled(key.to_string(), accent()));
-        spans.push(Span::styled(format!(" {desc}"), text));
+        spans.push(Span::styled(crate::i18n::t(key).to_string(), accent()));
+        spans.push(Span::styled(format!(" {}", crate::i18n::t(desc)), text));
     }
     spans.push(Span::styled(" ", text));
     Line::from(spans)
@@ -200,7 +200,10 @@ pub fn panel(title: &str) -> Block<'static> {
     Block::bordered()
         .border_type(BorderType::Rounded)
         .border_style(muted())
-        .title(Span::styled(format!(" {title} "), self::title()))
+        .title(Span::styled(
+            format!(" {} ", crate::i18n::t(title)),
+            self::title(),
+        ))
 }
 
 /// A `width` × `height` area centered in `area`, cleared for a popup.
@@ -236,6 +239,13 @@ pub fn radio(on: bool) -> &'static str {
 /// `‹value›` for a setting cycled with keys.
 pub fn choice(value: &str) -> Span<'static> {
     Span::styled(format!("‹{value}›"), accent())
+}
+
+/// `text` padded with spaces to `width` columns, as `{text:<width}` pads
+/// to characters; wide characters take two columns.
+pub fn pad(text: &str, width: usize) -> String {
+    let w = crate::render::width::display_width(text);
+    format!("{text}{}", " ".repeat(width.saturating_sub(w)))
 }
 
 /// `spans` cut to `width` columns, ending in `…` when anything was cut.

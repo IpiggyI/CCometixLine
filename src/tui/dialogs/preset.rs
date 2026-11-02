@@ -4,7 +4,9 @@
 
 use super::form::{Field, Form, FormKey};
 use super::{Action, Dialog, Reply, shown_path};
+use crate::i18n::t;
 use crate::presets;
+use crate::tf;
 use crate::tui::doc::Doc;
 use crate::tui::pages::Cx;
 use crate::tui::ui;
@@ -76,7 +78,7 @@ impl PresetDialog {
             doc.presets
                 .get(&name)
                 .filter(|e| e.is_mine())
-                .map(|_| format!("You already have {name}."))
+                .map(|_| tf!("You already have {name}.", name = name))
         })
     }
 }
@@ -95,16 +97,20 @@ impl Dialog for PresetDialog {
         text.push(match (&self.error, self.problem(cx.doc)) {
             (Some(e), _) => Line::styled(format!(" {e}"), bad),
             (None, Some(p)) if typed => Line::styled(format!(" {p}"), bad),
-            (None, Some(_)) => Line::styled(" Name it to save it.", ui::muted()),
+            (None, Some(_)) => Line::styled(t(" Name it to save it."), ui::muted()),
             (None, None) => {
                 let path = cx.doc.presets.dir().join(format!("{}.toml", self.name()));
-                let room = WIDTH as usize - 2 - " Saves to ".len();
-                Line::styled(format!(" Saves to {}", path_in(&path, room)), ui::muted())
+                let saves = tf!(" Saves to {path}", path = "");
+                let room = WIDTH as usize - 2 - crate::render::width::display_width(&saves);
+                Line::styled(
+                    tf!(" Saves to {path}", path = path_in(&path, room)),
+                    ui::muted(),
+                )
             }
         });
         if self.editing.is_none() {
             text.push(Line::styled(
-                " The layout and look go in; width, git and update settings stay out.",
+                t(" The layout and look go in; width, git and update settings stay out."),
                 ui::muted(),
             ));
         }
@@ -116,8 +122,8 @@ impl Dialog for PresetDialog {
         ]));
         let rect = ui::popup(f, area, WIDTH, text.len() as u16 + 2);
         let title = match &self.editing {
-            Some(name) => format!("Edit preset {name}"),
-            None => "Save as preset".into(),
+            Some(name) => tf!("Edit preset {name}", name = name),
+            None => t("Save as preset").into(),
         };
         f.render_widget(Paragraph::new(text).block(ui::panel(&title)), rect);
     }
@@ -132,12 +138,12 @@ impl Dialog for PresetDialog {
                     None => doc
                         .presets
                         .create(&name, &summary, &doc.config)
-                        .map(|()| format!("Saved preset {name}")),
+                        .map(|()| tf!("Saved preset {name}", name = name)),
                     Some(old) => doc.presets.rename(old, &name, &summary).map(|()| {
                         if *old == name {
-                            format!("Updated {name}")
+                            tf!("Updated {name}", name = name)
                         } else {
-                            format!("Renamed {old} to {name}")
+                            tf!("Renamed {old} to {name}", old = old, name = name)
                         }
                     }),
                 };
@@ -193,22 +199,22 @@ impl Dialog for PresetPrompt {
         let name = &self.name;
         let mut text = if self.delete {
             let path = cx.doc.presets.dir().join(format!("{name}.toml"));
-            let mut t = vec![
-                Line::raw(format!(" Delete {name}? This removes")),
+            let mut lines = vec![
+                Line::raw(tf!(" Delete {name}? This removes", name = name)),
                 Line::raw(format!("   {}", path_in(&path, WIDTH as usize - 3))),
             ];
             if cx.doc.config.preset.as_deref() == Some(name.as_str()) {
-                t.push(Line::styled(
-                    " Your status line keeps its look; it stops being marked as this preset.",
+                lines.push(Line::styled(
+                    t(" Your status line keeps its look; it stops being marked as this preset."),
                     ui::muted(),
                 ));
             }
-            t
+            lines
         } else {
             vec![
-                Line::raw(format!(" Replace {name} with your current setup?")),
+                Line::raw(tf!(" Replace {name} with your current setup?", name = name)),
                 Line::styled(
-                    " It takes the layout and look the preview shows now.",
+                    t(" It takes the layout and look the preview shows now."),
                     ui::muted(),
                 ),
             ]
@@ -234,11 +240,11 @@ impl Dialog for PresetPrompt {
                 let done = if self.delete {
                     doc.presets
                         .delete(&name)
-                        .map(|()| format!("Deleted {name}"))
+                        .map(|()| tf!("Deleted {name}", name = name))
                 } else {
                     doc.presets
                         .replace(&name, &doc.config)
-                        .map(|()| format!("Replaced {name} with your setup"))
+                        .map(|()| tf!("Replaced {name} with your setup", name = name))
                 };
                 Reply::Then(match done {
                     Ok(message) => {
