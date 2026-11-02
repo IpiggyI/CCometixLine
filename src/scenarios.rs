@@ -516,18 +516,20 @@ pub fn find(name: &str) -> Option<&'static Scenario> {
 impl Scenario {
     /// Fixed session data, independent of the machine showing the preview.
     pub fn transcript(&self, now: i64) -> Option<crate::state::transcript::Summary> {
-        use crate::state::transcript::{Hooks, Skills, Summary, ToolCalls};
+        use crate::state::transcript::{
+            Agent, Hooks, Skills, Status, Summary, Todo, Tool, ToolCalls,
+        };
         (self.name != "old-cc").then(|| Summary {
             start: Some(now - 3 * 3600 - 12 * 60),
             last_reply: Some(now - 45),
             advisor: Some("claude-opus-5-5".into()),
-            skills: Skills {
+            skills: Box::new(Skills {
                 running: vec!["trellis-meta".into()],
                 done: vec!["code-review".into()],
                 count: 2,
-            },
+            }),
             hooks: Hooks {
-                last: Some("PreToolUse:Bash".into()),
+                last: Some("format".into()),
                 counts: [("PreToolUse".into(), 5), ("Stop".into(), 1)].into(),
                 ..Hooks::default()
             },
@@ -536,12 +538,42 @@ impl Scenario {
                     ("Bash".into(), 47),
                     ("Edit".into(), 11),
                     ("Grep".into(), 5),
-                    ("Skill".into(), 2),
+                    ("Read".into(), 2),
                 ]
                 .into(),
-                count: 65,
-                last: Some(("Bash".into(), false)),
+                count: 66,
+                last: Some(("Edit".into(), false)),
+                recent: vec![
+                    Tool {
+                        id: "run".into(),
+                        name: "Bash".into(),
+                        target: "cargo test".into(),
+                        start: now - 12,
+                        ..Tool::default()
+                    },
+                    Tool {
+                        id: "edit".into(),
+                        name: "Edit".into(),
+                        target: "lib.rs".into(),
+                        status: Status::Completed,
+                        ..Tool::default()
+                    },
+                ],
             }),
+            agent_count: 1,
+            agents: vec![Agent {
+                id: "scan".into(),
+                kind: "Explore".into(),
+                description: "scan the crate".into(),
+                model: Some("claude-haiku-4-5-20251001".into()),
+                effort: Some("high".into()),
+                start: now - 62,
+                ..Agent::default()
+            }],
+            todos: vec![Todo {
+                content: "cover the new segment".into(),
+                status: "in_progress".into(),
+            }],
         })
     }
 
@@ -592,6 +624,11 @@ impl Scenario {
         StateView {
             transcript: self.transcript(now),
             mcp: self.mcp(),
+            environment: Some(crate::metrics::environment::Environment {
+                claude_md: vec!["~/.claude/CLAUDE.md".into(), ".claude/CLAUDE.md".into()],
+                rules: vec!["style".into(), "review".into()],
+                hooks: vec!["Post: format.sh".into()],
+            }),
             samples,
             today_cost: self.today,
             week_cost: self.today.map(|today| today * 4.0),

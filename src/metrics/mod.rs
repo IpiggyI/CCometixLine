@@ -4,6 +4,7 @@
 
 mod code;
 mod custom;
+pub(crate) mod environment;
 pub mod fmt;
 mod identity;
 mod live;
@@ -197,6 +198,7 @@ pub struct Ctx<'a> {
     transcript_cache: OnceCell<Option<crate::state::transcript::Summary>>,
     mcp: McpSource,
     mcp_cache: OnceCell<Option<Vec<String>>>,
+    environment_cache: OnceCell<environment::Environment>,
 }
 
 impl<'a> Ctx<'a> {
@@ -225,6 +227,7 @@ impl<'a> Ctx<'a> {
             transcript_cache: OnceCell::new(),
             mcp: McpSource::Live,
             mcp_cache: OnceCell::new(),
+            environment_cache: OnceCell::new(),
         }
     }
 
@@ -261,6 +264,13 @@ impl<'a> Ctx<'a> {
                 McpSource::Fixed(names) => names.clone(),
             })
             .as_deref()
+    }
+
+    fn environment(&self) -> &environment::Environment {
+        self.environment_cache.get_or_init(|| match self.git {
+            GitSource::Fixed(_) => self.state.environment.clone().unwrap_or_default(),
+            _ => environment::collect(self.input.project_dir().map(Path::new)),
+        })
     }
 
     pub fn with_state(mut self, state: StateView) -> Self {
@@ -335,6 +345,7 @@ pub fn catalog() -> &'static [Metric] {
         all.extend(task::metrics());
         all.extend(transcript::metrics());
         all.push(mcp::metric());
+        all.push(environment::metric());
         all
     })
 }

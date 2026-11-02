@@ -923,8 +923,6 @@ pub const TEXT: &[(&str, &str)] = &[
     ("Pull request", "拉取请求"),
     ("Repository", "仓库"),
     ("Rewarm cost", "重新预热费用"),
-    ("Running agents", "运行中的代理"),
-    ("Running tools", "运行中的工具"),
     (
         "Running, completed or failed (subagent lines)",
         "运行中、已完成或失败（子代理行）",
@@ -942,14 +940,29 @@ pub const TEXT: &[(&str, &str)] = &[
         "Skill calls in the session transcript",
         "会话记录中的技能调用",
     ),
-    ("Tool calls", "工具调用"),
-    (
-        "Tool calls in the session transcript",
-        "会话记录中的工具调用",
-    ),
     (
         "Number of most-used tools to show",
         "显示调用次数最多的工具数量",
+    ),
+    ("Tools", "工具"),
+    ("Agents", "代理"),
+    ("Todos", "待办"),
+    ("Environment", "环境"),
+    (
+        "Current tools and completed tool counts in this session",
+        "本会话当前工具及已完成调用次数",
+    ),
+    (
+        "Current and recent subagents with session totals",
+        "当前和最近完成的子代理及会话总数",
+    ),
+    (
+        "Current todo and completion progress in this session",
+        "本会话当前待办和完成进度",
+    ),
+    (
+        "Claude instructions, rules, MCP servers and configured hooks",
+        "Claude 指令文件、规则、MCP 服务器和已配置钩子",
     ),
     ("Skills", "技能"),
     (
@@ -969,10 +982,6 @@ pub const TEXT: &[(&str, &str)] = &[
     ("Spent this month", "本月花费"),
     ("Spent this week", "本周花费"),
     ("Spent today", "今日花费"),
-    (
-        "Subagents and teammates working now, and their types",
-        "正在工作的子代理和队友，及其类型",
-    ),
     ("Subscription 5-hour window", "订阅的 5 小时窗口"),
     ("Subscription weekly window", "订阅的每周窗口"),
     ("Task activity", "任务活动"),
@@ -980,10 +989,6 @@ pub const TEXT: &[(&str, &str)] = &[
     ("Task status", "任务状态"),
     ("Task time", "任务用时"),
     ("Task tokens trend", "任务 token 趋势"),
-    (
-        "The tool calls running now, the longest first",
-        "正在运行的工具调用，最久的排在前面",
-    ),
     ("Time to first token", "首 token 用时"),
     (
         "Time until the prompt cache goes cold, and the share of input read from it",

@@ -165,6 +165,7 @@ pub struct StateView {
     /// Fixed transcript and MCP data for previews; live renders read lazily.
     pub transcript: Option<transcript::Summary>,
     pub mcp: Option<Vec<String>>,
+    pub environment: Option<crate::metrics::environment::Environment>,
     /// Samples of this session, oldest first, ending with the current one.
     pub samples: Vec<Sample>,
     /// Spend across sessions today, from the ledger.
@@ -243,6 +244,7 @@ pub fn observe(
     StateView {
         transcript: None,
         mcp: None,
+        environment: None,
         samples,
         today_cost: ledger.as_ref().map(ledger::Ledger::today),
         week_cost: costs.map(|c| c.0),

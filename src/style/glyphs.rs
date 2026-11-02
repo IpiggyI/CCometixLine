@@ -15,6 +15,29 @@ pub enum GlyphTier {
     Ascii,
 }
 
+impl GlyphTier {
+    pub fn running(self) -> &'static str {
+        if self == Self::Ascii { "*" } else { "◐" }
+    }
+
+    pub fn finished(self, failed: bool) -> &'static str {
+        match (self == Self::Ascii, failed) {
+            (true, false) => "+",
+            (true, true) => "x",
+            (false, false) => "✓",
+            (false, true) => "✗",
+        }
+    }
+
+    pub fn current(self) -> &'static str {
+        if self == Self::Ascii { ">" } else { "▸" }
+    }
+
+    pub fn arrow(self) -> &'static str {
+        if self == Self::Ascii { "=>" } else { "⇒" }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum IconKey {
     Model,

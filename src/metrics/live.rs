@@ -60,30 +60,6 @@ pub(super) fn metrics() -> Vec<Metric> {
         },
         Metric {
             meta: meta(
-                "activity.tools",
-                Category::Activity,
-                "Running tools",
-                "The tool calls running now, the longest first",
-                IconKey::Tools,
-                ["{tools}[ · {elapsed}]", "{tools}", "{count}"],
-                &["tools", "count", "elapsed"],
-            ),
-            compute: tools,
-        },
-        Metric {
-            meta: meta(
-                "activity.agents",
-                Category::Activity,
-                "Running agents",
-                "Subagents and teammates working now, and their types",
-                IconKey::Agent,
-                ["{count} running[ · {types}]", "{count} running", "{count}"],
-                &["count", "types"],
-            ),
-            compute: agents,
-        },
-        Metric {
-            meta: meta(
                 "timing.ttft",
                 Category::Timing,
                 "Time to first token",
@@ -170,7 +146,7 @@ fn breakdown(ctx: &Ctx, _: &Options) -> Option<Reading> {
     Some(r)
 }
 
-fn tools(ctx: &Ctx, _: &Options) -> Option<Reading> {
+pub(super) fn tools(ctx: &Ctx, _: &Options) -> Option<Reading> {
     let b = bridge(ctx)?;
     if b.tools.is_empty() {
         return None;
@@ -195,7 +171,7 @@ fn tools(ctx: &Ctx, _: &Options) -> Option<Reading> {
     )
 }
 
-fn agents(ctx: &Ctx, _: &Options) -> Option<Reading> {
+pub(super) fn agents(ctx: &Ctx, _: &Options) -> Option<Reading> {
     let active: Vec<_> = bridge(ctx)?
         .agents
         .iter()
@@ -290,17 +266,40 @@ mod tests {
         );
         assert_eq!(
             text("activity.tools", "2.1.300", b).as_deref(),
-            Some("Edit · Bash · +1 · 20s")
+            Some("◐ Edit | ◐ Bash | +1 more")
         );
         assert_eq!(
             text("activity.agents", "2.1.300", b).as_deref(),
-            Some("2 running · Explore")
+            Some("◐ Explore | ◐ Explore ⇒ Agent×2 (2 running)")
         );
         assert_eq!(text("timing.ttft", "2.1.300", b).as_deref(), Some("0.8s"));
         assert_eq!(
             text("timing.tps", "2.1.300", b).as_deref(),
             Some("74 tok/s")
         );
+    }
+
+    #[test]
+    fn empty_transcript_does_not_fall_back_to_live_bridge() {
+        let input = Input::default();
+        let registry = Registry::default();
+        let ctx = Ctx::new(
+            &input,
+            &registry,
+            1_790_808_780,
+            FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        )
+        .with_state(StateView {
+            bridge: Some(Rc::new(serde_json::from_str(BRIDGE).unwrap())),
+            ..StateView::default()
+        })
+        .with_transcript(crate::metrics::TranscriptSource::Fixed(Some(
+            crate::state::transcript::Summary::default(),
+        )));
+        for id in ["activity.tools", "activity.agents"] {
+            assert!(read(find(id).unwrap(), &ctx, &Options::new()).is_none());
+        }
     }
 
     #[test]

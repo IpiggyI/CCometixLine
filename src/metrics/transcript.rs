@@ -1,6 +1,7 @@
 //! Session and activity metrics from the bounded transcript summary.
 
 use super::{Ctx, Metric, MetricMeta, OptKind, OptSpec, Options, Reading, fmt};
+use crate::state::transcript::{Agent, Status, clean, short_event};
 use crate::style::{Category, GlyphTier, IconKey};
 use crate::widgets::WidgetKind;
 use std::collections::BTreeMap;
@@ -77,12 +78,8 @@ pub(super) fn metrics() -> Vec<Metric> {
                 "Skills",
                 "Skill calls in the session transcript",
                 IconKey::Skills,
-                [
-                    "{count} calls[ · {running}][ · {done}]",
-                    "{count}[ · {running}]",
-                    "{count}",
-                ],
-                &["running", "done", "count"],
+                ["{now} {arrow} {total}", "{now}", "{count}"],
+                &["running", "done", "count", "now", "total", "arrow"],
             ),
             compute: skills,
         },
@@ -95,16 +92,42 @@ pub(super) fn metrics() -> Vec<Metric> {
                     summary: "Number of most-used tools to show",
                 }],
                 ..meta(
-                    "activity.tool_calls",
+                    "activity.tools",
                     Category::Activity,
-                    "Tool calls",
-                    "Tool calls in the session transcript",
+                    "Tools",
+                    "Current tools and completed tool counts in this session",
                     IconKey::Tools,
-                    ["{counts}", "{counts}", "{count}"],
-                    &["counts", "count", "last"],
+                    ["{now}[ {arrow} {counts}]", "{now}", "{total}"],
+                    &[
+                        "tools", "count", "elapsed", "now", "counts", "total", "arrow",
+                    ],
                 )
             },
-            compute: tool_calls,
+            compute: tools,
+        },
+        Metric {
+            meta: meta(
+                "activity.agents",
+                Category::Activity,
+                "Agents",
+                "Current and recent subagents with session totals",
+                IconKey::Agent,
+                ["[{now} {arrow} ]{counts}", "{now}", "{count}"],
+                &["count", "types", "now", "counts", "arrow"],
+            ),
+            compute: agents,
+        },
+        Metric {
+            meta: meta(
+                "activity.todos",
+                Category::Activity,
+                "Todos",
+                "Current todo and completion progress in this session",
+                IconKey::Lines,
+                ["{current} ({progress})", "{current}", "{progress}"],
+                &["current", "progress"],
+            ),
+            compute: todos,
         },
         Metric {
             meta: meta(
@@ -113,8 +136,8 @@ pub(super) fn metrics() -> Vec<Metric> {
                 "Hooks",
                 "Hook results since the latest user prompt in the session transcript",
                 IconKey::Hooks,
-                ["{last}[ · {counts}]", "{last}", "{last}"],
-                &["last", "counts", "failed"],
+                ["{last} {arrow} {counts}", "{last}", "{failed}"],
+                &["last", "counts", "failed", "arrow"],
             ),
             compute: hooks,
         },
@@ -147,6 +170,17 @@ fn time(ctx: &Ctx, at: Option<i64>) -> Option<Reading> {
 fn skills(ctx: &Ctx, _: &Options) -> Option<Reading> {
     let skills = &ctx.transcript()?.skills;
     (skills.count > 0).then(|| {
+        let now = skills
+            .running
+            .first()
+            .map(|s| format!("{} {}", ctx.glyphs.running(), s))
+            .or_else(|| {
+                skills
+                    .done
+                    .last()
+                    .map(|s| format!("{} {}", ctx.glyphs.finished(false), s))
+            })
+            .unwrap_or_default();
         Reading::default()
             .set(
                 "running",
@@ -163,11 +197,32 @@ fn skills(ctx: &Ctx, _: &Options) -> Option<Reading> {
                 skills.done[skills.done.len().saturating_sub(4)..].join(", "),
             )
             .set("count", skills.count.to_string())
+            .set("now", now)
+            .set(
+                "total",
+                format!(
+                    "{} {}",
+                    skills.count,
+                    if skills.count == 1 { "skill" } else { "skills" }
+                ),
+            )
+            .set("arrow", ctx.glyphs.arrow())
     })
 }
 
-fn tool_calls(ctx: &Ctx, opts: &Options) -> Option<Reading> {
-    let calls = &ctx.transcript()?.tool_calls;
+fn tool_name(name: &str) -> &str {
+    if name.starts_with("mcp__") {
+        name.splitn(3, "__").nth(2).unwrap_or(name)
+    } else {
+        name
+    }
+}
+
+fn tools(ctx: &Ctx, opts: &Options) -> Option<Reading> {
+    let Some(summary) = ctx.transcript() else {
+        return bridge_tools(ctx, opts);
+    };
+    let calls = &summary.tool_calls;
     if calls.count == 0 {
         return None;
     }
@@ -175,50 +230,330 @@ fn tool_calls(ctx: &Ctx, opts: &Options) -> Option<Reading> {
         .get("top")
         .and_then(|v| v.as_integer())
         .unwrap_or(4)
-        .max(1) as usize;
-    let ascii = ctx.glyphs == GlyphTier::Ascii;
-    let last = calls
-        .last
-        .as_ref()
-        .map(|(name, failed)| format!("{name} {}", mark(ascii, *failed)))
-        .unwrap_or_default();
+        .clamp(1, 128) as usize;
+    let running: Vec<_> = calls
+        .recent
+        .iter()
+        .filter(|t| t.status == Status::Running)
+        .collect();
+    let finished: Vec<_> = calls
+        .recent
+        .iter()
+        .filter(|t| t.status != Status::Running)
+        .collect();
+    let now = running
+        .iter()
+        .skip(running.len().saturating_sub(2))
+        .chain(finished.iter().skip(finished.len().saturating_sub(2)))
+        .map(|t| {
+            format!(
+                "{} {}{}",
+                if t.status == Status::Running {
+                    ctx.glyphs.running()
+                } else {
+                    ctx.glyphs.finished(t.status == Status::Error)
+                },
+                tool_name(&t.name),
+                if t.target.is_empty() {
+                    String::new()
+                } else {
+                    format!(" {}", t.target)
+                }
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let mut named = BTreeMap::new();
+    for (name, count) in &calls.counts {
+        *named.entry(tool_name(name).to_owned()).or_default() += count;
+    }
+    let mut r = Reading::default()
+        .set("now", now)
+        .set(
+            "counts",
+            counts(&named, top, ctx.glyphs == GlyphTier::Ascii),
+        )
+        .set("total", calls.count.to_string())
+        .set("count", running.len().to_string())
+        .set(
+            "tools",
+            running
+                .iter()
+                .map(|t| tool_name(&t.name))
+                .collect::<Vec<_>>()
+                .join(" · "),
+        )
+        .set("arrow", ctx.glyphs.arrow());
+    if let Some(start) = running.iter().map(|t| t.start).min() {
+        r = r.set(
+            "elapsed",
+            fmt::duration_ms((ctx.now.saturating_sub(start).max(0) as u64).saturating_mul(1000)),
+        );
+    }
+    Some(r)
+}
+
+fn bridge_tools(ctx: &Ctx, opts: &Options) -> Option<Reading> {
+    let legacy = super::live::tools(ctx, opts)?;
+    let mut tools: Vec<_> = ctx.state.bridge.as_ref()?.tools.iter().take(256).collect();
+    tools.sort_by_key(|t| t.since);
+    let mut parts = tools
+        .iter()
+        .take(2)
+        .map(|t| {
+            format!(
+                "{} {}",
+                ctx.glyphs.running(),
+                clean(tool_name(&t.name), 128)
+            )
+        })
+        .collect::<Vec<_>>();
+    if tools.len() > 2 {
+        parts.push(format!("+{} more", tools.len() - 2));
+    }
+    let total = legacy.get("count")?.text.clone();
     Some(
-        Reading::default()
-            .set("counts", counts(&calls.counts, top, ascii))
-            .set("count", calls.count.to_string())
-            .set("last", last),
+        legacy
+            .set("now", parts.join(" | "))
+            .set("total", total)
+            .set("arrow", ctx.glyphs.arrow()),
     )
 }
 
-fn mark(ascii: bool, failed: bool) -> &'static str {
-    match (ascii, failed) {
-        (true, false) => "ok",
-        (true, true) => "x",
-        (false, false) => "✓",
-        (false, true) => "✗",
+fn short_model(model: &str) -> String {
+    let model = clean(model, 128);
+    let id = model.split('[').next().unwrap_or(&model).to_lowercase();
+    let Some(id) = id.strip_prefix("claude-") else {
+        return model;
+    };
+    let mut parts: Vec<_> = id.split('-').collect();
+    if parts
+        .last()
+        .is_some_and(|p| p.len() == 8 && p.chars().all(|c| c.is_ascii_digit()))
+    {
+        parts.pop();
     }
+    let family = |p: &str| matches!(p, "opus" | "sonnet" | "haiku");
+    let (name, version) = if parts.first().is_some_and(|p| family(p)) {
+        (parts[0], &parts[1..])
+    } else if parts.last().is_some_and(|p| family(p)) {
+        (parts[parts.len() - 1], &parts[..parts.len() - 1])
+    } else {
+        return model;
+    };
+    if version.is_empty()
+        || !version
+            .iter()
+            .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
+    {
+        return model;
+    }
+    format!("{name}-{}", version.join("."))
+}
+
+fn agent_now(ctx: &Ctx, agent: &Agent) -> String {
+    let badge = [
+        agent.model.as_deref().map(short_model),
+        agent.effort.clone(),
+    ]
+    .into_iter()
+    .flatten()
+    .filter(|s| !s.is_empty())
+    .collect::<Vec<_>>()
+    .join(if ctx.glyphs == GlyphTier::Ascii {
+        " . "
+    } else {
+        " · "
+    });
+    let elapsed = agent
+        .end
+        .unwrap_or(ctx.now)
+        .saturating_sub(agent.start)
+        .max(0) as u64;
+    let elapsed = if elapsed < 60 {
+        format!("{elapsed}s")
+    } else if elapsed < 3600 {
+        format!("{}m {}s", elapsed / 60, elapsed % 60)
+    } else {
+        format!("{}h {}m", elapsed / 3600, elapsed / 60 % 60)
+    };
+    format!(
+        "{} {}{}{} ({elapsed})",
+        if agent.end.is_none() {
+            ctx.glyphs.running()
+        } else {
+            ctx.glyphs.finished(false)
+        },
+        clean(&agent.kind, 24),
+        if badge.is_empty() {
+            String::new()
+        } else {
+            format!(" [{badge}]")
+        },
+        if agent.description.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " {} {}",
+                if ctx.glyphs == GlyphTier::Ascii {
+                    "."
+                } else {
+                    "·"
+                },
+                truncate(&agent.description, 40)
+            )
+        }
+    )
+}
+
+fn agents(ctx: &Ctx, opts: &Options) -> Option<Reading> {
+    let Some(summary) = ctx.transcript() else {
+        let legacy = super::live::agents(ctx, opts)?;
+        let active: Vec<_> = ctx
+            .state
+            .bridge
+            .as_ref()?
+            .agents
+            .iter()
+            .filter(|a| a.is_active())
+            .take(128)
+            .collect();
+        let now = active
+            .iter()
+            .map(|a| format!("{} {}", ctx.glyphs.running(), clean(&a.kind, 64)))
+            .collect::<Vec<_>>()
+            .join(" | ");
+        return Some(
+            legacy
+                .set("now", now)
+                .set(
+                    "counts",
+                    agent_counts(active.len(), active.len(), ctx.glyphs),
+                )
+                .set("arrow", ctx.glyphs.arrow()),
+        );
+    };
+    if summary.agent_count == 0 {
+        return None;
+    }
+    let running: Vec<_> = summary.agents.iter().filter(|a| a.end.is_none()).collect();
+    let mut recent: Vec<_> = summary
+        .agents
+        .iter()
+        .filter(|a| {
+            a.end
+                .is_some_and(|end| end <= ctx.now && ctx.now.saturating_sub(end) <= 60)
+        })
+        .collect();
+    recent.sort_by_key(|a| a.end);
+    let shown = running.len().min(3);
+    let slots = (3 - shown).min(2);
+    let now = running
+        .iter()
+        .skip(running.len().saturating_sub(3))
+        .chain(recent.iter().skip(recent.len().saturating_sub(slots)))
+        .map(|a| agent_now(ctx, a))
+        .collect::<Vec<_>>()
+        .join(" | ");
+    Some(
+        Reading::default()
+            .set("now", now)
+            .set("count", running.len().to_string())
+            .set(
+                "types",
+                running
+                    .iter()
+                    .map(|a| a.kind.as_str())
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>()
+                    .join(" · "),
+            )
+            .set(
+                "counts",
+                agent_counts(summary.agent_count, running.len(), ctx.glyphs),
+            )
+            .set("arrow", ctx.glyphs.arrow()),
+    )
+}
+
+fn agent_counts(total: usize, running: usize, glyphs: GlyphTier) -> String {
+    format!(
+        "Agent{}{total}{}",
+        if glyphs == GlyphTier::Ascii {
+            "x"
+        } else {
+            "×"
+        },
+        if running > 0 {
+            format!(" ({running} running)")
+        } else {
+            String::new()
+        }
+    )
+}
+
+fn truncate(text: &str, max: usize) -> String {
+    let text = clean(text, 256);
+    if text.chars().count() > max {
+        format!("{}...", text.chars().take(max - 3).collect::<String>())
+    } else {
+        text
+    }
+}
+
+fn todos(ctx: &Ctx, _: &Options) -> Option<Reading> {
+    let todos = &ctx.transcript()?.todos;
+    if todos.is_empty() {
+        return None;
+    }
+    let done = todos.iter().filter(|t| t.status == "completed").count();
+    let current = if let Some(todo) = todos.iter().find(|t| t.status == "in_progress") {
+        format!("{} {}", ctx.glyphs.current(), truncate(&todo.content, 50))
+    } else if done == todos.len() {
+        format!("{} all done", ctx.glyphs.finished(false))
+    } else {
+        return None;
+    };
+    Some(
+        Reading::default()
+            .set("current", current)
+            .set("progress", format!("{done}/{}", todos.len())),
+    )
 }
 
 fn counts(values: &BTreeMap<String, usize>, top: usize, ascii: bool) -> String {
     let mut counts: Vec<_> = values.iter().collect();
     counts.sort_by(|(a, x), (b, y)| y.cmp(x).then_with(|| a.cmp(b)));
     let times = if ascii { "x" } else { "×" };
-    counts
+    let remaining = counts.len().saturating_sub(top);
+    let mut shown: Vec<_> = counts
         .into_iter()
         .take(top)
         .map(|(event, n)| format!("{event}{times}{n}"))
-        .collect::<Vec<_>>()
-        .join(" ")
+        .collect();
+    if remaining > 0 {
+        shown.push(format!("+{remaining} more"));
+    }
+    shown.join(" ")
 }
 
 fn hooks(ctx: &Ctx, _: &Options) -> Option<Reading> {
     let hooks = &ctx.transcript()?.hooks;
     let name = hooks.last.as_ref()?;
     let ascii = ctx.glyphs == GlyphTier::Ascii;
+    let mut events = BTreeMap::new();
+    for (event, n) in &hooks.counts {
+        *events.entry(short_event(event)).or_default() += n;
+    }
     Some(
         Reading::default()
-            .set("last", format!("{name} {}", mark(ascii, hooks.last_failed)))
-            .set("counts", counts(&hooks.counts, usize::MAX, ascii))
+            .set(
+                "last",
+                format!("{} {name}", ctx.glyphs.finished(hooks.last_failed)),
+            )
+            .set("counts", counts(&events, usize::MAX, ascii))
+            .set("arrow", ctx.glyphs.arrow())
             .set(
                 "failed",
                 if hooks.failed == 0 {
@@ -236,7 +571,7 @@ mod tests {
     use crate::input::Input;
     use crate::metrics::{McpSource, TranscriptSource};
     use crate::models::Registry;
-    use crate::state::transcript::{Hooks, Skills, Summary, ToolCalls};
+    use crate::state::transcript::{Hooks, Skills, Summary, Tool, ToolCalls};
     use chrono::FixedOffset;
 
     fn reading(ctx: &Ctx, id: &str) -> Option<Reading> {
@@ -252,11 +587,11 @@ mod tests {
             start: Some(480),
             last_reply: Some(11_940),
             advisor: Some("claude-opus-5-5".into()),
-            skills: Skills {
+            skills: Box::new(Skills {
                 running: ["a", "b", "c", "d"].map(str::to_owned).to_vec(),
                 done: ["e", "f", "g", "h", "i"].map(str::to_owned).to_vec(),
                 count: 9,
-            },
+            }),
             hooks: Hooks {
                 last: Some("Stop".into()),
                 last_failed: true,
@@ -269,12 +604,20 @@ mod tests {
                     ("Edit".into(), 11),
                     ("Grep".into(), 5),
                     ("Read".into(), 5),
-                    ("Skill".into(), 2),
+                    ("Write".into(), 2),
                 ]
                 .into(),
                 count: 70,
                 last: Some(("Edit".into(), false)),
+                recent: vec![Tool {
+                    id: "edit".into(),
+                    name: "Edit".into(),
+                    target: "lib.rs".into(),
+                    status: Status::Error,
+                    ..Tool::default()
+                }],
             }),
+            ..Summary::default()
         }
     }
 
@@ -312,13 +655,16 @@ mod tests {
         assert_eq!(text(&skills, "done"), "f, g, h, i");
         assert_eq!(text(&skills, "count"), "9");
         let hooks = reading(&ctx, "activity.hooks").unwrap();
-        assert_eq!(text(&hooks, "last"), "Stop ✗");
-        assert_eq!(text(&hooks, "counts"), "PreToolUse×5 Stop×1");
+        assert_eq!(text(&hooks, "last"), "✗ Stop");
+        assert_eq!(text(&hooks, "counts"), "Pre×5 Stop×1");
         assert_eq!(text(&hooks, "failed"), "1");
-        let calls = reading(&ctx, "activity.tool_calls").unwrap();
-        assert_eq!(text(&calls, "counts"), "Bash×47 Edit×11 Grep×5 Read×5");
-        assert_eq!(text(&calls, "count"), "70");
-        assert_eq!(text(&calls, "last"), "Edit ✓");
+        let calls = reading(&ctx, "activity.tools").unwrap();
+        assert_eq!(
+            text(&calls, "counts"),
+            "Bash×47 Edit×11 Grep×5 Read×5 +1 more"
+        );
+        assert_eq!(text(&calls, "total"), "70");
+        assert_eq!(text(&calls, "now"), "✗ Edit lib.rs");
         let mcp = reading(&ctx, "mcp").unwrap();
         assert_eq!(text(&mcp, "names"), "a, z");
         assert_eq!(text(&mcp, "count"), "2");
@@ -343,9 +689,9 @@ mod tests {
             let hooks = reading(&ctx, "activity.hooks").unwrap();
             assert_eq!(
                 text(&hooks, "last"),
-                if failed { "Stop x" } else { "Stop ok" }
+                if failed { "x Stop" } else { "+ Stop" }
             );
-            assert_eq!(text(&hooks, "counts"), "PreToolUsex5 Stopx1");
+            assert_eq!(text(&hooks, "counts"), "Prex5 Stopx1");
             assert_eq!(hooks.get("failed").is_some(), failed);
         }
     }
@@ -364,14 +710,238 @@ mod tests {
             GlyphTier::Ascii,
         )
         .with_transcript(TranscriptSource::Fixed(Some(summary)));
-        for (top, expected) in [(0, "Bashx47"), (-2, "Bashx47"), (2, "Bashx47 Editx11")] {
+        for (top, expected) in [
+            (0, "Bashx47 +4 more"),
+            (-2, "Bashx47 +4 more"),
+            (2, "Bashx47 Editx11 +3 more"),
+        ] {
             let opts = [("top".into(), toml::Value::Integer(top))]
                 .into_iter()
                 .collect();
-            let reading = tool_calls(&ctx, &opts).unwrap();
+            let reading = tools(&ctx, &opts).unwrap();
             assert_eq!(text(&reading, "counts"), expected);
-            assert_eq!(text(&reading, "last"), "Grep x");
+            assert_eq!(text(&reading, "now"), "x Edit lib.rs");
         }
+    }
+
+    fn rendered(ctx: &Ctx, id: &str) -> String {
+        let metric = super::super::find(id).unwrap();
+        let reading = reading(ctx, id).unwrap();
+        crate::widgets::template::render(metric.meta.templates[0], &reading)
+            .iter()
+            .map(|p| p.text.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn all_activity_segments_are_single_line_and_ascii_marks_follow_the_tier() {
+        let scenario = crate::scenarios::find("normal").unwrap();
+        let input = scenario.input(crate::scenarios::BASE);
+        let registry = Registry::default();
+        for tier in [GlyphTier::Unicode, GlyphTier::Nerd, GlyphTier::Ascii] {
+            let ctx = Ctx::new(
+                &input,
+                &registry,
+                crate::scenarios::BASE,
+                FixedOffset::east_opt(0).unwrap(),
+                tier,
+            )
+            .with_git(crate::metrics::GitSource::Fixed(None))
+            .with_transcript(TranscriptSource::Fixed(
+                scenario.transcript(crate::scenarios::BASE),
+            ))
+            .with_mcp(McpSource::Fixed(scenario.mcp()))
+            .with_state(scenario.state(crate::scenarios::BASE));
+            for id in [
+                "activity.tools",
+                "activity.agents",
+                "activity.todos",
+                "activity.skills",
+                "activity.hooks",
+                "env",
+            ] {
+                let output = rendered(&ctx, id);
+                assert!(!output.is_empty(), "{id}");
+                assert!(!output.contains(['\n', '\r']), "{id}: {output}");
+                if tier == GlyphTier::Ascii {
+                    assert!(output.is_ascii(), "{id}: {output}");
+                }
+            }
+            let agents = rendered(&ctx, "activity.agents");
+            if tier == GlyphTier::Ascii {
+                assert_eq!(
+                    agents,
+                    "* Explore [haiku-4.5 . high] . scan the crate (1m 2s) => Agentx1 (1 running)"
+                );
+            } else {
+                assert_eq!(
+                    agents,
+                    "◐ Explore [haiku-4.5 · high] · scan the crate (1m 2s) ⇒ Agent×1 (1 running)"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn agent_recent_window_and_totals_survive_after_now_expires() {
+        let input = Input::default();
+        let registry = Registry::default();
+        let mut summary = Summary {
+            agent_count: 5,
+            ..Summary::default()
+        };
+        for (id, end) in [
+            ("running", None),
+            ("recent", Some(95)),
+            ("stale", Some(39)),
+            ("future", Some(101)),
+        ] {
+            summary.agents.push(Agent {
+                id: id.into(),
+                kind: id.into(),
+                start: 1,
+                end,
+                ..Agent::default()
+            });
+        }
+        let ctx = Ctx::new(
+            &input,
+            &registry,
+            100,
+            FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        )
+        .with_transcript(TranscriptSource::Fixed(Some(summary.clone())));
+        let result = reading(&ctx, "activity.agents").unwrap();
+        assert_eq!(text(&result, "counts"), "Agent×5 (1 running)");
+        assert_eq!(
+            text(&result, "now"),
+            "◐ running (1m 39s) | ✓ recent (1m 34s)"
+        );
+        summary.agents[0].end = Some(1);
+        let ctx = Ctx::new(
+            &input,
+            &registry,
+            1000,
+            FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        )
+        .with_transcript(TranscriptSource::Fixed(Some(summary)));
+        assert_eq!(rendered(&ctx, "activity.agents"), "Agent×5");
+    }
+
+    #[test]
+    fn tool_now_limits_running_and_latest_results_and_shortens_mcp_names() {
+        let input = Input::default();
+        let registry = Registry::default();
+        let mut summary = Summary::default();
+        summary.tool_calls.count = 7;
+        for (id, status) in [
+            ("old", Status::Running),
+            ("new", Status::Running),
+            ("latest", Status::Running),
+            ("done1", Status::Completed),
+            ("done2", Status::Completed),
+            ("done3", Status::Error),
+        ] {
+            summary.tool_calls.recent.push(Tool {
+                id: id.into(),
+                name: "mcp__docs__search".into(),
+                target: id.into(),
+                status,
+                ..Tool::default()
+            });
+        }
+        let ctx = Ctx::new(
+            &input,
+            &registry,
+            100,
+            FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        )
+        .with_transcript(TranscriptSource::Fixed(Some(summary)));
+        assert_eq!(
+            text(&reading(&ctx, "activity.tools").unwrap(), "now"),
+            "◐ search new | ◐ search latest | ✓ search done2 | ✗ search done3"
+        );
+    }
+
+    #[test]
+    fn todos_show_only_in_progress_or_all_done_and_skills_show_latest() {
+        use crate::state::transcript::Todo;
+        let input = Input::default();
+        let registry = Registry::default();
+        for (status, expected) in [
+            ("pending", None),
+            ("in_progress", Some("▸ work (0/1)")),
+            ("completed", Some("✓ all done (1/1)")),
+        ] {
+            let summary = Summary {
+                todos: vec![Todo {
+                    content: "work".into(),
+                    status: status.into(),
+                }],
+                ..Summary::default()
+            };
+            let ctx = Ctx::new(
+                &input,
+                &registry,
+                100,
+                FixedOffset::east_opt(0).unwrap(),
+                GlyphTier::Unicode,
+            )
+            .with_transcript(TranscriptSource::Fixed(Some(summary)));
+            assert_eq!(
+                reading(&ctx, "activity.todos")
+                    .map(|_| rendered(&ctx, "activity.todos"))
+                    .as_deref(),
+                expected
+            );
+        }
+        let summary = Summary {
+            skills: Box::new(Skills {
+                count: 1,
+                done: vec!["review".into()],
+                running: vec![],
+            }),
+            ..Summary::default()
+        };
+        let ctx = Ctx::new(
+            &input,
+            &registry,
+            100,
+            FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        )
+        .with_transcript(TranscriptSource::Fixed(Some(summary)));
+        assert_eq!(rendered(&ctx, "activity.skills"), "✓ review ⇒ 1 skill");
+    }
+
+    #[test]
+    fn model_versions_dates_and_optional_badges() {
+        assert_eq!(short_model("claude-haiku-4-5-20251001"), "haiku-4.5");
+        assert_eq!(short_model("claude-sonnet-5-5"), "sonnet-5.5");
+        assert_eq!(short_model("claude-3-5-sonnet-20241022"), "sonnet-3.5");
+        assert_eq!(short_model("haiku"), "haiku");
+        let input = Input::default();
+        let registry = Registry::default();
+        let ctx = Ctx::new(
+            &input,
+            &registry,
+            1,
+            FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        );
+        let mut agent = Agent {
+            kind: "Explore".into(),
+            ..Agent::default()
+        };
+        assert_eq!(agent_now(&ctx, &agent), "◐ Explore (1s)");
+        agent.effort = Some("high".into());
+        assert_eq!(agent_now(&ctx, &agent), "◐ Explore [high] (1s)");
+        agent.effort = None;
+        agent.model = Some("claude-sonnet-5-5".into());
+        assert_eq!(agent_now(&ctx, &agent), "◐ Explore [sonnet-5.5] (1s)");
     }
 
     #[test]
@@ -393,7 +963,7 @@ mod tests {
                 "session.start",
                 "session.last_reply",
                 "activity.skills",
-                "activity.tool_calls",
+                "activity.tools",
                 "activity.hooks",
                 "mcp",
             ] {

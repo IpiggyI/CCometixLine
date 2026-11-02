@@ -357,6 +357,61 @@ mod tests {
     }
 
     #[test]
+    fn activity_items_share_one_config_line_and_each_remains_a_single_segment() {
+        let scenario = scenarios::find("normal").unwrap();
+        let input = scenario.input(scenarios::BASE);
+        let registry = Registry::default();
+        for glyphs in [
+            crate::style::GlyphTier::Unicode,
+            crate::style::GlyphTier::Ascii,
+        ] {
+            let frame = Frame {
+                now: scenarios::BASE,
+                tz: FixedOffset::east_opt(0).unwrap(),
+                width: None,
+                git: GitSource::Fixed(scenario.git()),
+                state: scenario.state(scenarios::BASE),
+                compact: AutoCompact::default(),
+                commands: Commands::Show,
+            };
+            let mut config = presets::get("cometix").unwrap();
+            config.glyphs = glyphs;
+            config.lines = vec![LineConfig {
+                left: [
+                    "activity.tools",
+                    "activity.agents",
+                    "activity.todos",
+                    "activity.skills",
+                    "activity.hooks",
+                    "env",
+                ]
+                .into_iter()
+                .map(|metric| ItemSpec::Id(metric.into()))
+                .collect(),
+                ..LineConfig::default()
+            }];
+            let rendered = lines(&input, &config, &registry, frame);
+            assert_eq!(rendered.len(), 1);
+            let output = line_text(&rendered[0]);
+            assert!(!output.contains(['\n', '\r']));
+            for expected in [
+                "cargo test",
+                "haiku-4.5",
+                "scan the crate",
+                "cover the new segment",
+                "skills",
+                "format",
+                "CLAUDE.md:",
+            ] {
+                assert!(output.contains(expected), "{expected}: {output}");
+            }
+            if glyphs == crate::style::GlyphTier::Ascii {
+                assert!(output.is_ascii(), "{output}");
+            }
+        }
+    }
+
+    #[test]
     fn cometix_draws_one_classic_line() {
         let out = render("cometix", "normal", None);
         assert_eq!(
