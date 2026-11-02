@@ -617,7 +617,7 @@ mod tests {
         // Canvas: the directory; inspector: its icon.
         app.handle_key(key(KeyCode::Right));
         app.handle_key(key(KeyCode::Enter));
-        for _ in 0..5 {
+        for _ in 0..6 {
             app.handle_key(key(KeyCode::Down));
         }
         app.handle_key(key(KeyCode::Enter));

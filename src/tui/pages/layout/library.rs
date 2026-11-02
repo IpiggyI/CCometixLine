@@ -369,6 +369,34 @@ mod tests {
     }
 
     #[test]
+    fn lists_every_metric_under_a_category() {
+        let lib = Library::default();
+        let listed: usize = lib
+            .rows()
+            .iter()
+            .map(|r| match r {
+                Row::Group { count, .. } => *count,
+                Row::Metric(_) => 0,
+            })
+            .sum();
+        assert_eq!(listed, metrics::catalog().len());
+        for (id, group) in [
+            ("cost.week", "Cost"),
+            ("cost.month", "Cost"),
+            ("advisor", "Identity"),
+            ("session.start", "Session"),
+            ("session.last_reply", "Session"),
+            ("activity.skills", "Activity"),
+            ("activity.hooks", "Activity"),
+            ("mcp", "Activity"),
+        ] {
+            let cat = metrics::find(id).unwrap().meta.category;
+            let name = GROUPS.iter().find(|(c, _)| *c == cat).map(|(_, n)| *n);
+            assert_eq!(name, Some(group), "{id}");
+        }
+    }
+
+    #[test]
     fn gates_by_version_and_line() {
         let cache = metrics::find("cache").unwrap();
         let old = Version::parse("2.1.200");

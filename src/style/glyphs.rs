@@ -145,12 +145,12 @@ pub fn icon(key: IconKey, tier: GlyphTier) -> &'static str {
         IconKey::Tools => ("\u{f0ad}", "⚒"),
         IconKey::Ttft => ("\u{f251}", "⧖"),
         IconKey::Speed => ("\u{f04c5}", "⇶"),
-        IconKey::Advisor => ("\u{f4ad}", "◆"),
-        IconKey::SessionStart => ("\u{f017}", "◷"),
-        IconKey::LastReply => ("\u{f075}", "↩"),
+        IconKey::Advisor => ("\u{f018b}", "◇"),
+        IconKey::SessionStart => ("\u{f040d}", "▸"),
+        IconKey::LastReply => ("\u{f075}", "↵"),
         IconKey::Skills => ("\u{f0d0}", "✦"),
-        IconKey::Hooks => ("\u{f0c1}", "⌁"),
-        IconKey::Mcp => ("\u{f1e6}", "+"),
+        IconKey::Hooks => ("\u{f13d}", "⌁"),
+        IconKey::Mcp => ("\u{f1e6}", "⇌"),
     };
     match tier {
         GlyphTier::Nerd => nerd,
@@ -294,6 +294,32 @@ mod tests {
                 assert_eq!(display_width(icon(key, tier)), 1, "{key:?} {tier:?}");
             }
             assert_eq!(icon(key, GlyphTier::Ascii), "");
+        }
+    }
+
+    #[test]
+    fn newer_icons_are_one_cell_and_unique() {
+        let newer = [
+            IconKey::Advisor,
+            IconKey::SessionStart,
+            IconKey::LastReply,
+            IconKey::Skills,
+            IconKey::Hooks,
+            IconKey::Mcp,
+        ];
+        for tier in [GlyphTier::Nerd, GlyphTier::Unicode] {
+            for key in newer {
+                let glyph = icon(key, tier);
+                assert_eq!(display_width(glyph), 1, "{key:?} {tier:?}");
+                let twins: Vec<_> = IconKey::ALL
+                    .iter()
+                    .filter(|k| **k != key && icon(**k, tier) == glyph)
+                    .collect();
+                assert!(
+                    twins.is_empty(),
+                    "{key:?} {tier:?} shares {glyph} with {twins:?}"
+                );
+            }
         }
     }
 

@@ -629,7 +629,52 @@ mod tests {
         let dir = meta("dir");
         let mut d = bare("dir");
         cycle(Field::Opt(0), &mut d, dir, false);
-        assert_eq!(opt_text(&d, &dir.options[0]), "full");
+        assert_eq!(opt_text(&d, &dir.options[0]), "depth");
+    }
+
+    #[test]
+    fn edits_every_option_of_every_metric() {
+        for metric in metrics::catalog() {
+            let meta = &metric.meta;
+            let fields = fields(&bare(meta.id), meta, false);
+            for (i, spec) in meta.options.iter().enumerate() {
+                let field = Field::Opt(i);
+                assert!(fields.contains(&field), "{}.{}", meta.id, spec.key);
+                let mut c = bare(meta.id);
+                match spec.kind {
+                    OptKind::Flag | OptKind::Choice(_) => {
+                        assert!(cycles(field, meta));
+                        cycle(field, &mut c, meta, true);
+                        assert!(is_set(field, &c, meta), "{}.{}", meta.id, spec.key);
+                    }
+                    OptKind::Text | OptKind::Number => {
+                        let typed = if spec.kind == OptKind::Number {
+                            "7"
+                        } else {
+                            "x"
+                        };
+                        set_text(field, &mut c, meta, typed, GlyphTier::Nerd).unwrap();
+                        assert_eq!(text(field, &c, meta, GlyphTier::Nerd), typed);
+                    }
+                }
+                reset(field, &mut c, meta);
+                assert!(!is_set(field, &c, meta), "{}.{}", meta.id, spec.key);
+            }
+        }
+        // A2's options, by key.
+        for (id, keys) in [
+            ("context", &["token_style"][..]),
+            ("quota.5h", &["countdown", "reset_format"]),
+            ("quota.7d", &["countdown", "reset_format"]),
+            ("quota.spend", &["countdown", "reset_format"]),
+            ("dir", &["style", "depth"]),
+            ("git", &["branch_prefixes"]),
+        ] {
+            let have: Vec<_> = meta(id).options.iter().map(|o| o.key).collect();
+            for key in keys {
+                assert!(have.contains(key), "{id}.{key}");
+            }
+        }
     }
 
     #[test]

@@ -15,7 +15,7 @@
 - **任意指标、任意形态**：每一项都可以显示成文字、进度条、分档图标、曲线或配速条，并备有三档文字模板，宽度不够时逐档缩短。
 - **自适应宽度**：终端变窄时在条目之间换行；右侧一组始终贴右对齐。
 - **外观**：四种骨架（plain、bracket、pill、powerline），13 套调色板（可以跟随终端配色，也可以自带颜色），Nerd Font / Unicode / ASCII 三档字形，色深从真彩到无色。
-- **八个预置**开箱即用，自己保存的预置和它们放在一起。
+- **九个预置**开箱即用，自己保存的预置和它们放在一起。
 - **配置器**：所有设置都能编辑，用示例会话实时预览，还能替你把 Claude Code 接到 ccline。
 - **第三方模型也准确**：模型登记表校正 Claude Code 不认识的模型名和上下文窗口。
 - **后台任务**：同一个程序也负责绘制每个运行中子代理下面的那一行。
@@ -112,6 +112,7 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 | `focus` | 2 | plain，Unicode | 宽幅上下文条、每轮增量、距自动压缩、缓存 |
 | `zen` | 1 | ASCII，无色 | 任何终端都能用 |
 | `powerline` | 1 | powerline，Tokyo Night | powerline 段，带 5 小时额度图标 |
+| `hud` | 2 | plain，终端配色 | 带标签的进度条：上下文（已用/窗口大小）；5 小时与每周额度，附倒计时和重置时间 |
 
 在配置器里可以应用整个预置，也可以只应用它的布局或只应用外观。在 Presets 页按 `N` 可以把当前设置另存为自己的预置，文件保存在 `~/.claude/ccline/presets/`。
 
@@ -140,24 +141,44 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 
 | 类目 | 指标 |
 |---|---|
-| 身份 | `model`（含推理强度）、`output_style`、`vim`、`agent` |
-| 会话 | `session_name`、`duration` |
+| 身份 | `model`（含推理强度和快速模式）、`advisor`²、`output_style`、`vim`、`agent` |
+| 会话 | `session_name`、`duration`、`session.start`²、`session.last_reply`² |
 | 上下文 | `context`、`context.trend`、`context.to_compact`、`context.breakdown`¹ |
 | 额度 | `quota.5h`、`quota.7d`、`quota.spend`、`quota.eta` |
-| 费用 | `cost`、`cost.rate`（每小时）、`cost.today`（所有会话） |
+| 费用 | `cost`、`cost.rate`（每小时）、`cost.today`（所有会话）、`cost.week`（自 7 天窗口开启起）、`cost.month`（自本月 1 日起） |
 | 缓存 | `cache`（距变冷的时间、命中率、未命中）、`cache.cold_cost` |
 | 代码 | `dir`、`git`、`repo`、`pr`、`worktree`、`lines` |
-| 活动与计时 | `activity.tools`¹、`activity.agents`¹、`timing.ttft`¹、`timing.tps`¹ |
+| 活动与计时 | `activity.tools`¹、`activity.agents`¹、`activity.skills`²、`activity.hooks`²、`mcp`³、`timing.ttft`¹、`timing.tps`¹ |
 | 系统 | `cc_version`、`update` |
 | 自定义 | `cmd`：任意 shell 命令输出的第一行，带缓存，在后台运行 |
 
 ¹ 需要配套 mod 和 Claude Code 2.1.287+。`cache` 与 `quota.spend` 需要 Claude Code 2.1.251+。配置器会标出你当前的 Claude Code 显示不了的指标，并且不允许添加。
 
+² 读取自会话记录（transcript）。ccline 只读其中有限的一段（开头 64 KiB 用来取开始时间，末尾 512 KiB 用来取其余内容），所以 `activity.skills`、`activity.hooks` 和 `session.last_reply` 反映的是最近的情况，不是整个会话；很长的会话记录可能显示得比实际少。`activity.hooks` 统计的是你最近一次提问之后的钩子结果。
+
+³ 来自用户配置、项目配置和项目 `.mcp.json` 中已启用的 MCP 服务器。插件提供的服务器不在其中。
+
 条目只在有内容时才显示：Claude Code 报告了缓存才显示缓存，有新版本才显示 `update`，`output_style` 是默认风格时不显示。
 
 `quota.5h` 和 `quota.7d` 默认画成两行的配速条：上面一行是已用额度，下面一行是窗口时间过去了多少。`⇡8%` 表示用量比时间快 8 个百分点，`⇣` 表示比时间慢，`±0%` 表示持平。
 
+`cost.today`、`cost.week` 和 `cost.month` 按本地日期累加 ccline 见过的会话。周从 7 天额度窗口开启时算起（窗口在一天中间开启时，那一整天都计入），月从本月第一个本地日算起。`cache.cold_cost` 用 Anthropic 官方价格表估算重建缓存的费用，包含 1 小时缓存的写入价和快速模式。
+
 后台任务行有自己的指标：`task.label`、`task.name`、`task.status`、`task.elapsed`、`task.trend`，也可以使用 `model`、`context` 等会话指标。
+
+### 显示选项
+
+在条目的 `options` 里设置，也可以在 Layout 页的检查器里改：
+
+| 指标 | 选项 | 取值 |
+|---|---|---|
+| `quota.5h`、`quota.7d`、`quota.spend` | `countdown` | `compact`（`3:42`、`2h07m`、`2d4h`；默认）、`spaced`（`2h 7m`）、`coarse`（`2h`） |
+| `quota.5h`、`quota.7d`、`quota.spend` | `reset_format` | 本地重置时间的 [strftime](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) 格式，例如 `"%-m月%-d日 %H:%M"` |
+| `context` | `token_style` | `short`（`1M`，默认）或 `decimal`（`1.0M`） |
+| `dir` | `style`、`depth` | `style = "depth"` 显示路径的最后 `depth` 级（默认 3） |
+| `git` | `branch_prefixes` | 缩短分支名：`"feature/=✨, fix/=🐛"` 把 `feature/login` 显示为 `✨login`（取最长的匹配前缀） |
+
+`model` 还有 `fast` 字段 `{fast}`，快速模式开启时显示（`Opus 5.5 · xHigh · fast`）。在支持 OSC 8 超链接的终端里，`git` 分支会链接到它在 GitHub 或 GitLab 上的页面，额度条目会链接到 Claude 的用量页面。
 
 ## 配置
 
@@ -175,7 +196,7 @@ left = [
   "model",
   { metric = "dir", icon_color = "bright_yellow" },
   "git",
-  { metric = "context", widget = "text", format = "{pct}%[ · {tokens} tokens]" },
+  { metric = "context", widget = "text", format = "{pct}%[ · {tokens}]" },
   "cache",
 ]
 right = ["update"]
@@ -223,7 +244,7 @@ Models 页会列出最近出现过、但没有规则能认出的模型 id，按�
 
 ## 配套 mod
 
-在 Claude Code 2.1.287+ 上，可以安装一个可选的 mod，把状态栏输入里没有的数据传给 ccline：首 token 延迟、输出速度、正在运行的工具和代理、上下文的构成，以及准确的自动压缩点。mod 本身不绘制任何界面。
+在 Claude Code 2.1.287+ 上，可以安装一个可选的 mod，把状态栏输入里没有的数据传给 ccline：首 token 延迟、输出速度、正在运行的工具和代理、上下文的构成，以及准确的自动压缩点。mod 不绘制任何界面，也不干预会话，只有一个需要主动开启的例外：空闲压缩。
 
 ```bash
 ccline mod install     # 也可以在 Claude Code 页安装
@@ -232,6 +253,23 @@ ccline mod uninstall
 ```
 
 要让这些数值实时刷新，需要 Claude Code 定时重绘状态栏：在 Claude Code 页把 `refreshInterval` 设为 2 秒。
+
+### 空闲压缩
+
+默认关闭。开启后，mod 会在会话空闲、1 小时提示缓存即将过期之前压缩它，这样下一次提问就不必为重写庞大的上下文付费。mod 会调用 compact 来操作会话，并且只在下列条件全部满足时才这样做：
+
+- Claude Code 自带的空闲压缩无法运行，例如设置了 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`（`DISABLE_TELEMETRY`、`DO_NOT_TRACK`、`DISABLE_GROWTHBOOK`、网关、Bedrock、Vertex、Foundry 也一样）。自带的能运行时，mod 什么都不做。
+- 自动压缩已开启，会话在终端里，并且没有正在运行的轮次或工具。
+- 提示缓存处于有效状态、TTL 为 1 小时，并且将在 `margin_secs` 之内过期。
+- 上下文至少有 20 万 token（可用 `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` 调整，下限 10 万）。
+
+在 **Claude Code** 页（`idle`、`margin`）或 `config.toml` 里开启：
+
+```toml
+[idle_compact]
+enabled = false      # 改为 true 之前，mod 什么都不做
+margin_secs = 180    # 在缓存过期前这么多秒压缩；限制在 30–900 之内
+```
 
 ## 命令
 

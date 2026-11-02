@@ -535,10 +535,7 @@ mod tests {
             app.handle_key(key(KeyCode::Down));
         }
         let s = screen(&mut app, 80, 24);
-        assert!(
-            s.contains("Powerline"),
-            "the last card scrolls into view: {s}"
-        );
+        assert!(s.contains("Hud"), "the last card scrolls into view: {s}");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Cost Metrics**: `cost.week` (spend since the 7-day limit window opened, with `{usd}` and `{since}`) and `cost.month` (spend since the first local day of the month)
+- **Display Options**: `countdown` (`compact`, `spaced` or `coarse`) and `reset_format` (a strftime format) on `quota.5h`, `quota.7d` and `quota.spend`; `token_style` (`short` or `decimal`, so `1.0M`) on `context`; the `depth` style and `depth` option on `dir`; `branch_prefixes` on `git`; a `{fast}` field on `model` that shows fast mode
+- **Links**: with terminals that support OSC 8, the `git` branch links to its page on the remote and the quota items link to Claude's usage page
+- **Transcript Metrics**: `advisor`, `session.start`, `session.last_reply`, `activity.skills` and `activity.hooks`, read from a bounded part of the session transcript (the first 64 KiB and the last 512 KiB), so they describe the recent past of a very long session; `mcp` lists the enabled MCP servers from user and project configuration and `.mcp.json`, not those that plugins provide
+- **Preset**: `hud`, two lines of labelled bars for context (used and window size) and the 5-hour and weekly quotas with countdown and reset time
+- **Idle Compaction**: the companion mod can compact an idle session shortly before its 1-hour prompt cache expires when Claude Code's own idle compaction can't run (for example with `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` set). Off by default; turn it on with `[idle_compact]` in `config.toml` (`enabled`, `margin_secs` within 30–900, default 180) or on the Claude Code page. It acts only at 200k tokens or more (`CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` changes this, with a floor of 100k)
+
+### Changed
+- **Preset `cometix`**: the context no longer ends with the word "tokens"
+- **Companion Mod**: it no longer only passes data to ccline; with idle compaction turned on it also acts on the session
+
+### Fixed
+- **Prices**: estimates such as `cache.cold_cost` now use Anthropic's official price table (per model and version, the 5-minute and 1-hour cache write rates, cache reads, fast mode and long prompts) instead of a single input price per model
+- **Claude Code Page**: the Agent panel and Updates rows reacted to the wrong pane's selection, so Enter or the arrow keys on the second row changed the first one
+
 ## [2.0.1] - 2026-10-25
 
 ### Fixed

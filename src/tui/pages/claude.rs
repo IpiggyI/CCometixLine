@@ -1,10 +1,11 @@
 //! 6 Claude Code: the status line and agent panel settings in Claude
 //! Code's `settings.json` (edited as a draft, written after a diff), the
-//! update check, and what the companion mod will add.
+//! update check, and the companion mod with its opt-in idle compaction.
 
 use super::{Cx, Env, Outcome, Page, PageId};
 use crate::cc_settings::{self, Settings, StatusLine};
 use crate::companion::{self, Status};
+use crate::config::IdleCompactConfig;
 use crate::state::update;
 use crate::tui::dialogs::{ModSteps, SettingsDiff, shown_path};
 use crate::tui::doc::Doc;
@@ -30,7 +31,7 @@ enum Pane {
 /// In the order they sit on screen: left to right, top to bottom.
 const PANES: [Pane; 4] = [Pane::StatusLine, Pane::Mod, Pane::Agents, Pane::Updates];
 /// Rows per pane; the status line's last row applies the draft.
-const ROWS: [usize; 4] = [5, 2, 2, 3];
+const ROWS: [usize; 4] = [5, 4, 2, 3];
 const REFRESH: [Option<u64>; 7] = [
     None,
     Some(1),
@@ -41,6 +42,9 @@ const REFRESH: [Option<u64>; 7] = [
     Some(60),
 ];
 const INTERVALS: [u32; 5] = [6, 12, 24, 48, 168];
+/// Idle compaction's margin in seconds: the lowest and highest the config
+/// accepts, and the step of ←→.
+const MARGINS: (u64, u64, u64) = (30, 900, 30);
 const UPGRADE: &str = "npm update -g @cometix/ccline";
 /// Oldest Claude Code with mods.
 const MODS: Version = Version {
@@ -400,6 +404,7 @@ impl ClaudePage {
             None => Span::styled("no data for the last session", ui::muted()),
         };
         let installed = !matches!(companion::status(), Status::NotInstalled);
+        let idle = &cx.doc.config.idle_compact;
         let text = vec![
             self.row(pane, 0, "status", status, at),
             self.row(
@@ -412,27 +417,61 @@ impl ClaudePage {
                 )],
                 at,
             ),
+            self.row(pane, 2, "idle", vec![on_off(idle.enabled)], at),
+            self.row(
+                pane,
+                3,
+                "margin",
+                vec![ui::choice(&format!("{}s", idle.margin_secs))],
+                at,
+            ),
+            Line::styled(
+                "Needs the mod. Acts only if Claude Code can't idle-compact.",
+                ui::muted(),
+            ),
             Self::info(pane, "needs", needs, width),
             Self::info(pane, "bridge", bridge, width),
-            Self::info(
-                pane,
-                "adds",
-                Span::raw("context by kind, compact point,"),
-                width,
-            ),
-            Self::info(pane, "", Span::raw("tools, agents, turn timing"), width),
         ];
-        f.render_widget(Paragraph::new(text).block(block), area);
+        f.render_widget(
+            Paragraph::new(text).wrap(Wrap { trim: false }).block(block),
+            area,
+        );
     }
 
-    fn handle_mod(&mut self, key: KeyEvent) -> Outcome {
+    fn handle_mod(&mut self, key: KeyEvent, doc: &mut Doc) -> Outcome {
         let installed = !matches!(companion::status(), Status::NotInstalled);
+        let (min, max, by) = MARGINS;
         match (self.rows[Pane::Mod as usize], key.code) {
             (0, KeyCode::Enter) => Outcome::Open(Box::new(ModSteps { install: true })),
             (1, KeyCode::Enter) if installed => {
                 Outcome::Open(Box::new(ModSteps { install: false }))
             }
             (1, KeyCode::Enter) => Outcome::Toast("The companion mod isn't installed".into()),
+            (2, KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Left | KeyCode::Right) => {
+                doc.edit(|c, _| c.idle_compact.enabled = !c.idle_compact.enabled);
+                Outcome::Consumed
+            }
+            (3, KeyCode::Left | KeyCode::Right) => {
+                let forward = key.code == KeyCode::Right;
+                doc.edit(|c, _| {
+                    let m = c.idle_compact.margin_secs;
+                    c.idle_compact.margin_secs = if forward {
+                        (m + by).min(max)
+                    } else {
+                        m.saturating_sub(by).max(min)
+                    };
+                });
+                Outcome::Consumed
+            }
+            (2 | 3, KeyCode::Delete | KeyCode::Backspace) => {
+                let default = IdleCompactConfig::default();
+                let row = self.rows[Pane::Mod as usize];
+                doc.edit(|c, _| match row {
+                    2 => c.idle_compact.enabled = default.enabled,
+                    _ => c.idle_compact.margin_secs = default.margin_secs,
+                });
+                Outcome::Consumed
+            }
             _ => Outcome::Ignored,
         }
     }
@@ -482,7 +521,7 @@ impl ClaudePage {
     }
 
     fn handle_agents(&mut self, key: KeyEvent) -> Outcome {
-        match (self.rows[1], key.code) {
+        match (self.rows[Pane::Agents as usize], key.code) {
             (0, KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Left | KeyCode::Right) => {
                 let on = self
                     .current()
@@ -504,7 +543,7 @@ impl ClaudePage {
 
     fn handle_updates(&mut self, key: KeyEvent, doc: &mut Doc) -> Outcome {
         let forward = !matches!(key.code, KeyCode::Left);
-        match (self.rows[2], key.code) {
+        match (self.rows[Pane::Updates as usize], key.code) {
             (0, KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Left | KeyCode::Right) => {
                 doc.edit(|c, _| c.update.check = !c.update.check);
                 Outcome::Consumed
@@ -567,7 +606,7 @@ impl Page for ClaudePage {
         }
         match self.pane {
             Pane::StatusLine => self.handle_status_line(key),
-            Pane::Mod => self.handle_mod(key),
+            Pane::Mod => self.handle_mod(key, doc),
             Pane::Agents => self.handle_agents(key),
             Pane::Updates => self.handle_updates(key, doc),
         }
@@ -716,6 +755,106 @@ mod tests {
         app.handle_key(key(KeyCode::Char('y')));
         assert!(app.quit);
         assert_eq!(refresh(), Some(2));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn idle_compaction_is_toggled_and_its_margin_kept_in_bounds() {
+        let (dir, paths) = temp_paths("claude-idle");
+        let config = paths.config.clone();
+        let mut app = App::new(Doc::open(paths), env());
+        app.open_page(PageId::Claude);
+        let s = screen(&mut app, 112, 33);
+        assert!(
+            s.contains("idle") && s.contains("‹off›") && s.contains("‹180s›"),
+            "{s}"
+        );
+        assert!(
+            s.contains("Needs the mod. Acts only if") && s.contains("idle-compact."),
+            "{s}"
+        );
+
+        // The mod pane's third row switches it on; the next sets the margin.
+        app.handle_key(key(KeyCode::Tab));
+        app.handle_key(key(KeyCode::Down));
+        app.handle_key(key(KeyCode::Down));
+        app.handle_key(key(KeyCode::Enter));
+        assert!(app.doc.config.idle_compact.enabled);
+        app.handle_key(key(KeyCode::Down));
+        app.handle_key(key(KeyCode::Right));
+        assert_eq!(app.doc.config.idle_compact.margin_secs, 210);
+        assert!(screen(&mut app, 112, 33).contains("‹210s›"));
+        for _ in 0..40 {
+            app.handle_key(key(KeyCode::Right));
+        }
+        assert_eq!(app.doc.config.idle_compact.margin_secs, 900);
+        for _ in 0..40 {
+            app.handle_key(key(KeyCode::Left));
+        }
+        assert_eq!(app.doc.config.idle_compact.margin_secs, 30);
+
+        // Saved to config.toml with the rest of the config.
+        app.handle_key(ctrl('s'));
+        let saved = std::fs::read_to_string(&config).unwrap();
+        assert!(
+            saved.contains("[idle_compact]")
+                && saved.contains("enabled = true")
+                && saved.contains("margin_secs = 30"),
+            "{saved}"
+        );
+
+        // Delete puts the margin back; the row above is switched off again.
+        app.handle_key(key(KeyCode::Delete));
+        assert_eq!(app.doc.config.idle_compact.margin_secs, 180);
+        app.handle_key(key(KeyCode::Up));
+        app.handle_key(key(KeyCode::Right));
+        assert!(!app.doc.config.idle_compact.enabled);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_small_terminal_still_shows_the_updates_rows_and_idle_compaction() {
+        let (dir, paths) = temp_paths("claude-small");
+        let mut app = App::new(Doc::open(paths), env());
+        app.open_page(PageId::Claude);
+        let s = screen(&mut app, 80, 24);
+        for text in [
+            "check",
+            "every",
+            "upgrade",
+            "current",
+            "latest",
+            "idle",
+            "margin",
+            "‹180s›",
+            "idle-compact.",
+        ] {
+            assert!(s.contains(text), "{text}: {s}");
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn each_pane_edits_its_own_rows() {
+        let (dir, paths) = temp_paths("claude-rows");
+        let mut app = App::new(Doc::open(paths), env());
+        app.open_page(PageId::Claude);
+        screen(&mut app, 112, 33);
+
+        // Updates: the second row is the interval, not the check.
+        for _ in 0..3 {
+            app.handle_key(key(KeyCode::Tab));
+        }
+        app.handle_key(key(KeyCode::Down));
+        app.handle_key(key(KeyCode::Right));
+        assert!(app.doc.config.update.check);
+        assert_eq!(app.doc.config.update.interval_hours, 48);
+
+        // Agents: the second row opens Layout.
+        app.handle_key(key(KeyCode::BackTab));
+        app.handle_key(key(KeyCode::Down));
+        app.handle_key(key(KeyCode::Enter));
+        assert!(screen(&mut app, 112, 33).contains("Library"));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

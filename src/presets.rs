@@ -36,7 +36,7 @@ left = [
   "model",
   { metric = "dir", icon_color = "bright_yellow" },
   "git",
-  { metric = "context", widget = "text", format = "{pct}%[ · {tokens} tokens]" },
+  { metric = "context", widget = "text", format = "{pct}%[ · {tokens}]" },
   "cache",
 ]
 right = ["update"]
@@ -172,6 +172,31 @@ glyphs = "nerd"
 [[line]]
 left = ["model", "dir", "git", { metric = "context", widget = "text" }, "cache"]
 right = [{ metric = "quota.5h", widget = "gauge" }, "cost"]
+"#,
+    },
+    Preset {
+        name: "hud",
+        summary: "Labelled bars: context with used and window size, quotas with countdown and reset time",
+        tags: &["multi-line", "quota", "context"],
+        toml: r#"
+palette = "terminal"
+skin = "plain"
+glyphs = "unicode"
+separator = " | "
+
+[[line]]
+left = [
+  { metric = "context", icon = "上下文", format = "{pct}%[ ({tokens}/{window})]", options = { token_style = "decimal" } },
+  "model",
+  "dir",
+  "git",
+]
+
+[[line]]
+left = [
+  { metric = "quota.5h", widget = "bar", icon = "用量", format = "{pct}%[ ({left}, {reset})]", options = { countdown = "spaced" } },
+  { metric = "quota.7d", widget = "bar", icon = "本周", format = "{pct}%[ ({left}, {reset})]", options = { countdown = "spaced", reset_format = "%-m月%-d日 %H:%M" } },
+]
 "#,
     },
 ];

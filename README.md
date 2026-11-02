@@ -15,7 +15,7 @@ A fast, composable status line for Claude Code, written in Rust, with a full-scr
 - **Any metric, any form**: each item can be text, a progress bar, a gauge, a sparkline or a pace bar, with three text templates for when room runs short.
 - **Fits the terminal**: lines wrap between items when the terminal is narrow; a right-hand group stays flush right.
 - **Looks**: four skins (plain, bracket, pill, powerline), 13 palettes that follow your terminal's colors or bring their own, Nerd Font, Unicode or ASCII glyphs, and color depth from truecolor down to none.
-- **Eight presets** to start from, and your own saved alongside them.
+- **Nine presets** to start from, and your own saved alongside them.
 - **A configurator** that edits everything with a live preview of sample sessions, and points Claude Code at ccline for you.
 - **Accurate for third-party models**: a model registry fixes names and context windows Claude Code can't know.
 - **Background tasks**: the same binary draws the line under each running subagent.
@@ -112,6 +112,7 @@ Or edit `~/.claude/settings.json` yourself:
 | `focus` | 2 | plain, Unicode | A wide context gauge, growth per turn, room before compaction, cache |
 | `zen` | 1 | ASCII, no color | Works in any terminal |
 | `powerline` | 1 | powerline, Tokyo Night | Powerline segments with a 5-hour gauge |
+| `hud` | 2 | plain, terminal colors | Labelled bars: context with used and window size; 5-hour and weekly quotas with countdown and reset time |
 
 Apply one in the configurator: all of it, only its layout, or only its look. Save your own setup as a preset with `N` on the Presets page; it is a file in `~/.claude/ccline/presets/`.
 
@@ -140,24 +141,44 @@ Keys everywhere: `^S` save, `^Z` / `^Y` undo and redo, `^P` command palette, `[`
 
 | Category | Metrics |
 |---|---|
-| Identity | `model` (with reasoning effort), `output_style`, `vim`, `agent` |
-| Session | `session_name`, `duration` |
+| Identity | `model` (with reasoning effort and fast mode), `advisor`², `output_style`, `vim`, `agent` |
+| Session | `session_name`, `duration`, `session.start`², `session.last_reply`² |
 | Context | `context`, `context.trend`, `context.to_compact`, `context.breakdown`¹ |
 | Quota | `quota.5h`, `quota.7d`, `quota.spend`, `quota.eta` |
-| Cost | `cost`, `cost.rate` (per hour), `cost.today` (all sessions) |
+| Cost | `cost`, `cost.rate` (per hour), `cost.today` (all sessions), `cost.week` (since the 7-day window opened), `cost.month` (since the 1st) |
 | Cache | `cache` (time until cold, hit ratio, misses), `cache.cold_cost` |
 | Code | `dir`, `git`, `repo`, `pr`, `worktree`, `lines` |
-| Activity, timing | `activity.tools`¹, `activity.agents`¹, `timing.ttft`¹, `timing.tps`¹ |
+| Activity, timing | `activity.tools`¹, `activity.agents`¹, `activity.skills`², `activity.hooks`², `mcp`³, `timing.ttft`¹, `timing.tps`¹ |
 | System | `cc_version`, `update` |
 | Custom | `cmd`: the first line of any shell command, cached and run in the background |
 
 ¹ Needs the companion mod and Claude Code 2.1.287+. `cache` and `quota.spend` need Claude Code 2.1.251+. The configurator marks what your Claude Code can't show and won't let you add it.
 
+² Read from the session transcript. ccline reads a bounded part of it (the first 64 KiB for the start time, the last 512 KiB for everything else), so `activity.skills`, `activity.hooks` and `session.last_reply` describe the recent past, not the whole session, and a very long transcript can show less than it holds. `activity.hooks` covers the hook results since your latest prompt.
+
+³ The enabled MCP servers from your user and project configuration and the project's `.mcp.json`. Servers that plugins provide are not included.
+
 Items show only when they have something to say: the cache when Claude Code reports one, the update when a newer ccline is out, `output_style` unless it is the default.
 
 `quota.5h` and `quota.7d` draw a two-row pace bar by default: the upper row is what you have used, the lower row how much of the window has passed. `⇡8%` means you are 8 points ahead of the clock, `⇣` behind, `±0%` on pace.
 
+`cost.today`, `cost.week` and `cost.month` add up the sessions ccline has seen, per local day. The week starts when your 7-day limit window opened (a window opening mid-day counts that whole day), the month on the first local day. `cache.cold_cost` prices the rewarm with Anthropic's official price table, including the 1-hour cache write rate and fast mode.
+
 Background task lines have their own metrics: `task.label`, `task.name`, `task.status`, `task.elapsed` and `task.trend`, next to session metrics such as `model` and `context`.
+
+### Display options
+
+These are set per item under `options`, or in the inspector on the Layout page:
+
+| Metric | Option | Values |
+|---|---|---|
+| `quota.5h`, `quota.7d`, `quota.spend` | `countdown` | `compact` (`3:42`, `2h07m`, `2d4h`; default), `spaced` (`2h 7m`), `coarse` (`2h`) |
+| `quota.5h`, `quota.7d`, `quota.spend` | `reset_format` | A [strftime](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) format for the local reset time, such as `"%-m月%-d日 %H:%M"` |
+| `context` | `token_style` | `short` (`1M`, default) or `decimal` (`1.0M`) |
+| `dir` | `style`, `depth` | `style = "depth"` shows the last `depth` path components (default 3) |
+| `git` | `branch_prefixes` | Shortens branch names: `"feature/=✨, fix/=🐛"` shows `feature/login` as `✨login` (the longest matching prefix wins) |
+
+`model` also has a `fast` field, `{fast}`, shown when fast mode is on (`Opus 5.5 · xHigh · fast`). In terminals that support OSC 8 hyperlinks, the `git` branch links to its page on GitHub or GitLab and the quota items link to Claude's usage page.
 
 ## Configuration
 
@@ -175,7 +196,7 @@ left = [
   "model",
   { metric = "dir", icon_color = "bright_yellow" },
   "git",
-  { metric = "context", widget = "text", format = "{pct}%[ · {tokens} tokens]" },
+  { metric = "context", widget = "text", format = "{pct}%[ · {tokens}]" },
   "cache",
 ]
 right = ["update"]
@@ -223,7 +244,7 @@ The Models page lists the ids it has seen that nothing recognizes, so you can ad
 
 ## Companion mod
 
-On Claude Code 2.1.287+ an optional mod passes ccline what the status line input lacks: time to first token, output speed, running tools and agents, what fills the context, and the exact auto-compact point. It draws nothing itself.
+On Claude Code 2.1.287+ an optional mod passes ccline what the status line input lacks: time to first token, output speed, running tools and agents, what fills the context, and the exact auto-compact point. It draws no interface and leaves the session alone, with one opt-in exception: idle compaction.
 
 ```bash
 ccline mod install     # or from the Claude Code page
@@ -232,6 +253,23 @@ ccline mod uninstall
 ```
 
 Live values need Claude Code to redraw the status line on a timer: set `refreshInterval` to 2 seconds on the Claude Code page.
+
+### Idle compaction
+
+Off by default. When you turn it on, the mod compacts a session that has gone idle, shortly before its 1-hour prompt cache expires, so the next prompt doesn't pay to rewrite a large context from scratch. It acts on the session by calling compact, and only when all of these hold:
+
+- Claude Code's own idle compaction can't run, for example because `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set (so do `DISABLE_TELEMETRY`, `DO_NOT_TRACK`, `DISABLE_GROWTHBOOK`, a gateway, Bedrock, Vertex or Foundry). When the native one can run, the mod does nothing.
+- Auto-compact is on, the session is at a terminal and no turn or tool is running.
+- The prompt cache is warm with a 1-hour TTL and expires within `margin_secs`.
+- The context holds at least 200k tokens (`CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` changes this, with a floor of 100k).
+
+Switch it on from the **Claude Code** page (`idle`, `margin`), or in `config.toml`:
+
+```toml
+[idle_compact]
+enabled = false      # the mod does nothing until this is true
+margin_secs = 180    # compact this long before the cache expires; kept within 30–900
+```
 
 ## Commands
 
