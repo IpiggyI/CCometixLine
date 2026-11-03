@@ -941,6 +941,10 @@ pub const TEXT: &[(&str, &str)] = &[
         "会话记录中的技能调用",
     ),
     (
+        "Measure against this auto-compact window in tokens; 0 uses the model window",
+        "按这个自动压缩窗口（词元数）计算占用；0 表示用模型的窗口",
+    ),
+    (
         "Number of most-used tools to show",
         "显示调用次数最多的工具数量",
     ),
@@ -949,12 +953,12 @@ pub const TEXT: &[(&str, &str)] = &[
     ("Todos", "待办"),
     ("Environment", "环境"),
     (
-        "Current tools and completed tool counts in this session",
-        "本会话当前工具及已完成调用次数",
+        "Running tools and counts of the latest completed calls",
+        "正在运行的工具及最近完成调用的次数",
     ),
     (
-        "Current and recent subagents with session totals",
-        "当前和最近完成的子代理及会话总数",
+        "Running and just-finished subagents",
+        "正在运行和刚完成的子代理",
     ),
     (
         "Current todo and completion progress in this session",

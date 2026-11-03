@@ -112,7 +112,7 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 | `focus` | 2 | plain，Unicode | 宽幅上下文条、每轮增量、距自动压缩、缓存 |
 | `zen` | 1 | ASCII，无色 | 任何终端都能用 |
 | `powerline` | 1 | powerline，Tokyo Night | powerline 段，带 5 小时额度图标 |
-| `hud` | 3 | plain，终端配色 | 带标签的进度条：上下文（已用/窗口大小）；5 小时与每周额度，附倒计时和重置时间；工具、代理、待办和技能占一行 |
+| `hud` | 6 | plain，终端配色 | 带标签的进度条：上下文（已用/窗口大小）；5 小时与每周额度，附倒计时和重置时间；工具、代理、待办和技能各占一行 |
 
 在配置器里可以应用整个预置，也可以只应用它的布局或只应用外观。在 Presets 页按 `N` 可以把当前设置另存为自己的预置，文件保存在 `~/.claude/ccline/presets/`。
 
@@ -160,20 +160,20 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 
 ³ `env` 列出用户设置和项目设置里的 `CLAUDE.md` 文件、规则、已配置的钩子，以及 MCP 服务器。`mcp` 列出已启用的 MCP 服务器：用户配置和项目配置中的服务器，加上项目 `.mcp.json` 里经 `settings.json`、`.claude/settings.json` 或 `.claude/settings.local.json` 批准的服务器（`enabledMcpjsonServers`，或 `enableAllProjectMcpServers`，再去掉 `disabledMcpjsonServers`）。Windows 的项目路径无论怎么写都能对上。插件提供的服务器不在其中。
 
-活动类指标在 `⇒` 左边显示现在的状态，右边显示整个会话的合计：
+活动类指标默认每类各占一行（内置 `hud` 预设就是这样排的）：
 
 ```
-◐ Bash cargo test | ✓ Edit lib.rs ⇒ Edit×1 Read×1
-◐ Explore [haiku-4.5 · high] · scan the crate (1m 2s) ⇒ Agent×1 (1 running)
+◐ Bash: cargo test | ✓ Edit ×1 | ✓ Read ×1
+◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)
 ▸ cover the new segment (0/1)
-✓ review ⇒ 1 skill
+✓ review
 ✓ format ⇒ Post×1
 ```
 
-- `activity.tools`：正在运行的工具（`◐`）和最近完成的工具（`✓`，失败时为 `✗`）及其目标，之后是用得最多的工具；`top` 设置显示几个（默认 4）。
-- `activity.agents`：正在运行的和最近一分钟内结束的子代理，带模型、推理强度、描述和运行时间，之后是运行过几个、还有几个在运行。
+- `activity.tools`：最多 2 个正在运行的工具（`◐`）及其目标，之后是最近 20 次已完成调用按工具名的计数；`top` 设置显示几种工具（默认 4）。整个会话的合计在 `{counts}` 和 `{total}` 字段里。
+- `activity.agents`：最多 2 个正在运行或最近一分钟内结束的子代理，带模型、推理强度、描述（截到 24 个字符）和运行时间；没有这样的子代理时不显示。运行过几个在 `{counts}` 字段里。
 - `activity.todos`：进行中的待办（`▸`）和已完成的数量。
-- `activity.skills`：正在运行或最近用过的技能，以及运行过几个技能。
+- `activity.skills`：正在运行的技能，或者最近用过的几个技能；运行次数在 `{count}` 字段里。
 - `activity.hooks`：你最近一次提问之后的最新钩子结果，以及按钩子事件的计数。
 - `env`：`CLAUDE.md: …`、`rules: …`、`MCPs: …` 和 `hooks: …`，每一项只在有内容时才显示。
 
@@ -194,6 +194,7 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 | `quota.5h`、`quota.7d`、`quota.spend` | `countdown` | `compact`（`3:42`、`2h07m`、`2d4h`；默认）、`spaced`（`2h 7m`）、`coarse`（`2h`） |
 | `quota.5h`、`quota.7d`、`quota.spend` | `reset_format` | 本地重置时间的 [strftime](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) 格式，例如 `"%-m月%-d日 %H:%M"` |
 | `context` | `token_style` | `short`（`1M`，默认）或 `decimal`（`1.0M`） |
+| `context` | `compact_window` | 按多大的自动压缩窗口（词元数）计算占用，例如 `400000`；`0`（默认）用模型的窗口。原来的占比保留在 `{cc_pct}` 里 |
 | `dir` | `style`、`depth` | `style = "depth"` 显示路径的最后 `depth` 级（默认 3） |
 | `git` | `branch_prefixes` | 缩短分支名：`"feature/=✨, fix/=🐛"` 把 `feature/login` 显示为 `✨login`（取最长的匹配前缀） |
 

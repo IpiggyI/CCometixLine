@@ -917,7 +917,7 @@ mod tests {
         let reading = crate::metrics::read(metric, &ctx, &crate::metrics::Options::new()).unwrap();
         assert_eq!(
             reading.get("now").unwrap().text,
-            "◐ Explore [haiku-4.5 · high] · scan the crate (1m 2s)"
+            "◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)"
         );
         std::fs::write(&effort, "must not reread").unwrap();
         assert_eq!(read_at(&path, &cache), Some(first));

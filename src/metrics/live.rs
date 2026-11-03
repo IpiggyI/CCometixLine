@@ -270,7 +270,7 @@ mod tests {
         );
         assert_eq!(
             text("activity.agents", "2.1.300", b).as_deref(),
-            Some("◐ Explore | ◐ Explore ⇒ Agent×2 (2 running)")
+            Some("◐ Explore | ◐ Explore")
         );
         assert_eq!(text("timing.ttft", "2.1.300", b).as_deref(), Some("0.8s"));
         assert_eq!(

@@ -112,7 +112,7 @@ Or edit `~/.claude/settings.json` yourself:
 | `focus` | 2 | plain, Unicode | A wide context gauge, growth per turn, room before compaction, cache |
 | `zen` | 1 | ASCII, no color | Works in any terminal |
 | `powerline` | 1 | powerline, Tokyo Night | Powerline segments with a 5-hour gauge |
-| `hud` | 3 | plain, terminal colors | Labelled bars: context with used and window size; 5-hour and weekly quotas with countdown and reset time; tools, agents, todos and skills on one line |
+| `hud` | 6 | plain, terminal colors | Labelled bars: context with used and window size; 5-hour and weekly quotas with countdown and reset time; tools, agents, todos and skills on a row each |
 
 Apply one in the configurator: all of it, only its layout, or only its look. Save your own setup as a preset with `N` on the Presets page; it is a file in `~/.claude/ccline/presets/`.
 
@@ -160,20 +160,20 @@ The configurator speaks English and Chinese. `language` in `config.toml` picks `
 
 ³ `env` lists the `CLAUDE.md` files, rules and configured hooks of your user and project settings, and the MCP servers. `mcp` lists the enabled MCP servers: those in your user and project configuration, plus the servers in the project's `.mcp.json` that your `settings.json`, `.claude/settings.json` or `.claude/settings.local.json` approve (`enabledMcpjsonServers`, or `enableAllProjectMcpServers`, less `disabledMcpjsonServers`). Windows project paths match however they are written. Servers that plugins provide are not included.
 
-The activity metrics show what Claude is doing now on the left of `⇒` and the session totals on the right:
+The activity metrics read best one per row (the built-in `hud` preset lays them out that way):
 
 ```
-◐ Bash cargo test | ✓ Edit lib.rs ⇒ Edit×1 Read×1
-◐ Explore [haiku-4.5 · high] · scan the crate (1m 2s) ⇒ Agent×1 (1 running)
+◐ Bash: cargo test | ✓ Edit ×1 | ✓ Read ×1
+◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)
 ▸ cover the new segment (0/1)
-✓ review ⇒ 1 skill
+✓ review
 ✓ format ⇒ Post×1
 ```
 
-- `activity.tools`: running tools (`◐`) and the latest finished ones (`✓`, `✗` when one failed) with their target, then the most used tools; `top` sets how many (default 4).
-- `activity.agents`: running subagents and those that ended in the last minute, with model, effort, description and run time, then how many ran and how many still run.
+- `activity.tools`: up to 2 running tools (`◐`) with their target, then the latest 20 finished calls counted per tool; `top` sets how many tools (default 4). Session totals are in the `{counts}` and `{total}` fields.
+- `activity.agents`: up to 2 subagents running or ended in the last minute, with model, effort, description (cut to 24 characters) and run time; hidden when there are none. How many ran is in the `{counts}` field.
 - `activity.todos`: the todo in progress (`▸`) and how many are done.
-- `activity.skills`: the skill running or last used, and how many skills ran.
+- `activity.skills`: the skill running, or the skills used most recently; the call count is in the `{count}` field.
 - `activity.hooks`: the latest hook result since your last prompt, and counts per hook event.
 - `env`: `CLAUDE.md: …`, `rules: …`, `MCPs: …` and `hooks: …`, each only when there is something to list.
 
@@ -194,6 +194,7 @@ These are set per item under `options`, or in the inspector on the Layout page:
 | `quota.5h`, `quota.7d`, `quota.spend` | `countdown` | `compact` (`3:42`, `2h07m`, `2d4h`; default), `spaced` (`2h 7m`), `coarse` (`2h`) |
 | `quota.5h`, `quota.7d`, `quota.spend` | `reset_format` | A [strftime](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) format for the local reset time, such as `"%-m月%-d日 %H:%M"` |
 | `context` | `token_style` | `short` (`1M`, default) or `decimal` (`1.0M`) |
+| `context` | `compact_window` | Tokens of the auto-compact window to measure against, such as `400000`; `0` (default) uses the model window. The original share is kept in `{cc_pct}` |
 | `dir` | `style`, `depth` | `style = "depth"` shows the last `depth` path components (default 3) |
 | `git` | `branch_prefixes` | Shortens branch names: `"feature/=✨, fix/=🐛"` shows `feature/login` as `✨login` (the longest matching prefix wins) |
 

@@ -78,7 +78,7 @@ pub(super) fn metrics() -> Vec<Metric> {
                 "Skills",
                 "Skill calls in the session transcript",
                 IconKey::Skills,
-                ["{now} {arrow} {total}", "{now}", "{count}"],
+                ["{now}", "{now}", "{count}"],
                 &["running", "done", "count", "now", "total", "arrow"],
             ),
             compute: skills,
@@ -95,11 +95,11 @@ pub(super) fn metrics() -> Vec<Metric> {
                     "activity.tools",
                     Category::Activity,
                     "Tools",
-                    "Current tools and completed tool counts in this session",
+                    "Running tools and counts of the latest completed calls",
                     IconKey::Tools,
-                    ["{now}[ {arrow} {counts}]", "{now}", "{total}"],
+                    ["{line}", "{now}", "{total}"],
                     &[
-                        "tools", "count", "elapsed", "now", "counts", "total", "arrow",
+                        "tools", "count", "elapsed", "now", "line", "counts", "total", "arrow",
                     ],
                 )
             },
@@ -110,9 +110,9 @@ pub(super) fn metrics() -> Vec<Metric> {
                 "activity.agents",
                 Category::Activity,
                 "Agents",
-                "Current and recent subagents with session totals",
+                "Running and just-finished subagents",
                 IconKey::Agent,
-                ["[{now} {arrow} ]{counts}", "{now}", "{count}"],
+                ["{now}", "{now}", "{count}"],
                 &["count", "types", "now", "counts", "arrow"],
             ),
             compute: agents,
@@ -175,10 +175,14 @@ fn skills(ctx: &Ctx, _: &Options) -> Option<Reading> {
             .first()
             .map(|s| format!("{} {}", ctx.glyphs.running(), s))
             .or_else(|| {
-                skills
-                    .done
-                    .last()
-                    .map(|s| format!("{} {}", ctx.glyphs.finished(false), s))
+                let mut names: Vec<&str> = Vec::new();
+                for name in &skills.done {
+                    if !names.contains(&name.as_str()) {
+                        names.push(name);
+                    }
+                }
+                (!names.is_empty())
+                    .then(|| format!("{} {}", ctx.glyphs.finished(false), names.join(", ")))
             })
             .unwrap_or_default();
         Reading::default()
@@ -218,6 +222,48 @@ fn tool_name(name: &str) -> &str {
     }
 }
 
+/// Finished calls counted over this many newest calls, as claude-hud does.
+const TOOLS_KEPT: usize = 20;
+
+/// claude-hud `shortenPath`: at most 20 characters, keeping the file name.
+fn short_target(target: &str) -> String {
+    let target = target.replace('\\', "/");
+    if target.chars().count() <= 20 {
+        return target;
+    }
+    let file = target
+        .rsplit('/')
+        .next()
+        .filter(|f| !f.is_empty())
+        .unwrap_or(&target);
+    if file.chars().count() >= 20 {
+        truncate(file, 20)
+    } else {
+        format!(".../{file}")
+    }
+}
+
+/// `✓ Edit ×6 | ✓ Read ×3 | +2 more`, most used first.
+fn finished_counts(values: &BTreeMap<String, usize>, top: usize, ctx: &Ctx) -> String {
+    let mut counts: Vec<_> = values.iter().collect();
+    counts.sort_by(|(a, x), (b, y)| y.cmp(x).then_with(|| a.cmp(b)));
+    let times = if ctx.glyphs == GlyphTier::Ascii {
+        "x"
+    } else {
+        "×"
+    };
+    let remaining = counts.len().saturating_sub(top);
+    let mut shown: Vec<_> = counts
+        .into_iter()
+        .take(top)
+        .map(|(name, n)| format!("{} {name} {times}{n}", ctx.glyphs.finished(false)))
+        .collect();
+    if remaining > 0 {
+        shown.push(format!("+{remaining} more"));
+    }
+    shown.join(" | ")
+}
+
 fn tools(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     let Some(summary) = ctx.transcript() else {
         return bridge_tools(ctx, opts);
@@ -244,34 +290,43 @@ fn tools(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     let now = running
         .iter()
         .skip(running.len().saturating_sub(2))
-        .chain(finished.iter().skip(finished.len().saturating_sub(2)))
         .map(|t| {
             format!(
                 "{} {}{}",
-                if t.status == Status::Running {
-                    ctx.glyphs.running()
-                } else {
-                    ctx.glyphs.finished(t.status == Status::Error)
-                },
+                ctx.glyphs.running(),
                 tool_name(&t.name),
                 if t.target.is_empty() {
                     String::new()
                 } else {
-                    format!(" {}", t.target)
+                    format!(": {}", short_target(&t.target))
                 }
             )
         })
         .collect::<Vec<_>>()
         .join(" | ");
     let mut named = BTreeMap::new();
+    for t in finished
+        .iter()
+        .skip(finished.len().saturating_sub(TOOLS_KEPT))
+    {
+        *named.entry(tool_name(&t.name).to_owned()).or_insert(0usize) += 1;
+    }
+    let done = finished_counts(&named, top, ctx);
+    let line = [now.as_str(), done.as_str()]
+        .into_iter()
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let mut session = BTreeMap::new();
     for (name, count) in &calls.counts {
-        *named.entry(tool_name(name).to_owned()).or_default() += count;
+        *session.entry(tool_name(name).to_owned()).or_default() += count;
     }
     let mut r = Reading::default()
         .set("now", now)
+        .set("line", line)
         .set(
             "counts",
-            counts(&named, top, ctx.glyphs == GlyphTier::Ascii),
+            counts(&session, top, ctx.glyphs == GlyphTier::Ascii),
         )
         .set("total", calls.count.to_string())
         .set("count", running.len().to_string())
@@ -312,9 +367,11 @@ fn bridge_tools(ctx: &Ctx, opts: &Options) -> Option<Reading> {
         parts.push(format!("+{} more", tools.len() - 2));
     }
     let total = legacy.get("count")?.text.clone();
+    let now = parts.join(" | ");
     Some(
         legacy
-            .set("now", parts.join(" | "))
+            .set("line", now.clone())
+            .set("now", now)
             .set("total", total)
             .set("arrow", ctx.glyphs.arrow()),
     )
@@ -360,11 +417,7 @@ fn agent_now(ctx: &Ctx, agent: &Agent) -> String {
     .flatten()
     .filter(|s| !s.is_empty())
     .collect::<Vec<_>>()
-    .join(if ctx.glyphs == GlyphTier::Ascii {
-        " . "
-    } else {
-        " · "
-    });
+    .join(" ");
     let elapsed = agent
         .end
         .unwrap_or(ctx.now)
@@ -384,7 +437,7 @@ fn agent_now(ctx: &Ctx, agent: &Agent) -> String {
         } else {
             ctx.glyphs.finished(false)
         },
-        clean(&agent.kind, 24),
+        clean(agent.kind.rsplit(':').next().unwrap_or(&agent.kind), 24),
         if badge.is_empty() {
             String::new()
         } else {
@@ -400,7 +453,7 @@ fn agent_now(ctx: &Ctx, agent: &Agent) -> String {
                 } else {
                     "·"
                 },
-                truncate(&agent.description, 40)
+                truncate(&agent.description, 24)
             )
         }
     )
@@ -446,18 +499,25 @@ fn agents(ctx: &Ctx, opts: &Options) -> Option<Reading> {
         })
         .collect();
     recent.sort_by_key(|a| a.end);
-    let shown = running.len().min(3);
-    let slots = (3 - shown).min(2);
-    let now = running
+    let shown = running.len().min(2);
+    let slots = 2 - shown;
+    let mut now: Vec<_> = running
         .iter()
-        .skip(running.len().saturating_sub(3))
+        .skip(running.len().saturating_sub(2))
         .chain(recent.iter().skip(recent.len().saturating_sub(slots)))
         .map(|a| agent_now(ctx, a))
-        .collect::<Vec<_>>()
-        .join(" | ");
+        .collect::<Vec<_>>();
+    if running.len() > 2 {
+        now.push(format!("+{} more", running.len() - 2));
+    }
+    // Nothing running or just finished: hide the row instead of falling back
+    // to a bare count.
+    if now.is_empty() {
+        return None;
+    }
     Some(
         Reading::default()
-            .set("now", now)
+            .set("now", now.join(" | "))
             .set("count", running.len().to_string())
             .set(
                 "types",
@@ -664,7 +724,8 @@ mod tests {
             "Bash×47 Edit×11 Grep×5 Read×5 +1 more"
         );
         assert_eq!(text(&calls, "total"), "70");
-        assert_eq!(text(&calls, "now"), "✗ Edit lib.rs");
+        assert!(calls.get("now").is_none());
+        assert_eq!(text(&calls, "line"), "✓ Edit ×1");
         let mcp = reading(&ctx, "mcp").unwrap();
         assert_eq!(text(&mcp, "names"), "a, z");
         assert_eq!(text(&mcp, "count"), "2");
@@ -720,7 +781,7 @@ mod tests {
                 .collect();
             let reading = tools(&ctx, &opts).unwrap();
             assert_eq!(text(&reading, "counts"), expected);
-            assert_eq!(text(&reading, "now"), "x Edit lib.rs");
+            assert_eq!(text(&reading, "line"), "+ Edit x1");
         }
     }
 
@@ -771,12 +832,12 @@ mod tests {
             if tier == GlyphTier::Ascii {
                 assert_eq!(
                     agents,
-                    "* Explore [haiku-4.5 . high] . scan the crate (1m 2s) => Agentx1 (1 running)"
+                    "* Explore [haiku-4.5 high] . scan the crate (1m 2s)"
                 );
             } else {
                 assert_eq!(
                     agents,
-                    "◐ Explore [haiku-4.5 · high] · scan the crate (1m 2s) ⇒ Agent×1 (1 running)"
+                    "◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)"
                 );
             }
         }
@@ -827,7 +888,7 @@ mod tests {
             GlyphTier::Unicode,
         )
         .with_transcript(TranscriptSource::Fixed(Some(summary)));
-        assert_eq!(rendered(&ctx, "activity.agents"), "Agent×5");
+        assert!(reading(&ctx, "activity.agents").is_none());
     }
 
     #[test]
@@ -860,9 +921,11 @@ mod tests {
             GlyphTier::Unicode,
         )
         .with_transcript(TranscriptSource::Fixed(Some(summary)));
+        let tools = reading(&ctx, "activity.tools").unwrap();
+        assert_eq!(text(&tools, "now"), "◐ search: new | ◐ search: latest");
         assert_eq!(
-            text(&reading(&ctx, "activity.tools").unwrap(), "now"),
-            "◐ search new | ◐ search latest | ✓ search done2 | ✗ search done3"
+            rendered(&ctx, "activity.tools"),
+            "◐ search: new | ◐ search: latest | ✓ search ×3"
         );
     }
 
@@ -914,7 +977,7 @@ mod tests {
             GlyphTier::Unicode,
         )
         .with_transcript(TranscriptSource::Fixed(Some(summary)));
-        assert_eq!(rendered(&ctx, "activity.skills"), "✓ review ⇒ 1 skill");
+        assert_eq!(rendered(&ctx, "activity.skills"), "✓ review");
     }
 
     #[test]

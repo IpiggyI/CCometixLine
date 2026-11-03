@@ -399,7 +399,7 @@ mod tests {
                 "haiku-4.5",
                 "scan the crate",
                 "cover the new segment",
-                "skills",
+                "trellis-meta",
                 "format",
                 "CLAUDE.md:",
             ] {

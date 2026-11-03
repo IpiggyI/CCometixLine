@@ -70,12 +70,20 @@ pub(super) fn metrics() -> Vec<Metric> {
                 widget: WidgetKind::Bar,
                 templates: ["{pct}%[ · {tokens}]", "{pct}%", "{pct}%"],
                 fields: &["pct", "tokens", "window", "left", "cc_pct"],
-                options: &[OptSpec {
-                    key: "token_style",
-                    kind: OptKind::Choice(&["short", "decimal"]),
-                    default: "short",
-                    summary: "Keep one decimal for millions",
-                }],
+                options: &[
+                    OptSpec {
+                        key: "token_style",
+                        kind: OptKind::Choice(&["short", "decimal"]),
+                        default: "short",
+                        summary: "Keep one decimal for millions",
+                    },
+                    OptSpec {
+                        key: "compact_window",
+                        kind: OptKind::Number,
+                        default: "0",
+                        summary: "Measure against this auto-compact window in tokens; 0 uses the model window",
+                    },
+                ],
                 levels: LEVELS,
                 priority: 5,
                 ..meta(
@@ -234,11 +242,18 @@ fn context(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     let cw = ctx.input.context_window.as_ref()?;
     let tokens = context_tokens(cw)?;
     let resolved = ctx.model();
-    let window = resolved.and_then(|r| r.window).or(cw.context_window_size)?;
-    let corrected = resolved.is_some_and(|r| r.window_corrected);
+    let compact = opts
+        .get("compact_window")
+        .and_then(|v| v.as_integer())
+        .filter(|n| *n > 0)
+        .map(|n| n as u64);
+    let window = compact
+        .or(resolved.and_then(|r| r.window))
+        .or(cw.context_window_size)?;
+    let corrected = compact.is_some() || resolved.is_some_and(|r| r.window_corrected);
     let ratio = match cw.used_percentage {
         Some(p) if !corrected => p / 100.0,
-        _ if window > 0 => tokens as f64 / window as f64,
+        _ if window > 0 => (tokens as f64 / window as f64).min(1.0),
         _ => return None,
     };
     let mut r = Reading::default()
@@ -469,6 +484,30 @@ fn duration(ctx: &Ctx, _: &Options) -> Option<Reading> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn context_compact_window_replaces_the_model_window() {
+        let input = crate::input::Input::parse(
+            r#"{"context_window":{"total_input_tokens":120000,"context_window_size":1000000,"used_percentage":12}}"#,
+        )
+        .unwrap();
+        let registry = crate::models::Registry::default();
+        let ctx = Ctx::new(
+            &input,
+            &registry,
+            0,
+            chrono::FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        );
+        let plain = context(&ctx, &Options::new()).unwrap();
+        assert_eq!(plain.get("pct").unwrap().text, "12");
+        let opts = toml::from_str("compact_window = 400000").unwrap();
+        let compact = context(&ctx, &opts).unwrap();
+        assert_eq!(compact.get("pct").unwrap().text, "30");
+        assert_eq!(compact.get("window").unwrap().text, "400k");
+        assert_eq!(compact.get("left").unwrap().text, "280k");
+        assert_eq!(compact.get("cc_pct").unwrap().text, "12");
+    }
 
     #[test]
     fn context_token_style_applies_to_all_token_fields() {

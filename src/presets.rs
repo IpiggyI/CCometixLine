@@ -201,7 +201,16 @@ left = [
 ]
 
 [[line]]
-left = ["activity.tools", "activity.agents", "activity.todos", "activity.skills"]
+left = [{ metric = "activity.tools", icon = "🔧" }]
+
+[[line]]
+left = [{ metric = "activity.agents", icon = "🤖" }]
+
+[[line]]
+left = [{ metric = "activity.todos", icon = "📝" }]
+
+[[line]]
+left = [{ metric = "activity.skills", icon = "📚" }]
 "#,
     },
 ];
