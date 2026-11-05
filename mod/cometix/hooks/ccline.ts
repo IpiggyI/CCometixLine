@@ -211,10 +211,7 @@ function idleConfig(text: string): { enabled: boolean; margin: number } | undefi
 
 const truthy = (value: string | undefined) => /^(1|true|yes|on)$/i.test(value?.trim() ?? '')
 
-async function flagsUnavailable($: $): Promise<boolean> {
-  if (await $.env.get('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC') ||
-      await $.env.get('DISABLE_GROWTHBOOK') || await $.env.get('DISABLE_TELEMETRY') ||
-      await $.env.get('DO_NOT_TRACK')) return true
+async function nativeUnavailable($: $): Promise<boolean> {
   if (truthy(await $.env.get('CLAUDE_CODE_USE_GATEWAY'))) return true
   if (await $.env.get('CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST')) return false
   return truthy(await $.env.get('CLAUDE_CODE_USE_BEDROCK')) ||
@@ -242,7 +239,7 @@ async function idleWindow($: $): Promise<string | { expires: number; margin: num
   if (!live.context?.auto) return 'auto compaction is off or unknown'
   if (await $.settings.read({ key: 'idleCompaction' }) === false) return 'idleCompaction is false'
   if (!(await $.session.surfaces()).includes('terminal')) return 'no terminal surface'
-  if (!await flagsUnavailable($)) return 'native idle compaction is available'
+  if (!await nativeUnavailable($)) return 'native idle compaction is available'
   const id = live.session?.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80)
   if (!id) return 'no safe session id'
   const input = JSON.parse(String(await $.fs.read(`${home}/state/sessions/${id}.json`)))?.last_input

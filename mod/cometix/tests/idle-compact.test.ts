@@ -79,7 +79,7 @@ function setup($: EngineInterface, on: Parameters<Register>[0], options: Options
   }
 }
 
-const ELIGIBLE = { DISABLE_TELEMETRY: '1' }
+const ELIGIBLE = { CLAUDE_CODE_USE_BEDROCK: '1' }
 
 test('enabled and eligible compacts once inside the warm cache window', async ($, on) => {
   const t = setup($, on, { env: ELIGIBLE })
@@ -100,6 +100,10 @@ for (const [name, options] of Object.entries({
   'malformed margin': { config: '[idle_compact]\nenabled = true\nmargin_secs = "180"' },
   'unreadable inputs': { unreadable: true },
   'native capable': { env: {} },
+  'nonessential traffic off': { env: { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' } },
+  'telemetry off': { env: { DISABLE_TELEMETRY: '1' } },
+  'do not track': { env: { DO_NOT_TRACK: '1' } },
+  'growthbook off': { env: { DISABLE_GROWTHBOOK: '1' } },
   'host managed provider': { env: { CLAUDE_CODE_USE_BEDROCK: 'true', CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST: '1' } },
   'false provider flag': { env: { CLAUDE_CODE_USE_VERTEX: '0' } },
   'lineage without a gateway': { env: { CLAUDE_CODE_HOST_GATEWAY_LINEAGE: '1' } },
@@ -241,8 +245,7 @@ test('a running tool delays compaction until it returns', async ($, on) => {
   expect(t.attempts.length).toBe(1)
 })
 
-for (const name of ['CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC', 'DISABLE_GROWTHBOOK', 'DO_NOT_TRACK',
-  'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY', 'CLAUDE_CODE_USE_GATEWAY']) {
+for (const name of ['CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY', 'CLAUDE_CODE_USE_GATEWAY']) {
   test(`${name} makes native compaction unavailable`, async ($, on) => {
     const t = setup($, on, { env: { [name]: 'true' } })
     await t.complete()
@@ -279,13 +282,6 @@ test('large margins clamp to 900 seconds', async ($, on) => {
 
 test('provider truthy values trim whitespace as Claude Code does', async ($, on) => {
   const t = setup($, on, { env: { CLAUDE_CODE_USE_VERTEX: ' TRUE ' } })
-  await t.complete()
-  await t.clock.advance(60_000)
-  expect(t.attempts.length).toBe(1)
-})
-
-test('a nonempty telemetry switch disables flag fetching even when it says zero', async ($, on) => {
-  const t = setup($, on, { env: { DISABLE_TELEMETRY: '0' } })
   await t.complete()
   await t.clock.advance(60_000)
   expect(t.attempts.length).toBe(1)

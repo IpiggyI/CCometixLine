@@ -280,7 +280,7 @@ ccline mod uninstall
 
 默认关闭。开启后，mod 会在会话空闲、1 小时提示缓存即将过期之前压缩它，这样下一次提问就不必为重写庞大的上下文付费。mod 会调用 compact 来操作会话，并且只在下列条件全部满足时才这样做：
 
-- Claude Code 自带的空闲压缩无法运行，例如设置了 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`（`DISABLE_TELEMETRY`、`DO_NOT_TRACK`、`DISABLE_GROWTHBOOK`、网关、Bedrock、Vertex、Foundry 也一样）。自带的能运行时，mod 什么都不做。
+- 会话通过网关、Bedrock、Vertex 或 Foundry 运行。其他情况下 Claude Code 会自己压缩空闲会话，设置了 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`、`DISABLE_TELEMETRY`、`DO_NOT_TRACK` 或 `DISABLE_GROWTHBOOK` 时也一样，这时 mod 什么都不做。
 - 自动压缩已开启，会话在终端里，并且没有正在运行的轮次或工具。
 - 提示缓存处于有效状态、TTL 为 1 小时，并且将在 `margin_secs` 之内过期。
 - 上下文至少有 20 万 token（可用 `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` 调整，下限 10 万）。

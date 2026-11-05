@@ -280,7 +280,7 @@ Live values need Claude Code to redraw the status line on a timer: set `refreshI
 
 Off by default. When you turn it on, the mod compacts a session that has gone idle, shortly before its 1-hour prompt cache expires, so the next prompt doesn't pay to rewrite a large context from scratch. It acts on the session by calling compact, and only when all of these hold:
 
-- Claude Code's own idle compaction can't run, for example because `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set (so do `DISABLE_TELEMETRY`, `DO_NOT_TRACK`, `DISABLE_GROWTHBOOK`, a gateway, Bedrock, Vertex or Foundry). When the native one can run, the mod does nothing.
+- The session runs through a gateway, Bedrock, Vertex or Foundry. Elsewhere Claude Code compacts idle sessions itself, also with `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`, `DISABLE_TELEMETRY`, `DO_NOT_TRACK` or `DISABLE_GROWTHBOOK` set, and the mod does nothing.
 - Auto-compact is on, the session is at a terminal and no turn or tool is running.
 - The prompt cache is warm with a 1-hour TTL and expires within `margin_secs`.
 - The context holds at least 200k tokens (`CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` changes this, with a floor of 100k).
