@@ -13,20 +13,20 @@ use std::process::{Command, Stdio};
 /// The running ccline.
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 
-pub const RELEASES: &str = "https://github.com/Haleclipse/CCometixLine/releases";
+pub const RELEASES: &str = "https://github.com/IpiggyI/CCometixLine/releases";
 
 /// Where to ask, and the JSON key holding the version.
 const SOURCES: &[(&str, &str)] = &[
     (
-        "https://registry.npmjs.org/@cometix/ccline/latest",
+        "https://registry.npmjs.org/@ipiggyi/ccline/latest",
         "version",
     ),
     (
-        "https://registry.npmmirror.com/@cometix/ccline/latest",
+        "https://registry.npmmirror.com/@ipiggyi/ccline/latest",
         "version",
     ),
     (
-        "https://api.github.com/repos/Haleclipse/CCometixLine/releases/latest",
+        "https://api.github.com/repos/IpiggyI/CCometixLine/releases/latest",
         "tag_name",
     ),
 ];

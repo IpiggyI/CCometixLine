@@ -227,7 +227,7 @@ pub const SCENARIOS: &[Scenario] = &[
         }),
         history: &[],
         today: None,
-        latest: Some("2.1.0"),
+        latest: Some("2.2.0"),
         bridge: Some(FRESH_BRIDGE),
         json: r#"{
   "session_id": "s-fresh", "cwd": "/home/u/app",

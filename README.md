@@ -24,26 +24,26 @@ A fast, composable status line for Claude Code, written in Rust, with a full-scr
 ## Install
 
 ```bash
-npm install -g @cometix/ccline
+npm install -g @ipiggyi/ccline
 ```
 
 <details>
 <summary>yarn, pnpm, the npm mirror</summary>
 
 ```bash
-yarn global add @cometix/ccline
-pnpm add -g @cometix/ccline
-npm install -g @cometix/ccline --registry https://registry.npmmirror.com
+yarn global add @ipiggyi/ccline
+pnpm add -g @ipiggyi/ccline
+npm install -g @ipiggyi/ccline --registry https://registry.npmmirror.com
 ```
 
 </details>
 
-The package puts the binary at `~/.claude/ccline/ccline` and the `ccline` command on your PATH. To update later: `npm update -g @cometix/ccline`.
+The package puts the binary at `~/.claude/ccline/ccline` and the `ccline` command on your PATH. To update later: `npm update -g @ipiggyi/ccline`.
 
 <details>
 <summary>Manual download</summary>
 
-Download the archive for your platform from [Releases](https://github.com/Haleclipse/CCometixLine/releases) and put the binary at `~/.claude/ccline/ccline` (`ccline.exe` on Windows).
+Download the archive for your platform from [Releases](https://github.com/IpiggyI/CCometixLine/releases) and put the binary at `~/.claude/ccline/ccline` (`ccline.exe` on Windows).
 
 | Platform | Archive |
 |---|---|
@@ -67,7 +67,7 @@ mv ccline ~/.claude/ccline/ && chmod +x ~/.claude/ccline/ccline
 <summary>Build from source</summary>
 
 ```bash
-git clone https://github.com/Haleclipse/CCometixLine.git
+git clone https://github.com/IpiggyI/CCometixLine.git
 cd CCometixLine
 cargo build --release
 mkdir -p ~/.claude/ccline

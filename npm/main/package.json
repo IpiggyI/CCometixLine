@@ -1,5 +1,5 @@
 {
-  "name": "@cometix/ccline",
+  "name": "@ipiggyi/ccline",
   "version": "0.0.0",
   "description": "CCometixLine - High-performance Claude Code StatusLine tool",
   "bin": {
@@ -9,17 +9,17 @@
     "postinstall": "node scripts/postinstall.js"
   },
   "optionalDependencies": {
-    "@cometix/ccline-darwin-x64": "0.0.0",
-    "@cometix/ccline-darwin-arm64": "0.0.0",
-    "@cometix/ccline-linux-x64": "0.0.0",
-    "@cometix/ccline-linux-x64-musl": "0.0.0",
-    "@cometix/ccline-linux-arm64": "0.0.0",
-    "@cometix/ccline-linux-arm64-musl": "0.0.0",
-    "@cometix/ccline-win32-x64": "0.0.0"
+    "@ipiggyi/ccline-darwin-x64": "0.0.0",
+    "@ipiggyi/ccline-darwin-arm64": "0.0.0",
+    "@ipiggyi/ccline-linux-x64": "0.0.0",
+    "@ipiggyi/ccline-linux-x64-musl": "0.0.0",
+    "@ipiggyi/ccline-linux-arm64": "0.0.0",
+    "@ipiggyi/ccline-linux-arm64-musl": "0.0.0",
+    "@ipiggyi/ccline-win32-x64": "0.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Haleclipse/CCometixLine"
+    "url": "https://github.com/IpiggyI/CCometixLine"
   },
   "keywords": ["claude", "statusline", "claude-code", "rust", "cli"],
   "author": "Haleclipse",

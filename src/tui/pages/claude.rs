@@ -48,7 +48,7 @@ const INTERVALS: [u32; 5] = [6, 12, 24, 48, 168];
 /// Idle compaction's margin in seconds: the lowest and highest the config
 /// accepts, and the step of ←→.
 const MARGINS: (u64, u64, u64) = (30, 900, 30);
-const UPGRADE: &str = "npm update -g @cometix/ccline";
+const UPGRADE: &str = "npm update -g @ipiggyi/ccline";
 /// Oldest Claude Code with mods.
 const MODS: Version = Version {
     major: 2,

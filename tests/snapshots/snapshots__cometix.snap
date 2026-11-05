@@ -11,11 +11,11 @@ expression: render_preset(preset.name)
  Opus 4.8 · High | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ |  62% · 124k |  3:42 · 94% hit⏎
 ── fresh @ 60
  Sonnet 5 · Med | 󰉋 app | 󰊢 main ✓ |  12% · 24k |  4:20⏎
-                                          󰚰 ]8;;https://github.com/Haleclipse/CCometixLine/releases/tag/v2.1.0\v2.1.0 available]8;;\⏎
+                                          󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\⏎
 ── fresh @ 100
- Sonnet 5 · Med | 󰉋 app | 󰊢 main ✓ |  12% · 24k |  4:20                        󰚰 ]8;;https://github.com/Haleclipse/CCometixLine/releases/tag/v2.1.0\v2.1.0 available]8;;\⏎
+ Sonnet 5 · Med | 󰉋 app | 󰊢 main ✓ |  12% · 24k |  4:20                        󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\⏎
 ── fresh @ 140
- Sonnet 5 · Med | 󰉋 app | 󰊢 main ✓ |  12% · 24k |  4:20                                                                󰚰 ]8;;https://github.com/Haleclipse/CCometixLine/releases/tag/v2.1.0\v2.1.0 available]8;;\⏎
+ Sonnet 5 · Med | 󰉋 app | 󰊢 main ✓ |  12% · 24k |  4:20                                                                󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\⏎
 ── near-full @ 60
  Opus 4.8 · Max | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\⏎
  91% · 182k |  cold · 71% hit⏎

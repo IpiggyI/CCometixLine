@@ -33,7 +33,7 @@ const START: [(&str, Go); 6] = [
     ("First-run setup", Go::Setup),
     ("Quit", Go::Quit),
 ];
-const UPGRADE: &str = "npm update -g @cometix/ccline";
+const UPGRADE: &str = "npm update -g @ipiggyi/ccline";
 /// Recommended `refreshInterval`, in seconds.
 const REFRESH: u64 = 2;
 

@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-03
+
 ### Added
+- **Distribution**: this fork publishes to npm as `@ipiggyi/ccline` and its own GitHub Releases; the update check asks those sources
 - **Cost Metrics**: `cost.week` (spend since the 7-day limit window opened, with `{usd}` and `{since}`) and `cost.month` (spend since the first local day of the month)
 - **Display Options**: `countdown` (`compact`, `spaced` or `coarse`) and `reset_format` (a strftime format) on `quota.5h`, `quota.7d` and `quota.spend`; `token_style` (`short` or `decimal`, so `1.0M`) and `compact_window` (measure against an auto-compact window, such as `400000`) on `context`; the `depth` style and `depth` option on `dir`; `branch_prefixes` on `git`; a `{fast}` field on `model` that shows fast mode
 - **Links**: with terminals that support OSC 8, the `git` branch links to its page on the remote

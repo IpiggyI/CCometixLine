@@ -24,26 +24,26 @@
 ## 安装
 
 ```bash
-npm install -g @cometix/ccline
+npm install -g @ipiggyi/ccline
 ```
 
 <details>
 <summary>yarn、pnpm、npm 镜像</summary>
 
 ```bash
-yarn global add @cometix/ccline
-pnpm add -g @cometix/ccline
-npm install -g @cometix/ccline --registry https://registry.npmmirror.com
+yarn global add @ipiggyi/ccline
+pnpm add -g @ipiggyi/ccline
+npm install -g @ipiggyi/ccline --registry https://registry.npmmirror.com
 ```
 
 </details>
 
-安装后程序位于 `~/.claude/ccline/ccline`，同时提供全局命令 `ccline`。以后更新：`npm update -g @cometix/ccline`。
+安装后程序位于 `~/.claude/ccline/ccline`，同时提供全局命令 `ccline`。以后更新：`npm update -g @ipiggyi/ccline`。
 
 <details>
 <summary>手动下载</summary>
 
-从 [Releases](https://github.com/Haleclipse/CCometixLine/releases) 下载对应平台的压缩包，把程序放到 `~/.claude/ccline/ccline`（Windows 为 `ccline.exe`）。
+从 [Releases](https://github.com/IpiggyI/CCometixLine/releases) 下载对应平台的压缩包，把程序放到 `~/.claude/ccline/ccline`（Windows 为 `ccline.exe`）。
 
 | 平台 | 压缩包 |
 |---|---|
@@ -67,7 +67,7 @@ mv ccline ~/.claude/ccline/ && chmod +x ~/.claude/ccline/ccline
 <summary>从源码构建</summary>
 
 ```bash
-git clone https://github.com/Haleclipse/CCometixLine.git
+git clone https://github.com/IpiggyI/CCometixLine.git
 cd CCometixLine
 cargo build --release
 mkdir -p ~/.claude/ccline
