@@ -945,16 +945,16 @@ pub const TEXT: &[(&str, &str)] = &[
         "按这个自动压缩窗口（词元数）计算占用；0 表示用模型的窗口",
     ),
     (
-        "Number of most-used tools to show",
-        "显示调用次数最多的工具数量",
+        "Number of recently used tools to show",
+        "显示最近用过的工具种类数",
     ),
     ("Tools", "工具"),
     ("Agents", "代理"),
     ("Todos", "待办"),
     ("Environment", "环境"),
     (
-        "Running tools and counts of the latest completed calls",
-        "正在运行的工具及最近完成调用的次数",
+        "Running tools and the latest finished tools with session counts",
+        "正在运行的工具，以及最近完成的工具和它们在本会话的调用次数",
     ),
     (
         "Running and just-finished subagents",

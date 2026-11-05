@@ -170,7 +170,7 @@ The activity metrics read best one per row (the built-in `hud` preset lays them 
 ✓ format ⇒ Post×1
 ```
 
-- `activity.tools`: up to 2 running tools (`◐`) with their target, then the latest 20 finished calls counted per tool; `top` sets how many tools (default 4). Session totals are in the `{counts}` and `{total}` fields.
+- `activity.tools`: up to 2 running tools (`◐`) with their target, then the most recently finished tools, newest first, each with its session count; `top` sets how many tools (default 5). Session totals are in the `{counts}` and `{total}` fields.
 - `activity.agents`: up to 2 subagents running or ended in the last minute, with model, effort, description (cut to 24 characters) and run time; hidden when there are none. How many ran is in the `{counts}` field.
 - `activity.todos`: the todo in progress (`▸`) and how many are done.
 - `activity.skills`: the skill running, or the skills used most recently; the call count is in the `{count}` field.

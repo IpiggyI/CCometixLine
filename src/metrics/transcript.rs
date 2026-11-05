@@ -1,7 +1,7 @@
 //! Session and activity metrics from the bounded transcript summary.
 
 use super::{Ctx, Metric, MetricMeta, OptKind, OptSpec, Options, Reading, fmt};
-use crate::state::transcript::{Agent, Status, clean, short_event};
+use crate::state::transcript::{Agent, Status, Tool, clean, short_event};
 use crate::style::{Category, GlyphTier, IconKey};
 use crate::widgets::WidgetKind;
 use std::collections::BTreeMap;
@@ -88,14 +88,14 @@ pub(super) fn metrics() -> Vec<Metric> {
                 options: &[OptSpec {
                     key: "top",
                     kind: OptKind::Number,
-                    default: "4",
-                    summary: "Number of most-used tools to show",
+                    default: "5",
+                    summary: "Number of recently used tools to show",
                 }],
                 ..meta(
                     "activity.tools",
                     Category::Activity,
                     "Tools",
-                    "Running tools and counts of the latest completed calls",
+                    "Running tools and the latest finished tools with session counts",
                     IconKey::Tools,
                     ["{line}", "{now}", "{total}"],
                     &[
@@ -222,9 +222,6 @@ fn tool_name(name: &str) -> &str {
     }
 }
 
-/// Finished calls counted over this many newest calls, as claude-hud does.
-const TOOLS_KEPT: usize = 20;
-
 /// claude-hud `shortenPath`: at most 20 characters, keeping the file name.
 fn short_target(target: &str) -> String {
     let target = target.replace('\\', "/");
@@ -243,25 +240,41 @@ fn short_target(target: &str) -> String {
     }
 }
 
-/// `✓ Edit ×6 | ✓ Read ×3 | +2 more`, most used first.
-fn finished_counts(values: &BTreeMap<String, usize>, top: usize, ctx: &Ctx) -> String {
-    let mut counts: Vec<_> = values.iter().collect();
-    counts.sort_by(|(a, x), (b, y)| y.cmp(x).then_with(|| a.cmp(b)));
+/// `✓ Bash ×18 | ✓ Edit ×2`: the `top` most recently finished tool names,
+/// newest first, each with its session count.
+fn finished_kinds(
+    finished: &[&Tool],
+    session: &BTreeMap<String, usize>,
+    top: usize,
+    ctx: &Ctx,
+) -> String {
     let times = if ctx.glyphs == GlyphTier::Ascii {
         "x"
     } else {
         "×"
     };
-    let remaining = counts.len().saturating_sub(top);
-    let mut shown: Vec<_> = counts
-        .into_iter()
-        .take(top)
-        .map(|(name, n)| format!("{} {name} {times}{n}", ctx.glyphs.finished(false)))
-        .collect();
-    if remaining > 0 {
-        shown.push(format!("+{remaining} more"));
+    let mut names: Vec<&str> = Vec::new();
+    for t in finished.iter().rev() {
+        let name = tool_name(&t.name);
+        if names.len() < top && !names.contains(&name) {
+            names.push(name);
+        }
     }
-    shown.join(" | ")
+    names
+        .iter()
+        .map(|name| {
+            // The session map stops adding names after its cap; count the
+            // bounded recent list for a name it lacks.
+            let n = session.get(*name).copied().unwrap_or_else(|| {
+                finished
+                    .iter()
+                    .filter(|t| tool_name(&t.name) == *name)
+                    .count()
+            });
+            format!("{} {name} {times}{n}", ctx.glyphs.finished(false))
+        })
+        .collect::<Vec<_>>()
+        .join(" | ")
 }
 
 fn tools(ctx: &Ctx, opts: &Options) -> Option<Reading> {
@@ -275,7 +288,7 @@ fn tools(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     let top = opts
         .get("top")
         .and_then(|v| v.as_integer())
-        .unwrap_or(4)
+        .unwrap_or(5)
         .clamp(1, 128) as usize;
     let running: Vec<_> = calls
         .recent
@@ -304,23 +317,16 @@ fn tools(ctx: &Ctx, opts: &Options) -> Option<Reading> {
         })
         .collect::<Vec<_>>()
         .join(" | ");
-    let mut named = BTreeMap::new();
-    for t in finished
-        .iter()
-        .skip(finished.len().saturating_sub(TOOLS_KEPT))
-    {
-        *named.entry(tool_name(&t.name).to_owned()).or_insert(0usize) += 1;
+    let mut session = BTreeMap::new();
+    for (name, count) in &calls.counts {
+        *session.entry(tool_name(name).to_owned()).or_default() += count;
     }
-    let done = finished_counts(&named, top, ctx);
+    let done = finished_kinds(&finished, &session, top, ctx);
     let line = [now.as_str(), done.as_str()]
         .into_iter()
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .join(" | ");
-    let mut session = BTreeMap::new();
-    for (name, count) in &calls.counts {
-        *session.entry(tool_name(name).to_owned()).or_default() += count;
-    }
     let mut r = Reading::default()
         .set("now", now)
         .set("line", line)
@@ -721,11 +727,11 @@ mod tests {
         let calls = reading(&ctx, "activity.tools").unwrap();
         assert_eq!(
             text(&calls, "counts"),
-            "Bash×47 Edit×11 Grep×5 Read×5 +1 more"
+            "Bash×47 Edit×11 Grep×5 Read×5 Write×2"
         );
         assert_eq!(text(&calls, "total"), "70");
         assert!(calls.get("now").is_none());
-        assert_eq!(text(&calls, "line"), "✓ Edit ×1");
+        assert_eq!(text(&calls, "line"), "✓ Edit ×11");
         let mcp = reading(&ctx, "mcp").unwrap();
         assert_eq!(text(&mcp, "names"), "a, z");
         assert_eq!(text(&mcp, "count"), "2");
@@ -781,8 +787,60 @@ mod tests {
                 .collect();
             let reading = tools(&ctx, &opts).unwrap();
             assert_eq!(text(&reading, "counts"), expected);
-            assert_eq!(text(&reading, "line"), "+ Edit x1");
+            assert_eq!(text(&reading, "line"), "+ Edit x11");
         }
+    }
+
+    #[test]
+    fn finished_tools_show_the_latest_kinds_with_session_counts() {
+        let input = Input::default();
+        let registry = Registry::default();
+        let mut summary = summary();
+        summary.tool_calls.counts.insert("Glob".into(), 1);
+        summary
+            .tool_calls
+            .counts
+            .insert("mcp__docs__search".into(), 3);
+        summary.tool_calls.recent = [
+            "Glob",
+            "Write",
+            "Grep",
+            "Bash",
+            "Read",
+            "Bash",
+            "mcp__docs__search",
+            "Edit",
+            "Bash",
+        ]
+        .iter()
+        .enumerate()
+        .map(|(i, name)| Tool {
+            id: i.to_string(),
+            name: (*name).into(),
+            status: Status::Completed,
+            ..Tool::default()
+        })
+        .collect();
+        let ctx = Ctx::new(
+            &input,
+            &registry,
+            0,
+            FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        )
+        .with_transcript(TranscriptSource::Fixed(Some(summary)));
+        let reading = reading(&ctx, "activity.tools").unwrap();
+        assert_eq!(
+            text(&reading, "line"),
+            "✓ Bash ×47 | ✓ Edit ×11 | ✓ search ×3 | ✓ Read ×5 | ✓ Grep ×5"
+        );
+        let opts = [("top".into(), toml::Value::Integer(2))]
+            .into_iter()
+            .collect();
+        assert_eq!(
+            text(&tools(&ctx, &opts).unwrap(), "line"),
+            "✓ Bash ×47 | ✓ Edit ×11"
+        );
     }
 
     fn rendered(ctx: &Ctx, id: &str) -> String {

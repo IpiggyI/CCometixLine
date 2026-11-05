@@ -170,7 +170,7 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 ✓ format ⇒ Post×1
 ```
 
-- `activity.tools`：最多 2 个正在运行的工具（`◐`）及其目标，之后是最近 20 次已完成调用按工具名的计数；`top` 设置显示几种工具（默认 4）。整个会话的合计在 `{counts}` 和 `{total}` 字段里。
+- `activity.tools`：最多 2 个正在运行的工具（`◐`）及其目标，之后是最近完成的几种工具，最新的在前，每种带本会话的调用次数；`top` 设置显示几种工具（默认 5）。整个会话的合计在 `{counts}` 和 `{total}` 字段里。
 - `activity.agents`：最多 2 个正在运行或最近一分钟内结束的子代理，带模型、推理强度、描述（截到 24 个字符）和运行时间；没有这样的子代理时不显示。运行过几个在 `{counts}` 字段里。
 - `activity.todos`：进行中的待办（`▸`）和已完成的数量。
 - `activity.skills`：正在运行的技能，或者最近用过的几个技能；运行次数在 `{count}` 字段里。

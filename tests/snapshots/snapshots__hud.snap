@@ -7,21 +7,21 @@ expression: render_preset(preset.name)
 ▣ app | ⎇ ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\⏎
 用量 ▰▰▱▱▱▱▱▱▱▱ 26% (2h 7m, 02:07)⏎
 本周 ▱▱▱▱▱▱▱▱▱▱ 7% (2d 1h, 10月3日 01:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── normal @ 100
 上下文 ▰▰▰▰▰▰▱▱▱▱ 62% (124k/200k) | ◆ Opus 4.8 · High | ▣ app | ⎇ ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\⏎
 用量 ▰▰▱▱▱▱▱▱▱▱ 26% (2h 7m, 02:07) | 本周 ▱▱▱▱▱▱▱▱▱▱ 7% (2d 1h, 10月3日 01:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── normal @ 140
 上下文 ▰▰▰▰▰▰▱▱▱▱ 62% (124k/200k) | ◆ Opus 4.8 · High | ▣ app | ⎇ ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\⏎
 用量 ▰▰▱▱▱▱▱▱▱▱ 26% (2h 7m, 02:07) | 本周 ▱▱▱▱▱▱▱▱▱▱ 7% (2d 1h, 10月3日 01:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
@@ -30,21 +30,21 @@ expression: render_preset(preset.name)
 ⎇ main ✓⏎
 用量 ▱▱▱▱▱▱▱▱▱▱ 1% (4h 55m, 04:55)⏎
 本周 ▰▱▱▱▱▱▱▱▱▱ 18% (3d 10h, 10月4日 10:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── fresh @ 100
 上下文 ▰▱▱▱▱▱▱▱▱▱ 12% (24k/200k) | ◆ Sonnet 5 · Med | ▣ app | ⎇ main ✓⏎
 用量 ▱▱▱▱▱▱▱▱▱▱ 1% (4h 55m, 04:55) | 本周 ▰▱▱▱▱▱▱▱▱▱ 18% (3d 10h, 10月4日 10:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── fresh @ 140
 上下文 ▰▱▱▱▱▱▱▱▱▱ 12% (24k/200k) | ◆ Sonnet 5 · Med | ▣ app | ⎇ main ✓⏎
 用量 ▱▱▱▱▱▱▱▱▱▱ 1% (4h 55m, 04:55) | 本周 ▰▱▱▱▱▱▱▱▱▱ 18% (3d 10h, 10月4日 10:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
@@ -53,21 +53,21 @@ expression: render_preset(preset.name)
 ⎇ ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\⏎
 用量 ▰▰▰▰▰▰▰▰▱▱ 88% (30m, 00:30)⏎
 本周 ▰▰▰▰▰▰▱▱▱▱ 64% (4d, 10月5日 00:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── near-full @ 100
 上下文 ▰▰▰▰▰▰▰▰▰▱ 91% (182k/200k) | ◆ Opus 4.8 · Max | ▣ app | ⎇ ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\⏎
 用量 ▰▰▰▰▰▰▰▰▱▱ 88% (30m, 00:30) | 本周 ▰▰▰▰▰▰▱▱▱▱ 64% (4d, 10月5日 00:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── near-full @ 140
 上下文 ▰▰▰▰▰▰▰▰▰▱ 91% (182k/200k) | ◆ Opus 4.8 · Max | ▣ app | ⎇ ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\⏎
 用量 ▰▰▰▰▰▰▰▰▱▱ 88% (30m, 00:30) | 本周 ▰▰▰▰▰▰▱▱▱▱ 64% (4d, 10月5日 00:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
@@ -76,40 +76,40 @@ expression: render_preset(preset.name)
 ◆ Opus 5.5 1M · xHigh · fast | ▣ api | ⎇ ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\⏎
 用量 ▱▱▱▱▱▱▱▱▱▱ 4% (4h 30m, 04:30)⏎
 本周 ▰▰▰▰▰▰▰▰▱▱ 80% (1d, 10月2日 00:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── big-context @ 100
 上下文 ▰▰▱▱▱▱▱▱▱▱ 27% (270k/1.0M) | ◆ Opus 5.5 1M · xHigh · fast | ▣ api | ⎇ ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\⏎
 用量 ▱▱▱▱▱▱▱▱▱▱ 4% (4h 30m, 04:30) | 本周 ▰▰▰▰▰▰▰▰▱▱ 80% (1d, 10月2日 00:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── big-context @ 140
 上下文 ▰▰▱▱▱▱▱▱▱▱ 27% (270k/1.0M) | ◆ Opus 5.5 1M · xHigh · fast | ▣ api | ⎇ ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\⏎
 用量 ▱▱▱▱▱▱▱▱▱▱ 4% (4h 30m, 04:30) | 本周 ▰▰▰▰▰▰▰▰▱▱ 80% (1d, 10月2日 00:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── third-party @ 60
 上下文 ▰▰▰▰▰▰▰▰▱▱ 81% (104k/128k) | ◆ Kimi K2 Turbo | ▣ app⏎
 ⎇ main ●⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── third-party @ 100
 上下文 ▰▰▰▰▰▰▰▰▱▱ 81% (104k/128k) | ◆ Kimi K2 Turbo | ▣ app | ⎇ main ●⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── third-party @ 140
 上下文 ▰▰▰▰▰▰▰▰▱▱ 81% (104k/128k) | ◆ Kimi K2 Turbo | ▣ app | ⎇ main ●⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
@@ -118,21 +118,21 @@ expression: render_preset(preset.name)
 ▣ feature-x | ⎇ ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\⏎
 用量 ▰▰▰▰▱▱▱▱▱▱ 41% (3h, 03:00)⏎
 本周 ▰▰▰▱▱▱▱▱▱▱ 33% (2d 10h, 10月3日 10:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── worktree @ 100
 上下文 ▰▱▱▱▱▱▱▱▱▱ 19% (38k/200k) | ◆ Sonnet 5 · High | ▣ feature-x | ⎇ ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\⏎
 用量 ▰▰▰▰▱▱▱▱▱▱ 41% (3h, 03:00) | 本周 ▰▰▰▱▱▱▱▱▱▱ 33% (2d 10h, 10月3日 10:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── worktree @ 140
 上下文 ▰▱▱▱▱▱▱▱▱▱ 19% (38k/200k) | ◆ Sonnet 5 · High | ▣ feature-x | ⎇ ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\⏎
 用量 ▰▰▰▰▱▱▱▱▱▱ 41% (3h, 03:00) | 本周 ▰▰▰▱▱▱▱▱▱▱ 33% (2d 10h, 10月3日 10:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
@@ -140,40 +140,40 @@ expression: render_preset(preset.name)
 上下文 ▱▱▱▱▱▱▱▱▱▱ 5% (9k/200k) | ◆ Haiku 4.5 | ▣ scratch⏎
 用量 ▰▱▱▱▱▱▱▱▱▱ 12% (3h 12m, 03:12)⏎
 本周 ▰▰▱▱▱▱▱▱▱▱ 21% (5d, 10月6日 00:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── non-git @ 100
 上下文 ▱▱▱▱▱▱▱▱▱▱ 5% (9k/200k) | ◆ Haiku 4.5 | ▣ scratch⏎
 用量 ▰▱▱▱▱▱▱▱▱▱ 12% (3h 12m, 03:12) | 本周 ▰▰▱▱▱▱▱▱▱▱ 21% (5d, 10月6日 00:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── non-git @ 140
 上下文 ▱▱▱▱▱▱▱▱▱▱ 5% (9k/200k) | ◆ Haiku 4.5 | ▣ scratch⏎
 用量 ▰▱▱▱▱▱▱▱▱▱ 12% (3h 12m, 03:12) | 本周 ▰▰▱▱▱▱▱▱▱▱ 21% (5d, 10月6日 00:00)⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── gateway @ 60
 上下文 ▰▰▰▰▱▱▱▱▱▱ 40% (80k/200k) | ◆ Sonnet 5 · Med | ▣ app⏎
 ⎇ main ✓⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── gateway @ 100
 上下文 ▰▰▰▰▱▱▱▱▱▱ 40% (80k/200k) | ◆ Sonnet 5 · Med | ▣ app | ⎇ main ✓⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── gateway @ 140
 上下文 ▰▰▰▰▱▱▱▱▱▱ 40% (80k/200k) | ◆ Sonnet 5 · Med | ▣ app | ⎇ main ✓⏎
-🔧 ◐ Bash: cargo test | ✓ Edit ×1⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
 🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎

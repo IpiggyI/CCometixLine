@@ -15,7 +15,9 @@ const CACHE_BYTES: u64 = 8 * 1024 * 1024;
 const RECENT: usize = 256;
 const AGENTS: usize = 128;
 const NAMES: usize = 128;
-const HEAD_BYTES: u64 = 64 * 1024;
+// Subagent transcripts open with a prompt snapshot of 100-200 KiB before the
+// first assistant record that carries the effort.
+const HEAD_BYTES: u64 = 1024 * 1024;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Summary {
@@ -279,7 +281,7 @@ fn fingerprint(file: &mut File, len: u64) -> Option<Fingerprint> {
 
 /// Resume at the last complete line; a changed identity starts a new summary.
 pub fn read(path: &Path) -> Option<Summary> {
-    read_at(path, &super::dir().join("transcripts-v3"))
+    read_at(path, &super::dir().join("transcripts-v4"))
 }
 
 fn read_at(path: &Path, cache_dir: &Path) -> Option<Summary> {
@@ -936,6 +938,26 @@ mod tests {
         assert_eq!(done.agents[0].end, Some(122));
         assert_eq!(done.agents[0].effort.as_deref(), Some("high"));
         assert_eq!(read_at(&path, &cache), Some(done));
+    }
+
+    #[test]
+    fn effort_follows_a_large_prompt_snapshot() {
+        let f = Fixture::new();
+        let path = f.0.join("session.jsonl");
+        std::fs::write(&path, lines(&[
+            json!({"type":"assistant","message":{"content":[{"type":"tool_use","id":"a","name":"Agent"}]}}),
+            json!({"type":"user","toolUseResult":{"agentId":"big"},"message":{"content":[{"type":"tool_result","tool_use_id":"a"}]}}),
+        ])).unwrap();
+        let dir = f.0.join("session/subagents");
+        std::fs::create_dir_all(&dir).unwrap();
+        let snapshot = json!({"type":"prompt_snapshot","systemPrompt":["x".repeat(190 * 1024)]});
+        std::fs::write(
+            dir.join("agent-big.jsonl"),
+            lines(&[snapshot, json!({"type":"assistant","effort":"high"})]),
+        )
+        .unwrap();
+        let summary = read_at(&path, &f.0.join("cache")).unwrap();
+        assert_eq!(summary.agents[0].effort.as_deref(), Some("high"));
     }
 
     #[test]
