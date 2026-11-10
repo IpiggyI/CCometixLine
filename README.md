@@ -146,7 +146,7 @@ The configurator speaks English and Chinese. `language` in `config.toml` picks `
 | Identity | `model` (with reasoning effort and fast mode), `advisor`², `output_style`, `vim`, `agent` |
 | Session | `session_name`, `duration`, `session.start`², `session.last_reply`² |
 | Context | `context`, `context.trend`, `context.to_compact`, `context.breakdown`¹ |
-| Quota | `quota.5h`, `quota.7d`, `quota.spend`, `quota.eta` |
+| Quota | `quota.5h`, `quota.7d`, `quota.model`⁴, `quota.spend`, `quota.eta` |
 | Cost | `cost`, `cost.rate` (per hour), `cost.today` (all sessions), `cost.week` (since the 7-day window opened), `cost.month` (since the 1st) |
 | Cache | `cache` (time until cold, hit ratio, misses), `cache.cold_cost` |
 | Code | `dir`, `git`, `repo`, `pr`, `worktree`, `lines` |
@@ -159,6 +159,8 @@ The configurator speaks English and Chinese. `language` in `config.toml` picks `
 ² Read from the session transcript, over the whole session. Each render reads at most 8 MiB of new transcript and remembers where it stopped, so a very long transcript catches up over a few renders and later renders read only what was appended. `activity.hooks` covers the hook results since your latest prompt. Without a transcript, `activity.tools` and `activity.agents` show what the companion mod reports.
 
 ³ `env` lists the `CLAUDE.md` files, rules and configured hooks of your user and project settings, and the MCP servers. `mcp` lists the enabled MCP servers: those in your user and project configuration, plus the servers in the project's `.mcp.json` that your `settings.json`, `.claude/settings.json` or `.claude/settings.local.json` approve (`enabledMcpjsonServers`, or `enableAllProjectMcpServers`, less `disabledMcpjsonServers`). Windows project paths match however they are written. Servers that plugins provide are not included.
+
+⁴ `quota.model` shows a model's own weekly limit, such as Fable's. Claude Code doesn't pass these limits to the status line, so ccline reads them from `usage-snapshot.json` in Claude Code's config directory (`~/.claude`, or `CLAUDE_CONFIG_DIR`), written by another tool such as cc-usage. The file has claude-hud's external snapshot shape, `{"updated_at": ISO, "model_scoped": [{"display_name": "Fable", "utilization": 37, "resets_at": ISO}]}`; a file older than 15 minutes is ignored.
 
 The activity metrics read best one per row (the built-in `hud` preset lays them out that way):
 
@@ -191,8 +193,9 @@ These are set per item under `options`, or in the inspector on the Layout page:
 
 | Metric | Option | Values |
 |---|---|---|
-| `quota.5h`, `quota.7d`, `quota.spend` | `countdown` | `compact` (`3:42`, `2h07m`, `2d4h`; default), `spaced` (`2h 7m`), `coarse` (`2h`) |
-| `quota.5h`, `quota.7d`, `quota.spend` | `reset_format` | A [strftime](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) format for the local reset time, such as `"%-m月%-d日 %H:%M"` |
+| `quota.5h`, `quota.7d`, `quota.model`, `quota.spend` | `countdown` | `compact` (`3:42`, `2h07m`, `2d4h`; default), `spaced` (`2h 7m`), `coarse` (`2h`) |
+| `quota.5h`, `quota.7d`, `quota.model`, `quota.spend` | `reset_format` | A [strftime](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) format for the local reset time, such as `"%-m月%-d日 %H:%M"` |
+| `quota.model` | `model` | The model whose limit to show, matched as a name prefix ignoring case; default `Fable`, empty takes the first |
 | `context` | `token_style` | `short` (`1M`, default) or `decimal` (`1.0M`) |
 | `context` | `compact_window` | Tokens of the auto-compact window to measure against, such as `400000`; `0` (default) uses the model window. The original share is kept in `{cc_pct}` |
 | `dir` | `style`, `depth` | `style = "depth"` shows the last `depth` path components (default 3) |

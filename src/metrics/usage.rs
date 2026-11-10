@@ -63,6 +63,27 @@ const WINDOW_OPTIONS: &[OptSpec] = &[
     },
 ];
 
+const SCOPED_OPTIONS: &[OptSpec] = &[
+    OptSpec {
+        key: "model",
+        kind: OptKind::Text,
+        default: "Fable",
+        summary: "Model whose weekly limit to show, matched as a name prefix; empty takes the first",
+    },
+    OptSpec {
+        key: "countdown",
+        kind: OptKind::Choice(&["compact", "spaced", "coarse"]),
+        default: "compact",
+        summary: "How to format the time left",
+    },
+    OptSpec {
+        key: "reset_format",
+        kind: OptKind::Text,
+        default: "",
+        summary: "Local reset time as a chrono strftime format; unset uses the default",
+    },
+];
+
 pub(super) fn metrics() -> Vec<Metric> {
     vec![
         Metric {
@@ -131,6 +152,23 @@ pub(super) fn metrics() -> Vec<Metric> {
                 )
             },
             compute: seven_day,
+        },
+        Metric {
+            meta: MetricMeta {
+                widget: WidgetKind::Pace,
+                templates: ["{name} {pct}%[ · {reset}]", "{name} {pct}%", "{pct}%"],
+                fields: &["name", "pct", "reset", "left", "pace", "arrow", "eta"],
+                options: SCOPED_OPTIONS,
+                levels: LEVELS,
+                ..meta(
+                    "quota.model",
+                    Category::Quota,
+                    "Model weekly limit",
+                    "A model's own weekly window, such as Fable's, from a usage snapshot file",
+                    IconKey::Quota,
+                )
+            },
+            compute: model_week,
         },
         Metric {
             meta: MetricMeta {
@@ -353,6 +391,33 @@ fn seven_day(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     )
 }
 
+/// The per-model weekly window the `model` option names, read from the
+/// usage snapshot (see `state::usage_snapshot`).
+fn model_week(ctx: &Ctx, opts: &Options) -> Option<Reading> {
+    let want = opts
+        .get("model")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Fable")
+        .trim()
+        .to_lowercase();
+    let w = ctx
+        .state
+        .scoped
+        .iter()
+        .find(|w| w.name.to_lowercase().starts_with(&want))?;
+    let reading = window(
+        &Window {
+            used_percentage: w.used_percentage,
+            resets_at: w.resets_at,
+        },
+        SEVEN_DAYS,
+        Limit::Scoped,
+        ctx,
+        opts,
+    )?;
+    Some(reading.set("name", w.name.clone()))
+}
+
 /// A spend limit as a window, and the window's length.
 fn spend_window(s: &SpendLimit) -> (Window, i64) {
     let length = match s.period.as_deref() {
@@ -559,6 +624,20 @@ mod tests {
                 assert_eq!(reading.link, None);
             }
         }
+        let ctx = ctx.with_state(crate::state::StateView {
+            scoped: vec![crate::state::usage_snapshot::ScopedWindow {
+                name: "Fable 5.2".into(),
+                used_percentage: Some(30.0),
+                resets_at: Some(7620.0),
+            }],
+            ..crate::state::StateView::default()
+        });
+        let reading = model_week(&ctx, &Options::new()).unwrap();
+        assert_eq!(reading.get("name").unwrap().text, "Fable 5.2");
+        assert_eq!(reading.get("pct").unwrap().text, "30");
+        assert_eq!(reading.get("left").unwrap().text, "2h07m");
+        let opts = toml::from_str("model = 'opus'").unwrap();
+        assert!(model_week(&ctx, &opts).is_none());
         assert!(
             metrics()
                 .into_iter()

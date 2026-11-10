@@ -13,6 +13,7 @@ pub mod session;
 pub mod swr;
 pub mod transcript;
 pub mod update;
+pub mod usage_snapshot;
 
 use crate::input::Input;
 use crate::models::Registry;
@@ -180,6 +181,8 @@ pub struct StateView {
     pub latest_version: Option<String>,
     /// What the companion mod reports for this session.
     pub bridge: Option<std::rc::Rc<bridge::Bridge>>,
+    /// Per-model weekly limits from the usage snapshot file.
+    pub scoped: Vec<usage_snapshot::ScopedWindow>,
 }
 
 /// Record this render: add a session sample, fold the session's cost into
@@ -200,6 +203,7 @@ pub fn observe(
     else {
         return StateView {
             samples: vec![current],
+            scoped: usage_snapshot::read(now),
             ..StateView::default()
         };
     };
@@ -252,6 +256,7 @@ pub fn observe(
         month_cost: costs.map(|c| c.2),
         latest_version: None,
         bridge: bridge::read(id, now * 1000).map(std::rc::Rc::new),
+        scoped: usage_snapshot::read(now),
     }
 }
 

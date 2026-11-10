@@ -798,6 +798,10 @@ pub const TEXT: &[(&str, &str)] = &[
         "后台任务最近的 token 数（子代理行）",
     ),
     (
+        "A model's own weekly window, such as Fable's, from a usage snapshot file",
+        "某个模型自己的每周窗口，例如 Fable 的，读自额度快照文件",
+    ),
+    (
         "A newer ccline is published; links to its release notes",
         "有新版 ccline 发布；链接到它的发布说明",
     ),
@@ -896,6 +900,11 @@ pub const TEXT: &[(&str, &str)] = &[
     (
         "Model name, corrected by the model registry, with its reasoning effort",
         "模型名称（经模型登记表校正）及其推理强度",
+    ),
+    ("Model weekly limit", "模型每周限额"),
+    (
+        "Model whose weekly limit to show, matched as a name prefix; empty takes the first",
+        "要显示哪个模型的每周限额，按名称前缀匹配；留空取第一个",
     ),
     (
         "Name from /rename or the generated title; max_len (default 30)",

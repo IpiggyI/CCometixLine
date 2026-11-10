@@ -640,6 +640,18 @@ impl Scenario {
             month_cost: self.today.map(|today| today * 12.0),
             latest_version: self.latest.map(str::to_string),
             bridge: self.bridge(now).map(std::rc::Rc::new),
+            // A subscriber's weekly window comes with Fable's own, as the
+            // usage snapshot would carry it.
+            scoped: current
+                .d7_reset
+                .map(|reset| {
+                    vec![crate::state::usage_snapshot::ScopedWindow {
+                        name: "Fable".into(),
+                        used_percentage: Some(37.0),
+                        resets_at: Some(reset as f64),
+                    }]
+                })
+                .unwrap_or_default(),
         }
     }
 }

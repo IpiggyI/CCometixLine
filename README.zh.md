@@ -146,7 +146,7 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 | 身份 | `model`（含推理强度和快速模式）、`advisor`²、`output_style`、`vim`、`agent` |
 | 会话 | `session_name`、`duration`、`session.start`²、`session.last_reply`² |
 | 上下文 | `context`、`context.trend`、`context.to_compact`、`context.breakdown`¹ |
-| 额度 | `quota.5h`、`quota.7d`、`quota.spend`、`quota.eta` |
+| 额度 | `quota.5h`、`quota.7d`、`quota.model`⁴、`quota.spend`、`quota.eta` |
 | 费用 | `cost`、`cost.rate`（每小时）、`cost.today`（所有会话）、`cost.week`（自 7 天窗口开启起）、`cost.month`（自本月 1 日起） |
 | 缓存 | `cache`（距变冷的时间、命中率、未命中）、`cache.cold_cost` |
 | 代码 | `dir`、`git`、`repo`、`pr`、`worktree`、`lines` |
@@ -159,6 +159,8 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 ² 读取自会话记录（transcript），覆盖整个会话。每次渲染最多读取 8 MiB 新的记录，并记住读到哪里，所以很长的会话记录会在几次渲染内追上，之后每次只读新追加的部分。`activity.hooks` 统计的是你最近一次提问之后的钩子结果。没有会话记录时，`activity.tools` 和 `activity.agents` 显示配套 mod 报告的数据。
 
 ³ `env` 列出用户设置和项目设置里的 `CLAUDE.md` 文件、规则、已配置的钩子，以及 MCP 服务器。`mcp` 列出已启用的 MCP 服务器：用户配置和项目配置中的服务器，加上项目 `.mcp.json` 里经 `settings.json`、`.claude/settings.json` 或 `.claude/settings.local.json` 批准的服务器（`enabledMcpjsonServers`，或 `enableAllProjectMcpServers`，再去掉 `disabledMcpjsonServers`）。Windows 的项目路径无论怎么写都能对上。插件提供的服务器不在其中。
+
+⁴ `quota.model` 显示某个模型自己的每周限额，例如 Fable 的。Claude Code 不把这类限额传给状态栏，所以 ccline 从 Claude Code 配置目录（`~/.claude`，或 `CLAUDE_CONFIG_DIR`）下的 `usage-snapshot.json` 读取。这个文件由别的工具写入，例如 cc-usage。文件格式与 claude-hud 的外部快照相同：`{"updated_at": ISO, "model_scoped": [{"display_name": "Fable", "utilization": 37, "resets_at": ISO}]}`。文件超过 15 分钟没更新就不显示。
 
 活动类指标默认每类各占一行（内置 `hud` 预设就是这样排的）：
 
@@ -191,8 +193,9 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 
 | 指标 | 选项 | 取值 |
 |---|---|---|
-| `quota.5h`、`quota.7d`、`quota.spend` | `countdown` | `compact`（`3:42`、`2h07m`、`2d4h`；默认）、`spaced`（`2h 7m`）、`coarse`（`2h`） |
-| `quota.5h`、`quota.7d`、`quota.spend` | `reset_format` | 本地重置时间的 [strftime](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) 格式，例如 `"%-m月%-d日 %H:%M"` |
+| `quota.5h`、`quota.7d`、`quota.model`、`quota.spend` | `countdown` | `compact`（`3:42`、`2h07m`、`2d4h`；默认）、`spaced`（`2h 7m`）、`coarse`（`2h`） |
+| `quota.5h`、`quota.7d`、`quota.model`、`quota.spend` | `reset_format` | 本地重置时间的 [strftime](https://docs.rs/chrono/latest/chrono/format/strftime/index.html) 格式，例如 `"%-m月%-d日 %H:%M"` |
+| `quota.model` | `model` | 要显示哪个模型的限额，按名称前缀匹配，不区分大小写；默认 `Fable`，留空取第一个 |
 | `context` | `token_style` | `short`（`1M`，默认）或 `decimal`（`1.0M`） |
 | `context` | `compact_window` | 按多大的自动压缩窗口（词元数）计算占用，例如 `400000`；`0`（默认）用模型的窗口。原来的占比保留在 `{cc_pct}` 里 |
 | `dir` | `style`、`depth` | `style = "depth"` 显示路径的最后 `depth` 级（默认 3） |

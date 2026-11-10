@@ -337,6 +337,8 @@ pub(super) enum Limit {
     SevenDay,
     /// Not sampled; projected from the window average alone.
     Spend,
+    /// A per-model weekly window; not sampled either.
+    Scoped,
 }
 
 impl Limit {
@@ -345,7 +347,7 @@ impl Limit {
         match self {
             Limit::FiveHour => Some((s.h5?, s.h5_reset?)),
             Limit::SevenDay => Some((s.d7?, s.d7_reset?)),
-            Limit::Spend => None,
+            Limit::Spend | Limit::Scoped => None,
         }
     }
 }
