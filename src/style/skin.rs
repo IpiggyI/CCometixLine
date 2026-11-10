@@ -354,6 +354,7 @@ pub fn paint(item: &ItemView, theme: &Theme) -> Vec<Span> {
                 let fg = match p.role {
                     Role::Icon => item.icon_color.or(base),
                     Role::Text | Role::Strong => sev.or(item.fg).or(base),
+                    Role::Steady => item.fg.or(base),
                     Role::Muted | Role::Empty => muted,
                     Role::Sep => sep,
                     Role::Fill(s) => severity_token(s).and_then(|t| theme.token(t)).or(base),

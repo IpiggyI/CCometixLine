@@ -56,7 +56,7 @@ fn complete(nodes: &[Node], reading: &Reading) -> bool {
 }
 
 /// Literal text, with its separators as pieces of their own.
-fn literal(text: &str, out: &mut Vec<Piece>) {
+fn literal(text: &str, role: Role, out: &mut Vec<Piece>) {
     let mut rest = text;
     while let Some((at, sep)) = SEPARATORS
         .iter()
@@ -64,20 +64,36 @@ fn literal(text: &str, out: &mut Vec<Piece>) {
         .min_by_key(|(at, _)| *at)
     {
         if at > 0 {
-            out.push(Piece::new(&rest[..at], Role::Text));
+            out.push(Piece::new(&rest[..at], role));
         }
         out.push(Piece::new(sep, Role::Sep));
         rest = &rest[at + sep.len()..];
     }
     if !rest.is_empty() {
-        out.push(Piece::new(rest, Role::Text));
+        out.push(Piece::new(rest, role));
     }
 }
 
+/// Whether every field in `nodes` is steady, so the literals around them
+/// should not change color on their own.
+fn steady(nodes: &[Node], reading: &Reading) -> bool {
+    let mut roles = nodes.iter().filter_map(|n| match n {
+        Node::Field(name) => Some(reading.get(name).and_then(|f| f.role)),
+        _ => None,
+    });
+    let first = roles.next();
+    first.is_some() && first == Some(Some(Role::Steady)) && roles.all(|r| r == Some(Role::Steady))
+}
+
 fn emit(nodes: &[Node], reading: &Reading, out: &mut Vec<Piece>) {
+    let lit_role = if steady(nodes, reading) {
+        Role::Steady
+    } else {
+        Role::Text
+    };
     for node in nodes {
         match node {
-            Node::Lit(text) => literal(text, out),
+            Node::Lit(text) => literal(text, lit_role, out),
             Node::Field(name) => {
                 if let Some(f) = reading.get(name) {
                     out.push(Piece::new(f.text.clone(), f.role.unwrap_or(Role::Text)));
@@ -136,6 +152,17 @@ mod tests {
         assert_eq!(text(&render("{pct}%[ · {tokens}]", &r)), "62% · 124k");
         let r = Reading::default().set("pct", "62");
         assert_eq!(text(&render("{pct}%[ · {tokens}]", &r)), "62%");
+    }
+
+    #[test]
+    fn steady_fields_keep_their_literals_steady() {
+        let r = Reading::default()
+            .set("pct", "90")
+            .set_role("left", "2h", Role::Steady)
+            .set_role("reset", "16:25", Role::Steady);
+        let pieces = render("{pct}%[ ({left}, {reset})]", &r);
+        assert_eq!(pieces[0].role, Role::Text);
+        assert_eq!(pieces[1], Piece::new(" (2h, 16:25)", Role::Steady));
     }
 
     #[test]

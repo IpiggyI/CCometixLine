@@ -18,6 +18,8 @@ pub enum Role {
     Text,
     /// Like `Text`, bold.
     Strong,
+    /// Like `Text`, but keeps the item's color whatever the severity.
+    Steady,
     /// Secondary detail.
     Muted,
     /// A separator a template writes between parts, like ` · `; drawn in

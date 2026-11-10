@@ -371,6 +371,17 @@ fn window(w: &Window, length: i64, limit: Limit, ctx: &Ctx, opts: &Options) -> O
     Some(r)
 }
 
+/// Mark a window's countdown and reset time as steady: they describe the
+/// clock, so they keep the item's color instead of following the level.
+fn steady(mut r: Reading, fields: &[&'static str]) -> Reading {
+    for name in fields {
+        if let Some(text) = r.get(name).map(|f| f.text.clone()) {
+            r = r.set_role(name, text, Role::Steady);
+        }
+    }
+    r
+}
+
 fn five_hour(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     window(
         ctx.input.rate_limits.as_ref()?.five_hour.as_ref()?,
@@ -379,6 +390,7 @@ fn five_hour(ctx: &Ctx, opts: &Options) -> Option<Reading> {
         ctx,
         opts,
     )
+    .map(|r| steady(r, &["left", "reset"]))
 }
 
 fn seven_day(ctx: &Ctx, opts: &Options) -> Option<Reading> {
@@ -389,6 +401,7 @@ fn seven_day(ctx: &Ctx, opts: &Options) -> Option<Reading> {
         ctx,
         opts,
     )
+    .map(|r| steady(r, &["reset"]))
 }
 
 /// The per-model weekly window the `model` option names, read from the
