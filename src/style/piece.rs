@@ -18,7 +18,8 @@ pub enum Role {
     Text,
     /// Like `Text`, bold.
     Strong,
-    /// Like `Text`, but keeps the item's color whatever the severity.
+    /// Not tied to the value: drawn in the label color (`icon_color`, else the
+    /// category's), whatever the item's `color` or severity.
     Steady,
     /// Secondary detail.
     Muted,
