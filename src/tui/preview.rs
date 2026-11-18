@@ -219,7 +219,13 @@ impl Preview {
 
     /// The current scenario in `width` columns; for `Subagent`, its first
     /// background task.
-    fn scene(&self, tz: FixedOffset, width: Option<usize>, target: Target) -> Scene {
+    fn scene(
+        &self,
+        doc: &Doc,
+        fallback_tz: FixedOffset,
+        width: Option<usize>,
+        target: Target,
+    ) -> Scene {
         if let Some(r) = self.replay.as_ref().filter(|_| self.replaying())
             && target == Target::Status
         {
@@ -228,7 +234,7 @@ impl Preview {
                 sub: None,
                 frame: Frame {
                     now: r.now,
-                    tz,
+                    tz: doc.config.timezone.resolve(r.now, fallback_tz),
                     width,
                     git: GitSource::Fixed(r.git.clone()),
                     state: StateView {
@@ -245,7 +251,7 @@ impl Preview {
         let s = SCENARIOS.get(self.scenario).unwrap_or(&SCENARIOS[0]);
         let frame = Frame {
             now: BASE,
-            tz,
+            tz: doc.config.timezone.resolve(BASE, fallback_tz),
             width,
             git: GitSource::Fixed(s.git()),
             state: s.state(BASE),
@@ -277,7 +283,7 @@ impl Preview {
             Target::Status => self.render(config, doc, registry, tz, self.columns()),
             Target::Subagent => {
                 let config = self.effective(config);
-                let scene = self.scene(tz, Some(self.columns() as usize), target);
+                let scene = self.scene(doc, tz, Some(self.columns() as usize), target);
                 let depth = self.depth(doc);
                 let sub = scene.sub.expect("a subagent scene has tasks");
                 statusline::subagent_lines(&sub, &config, registry, scene.frame)
@@ -300,7 +306,7 @@ impl Preview {
         width: u16,
     ) -> Vec<Line<'static>> {
         let config = self.effective(config);
-        let scene = self.scene(tz, Some(width as usize), Target::Status);
+        let scene = self.scene(doc, tz, Some(width as usize), Target::Status);
         let depth = self.depth(doc);
         statusline::lines(&scene.input, &config, registry, scene.frame)
             .iter()
@@ -320,7 +326,7 @@ impl Preview {
         line: &LineConfig,
     ) -> Report {
         let config = self.effective(&doc.config);
-        let scene = self.scene(tz, Some(self.columns() as usize), target);
+        let scene = self.scene(doc, tz, Some(self.columns() as usize), target);
         statusline::report(
             &scene.input,
             scene.task(),
@@ -342,7 +348,7 @@ impl Preview {
         item: &ItemConfig,
     ) -> Option<[Option<Line<'static>>; 3]> {
         let config = self.effective(&doc.config);
-        let scene = self.scene(tz, None, target);
+        let scene = self.scene(doc, tz, None, target);
         let depth = self.depth(doc);
         let levels = statusline::item_levels(
             &scene.input,

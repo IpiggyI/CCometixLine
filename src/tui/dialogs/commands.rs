@@ -10,6 +10,7 @@ use crate::scenarios::SCENARIOS;
 use crate::style::palette;
 use crate::style::{GlyphTier, SkinKind};
 use crate::tf;
+use crate::timezone::{QUICK_TIMEZONES, Timezone};
 use crate::tui::doc::Doc;
 use crate::tui::pages::{Cx, PageId};
 use crate::tui::ui::{self, TextInput};
@@ -183,6 +184,16 @@ fn all(presets: &Library) -> Vec<Command> {
     for language in Language::ALL {
         let label = Label(language.name().into(), language.label().into());
         out.push(edit("Language", label, move |c| c.language = language));
+    }
+    out.push(app("Timezone", "set timezone…", Action::Timezone));
+    for &(id, desc) in QUICK_TIMEZONES {
+        let tz = Timezone::parse(id).unwrap_or(Timezone::Auto);
+        let label = if id == "auto" {
+            Label("auto".into(), t("auto").into())
+        } else {
+            Label(format!("{id} {desc}"), id.to_string())
+        };
+        out.push(edit("Timezone", label, move |c| c.timezone = tz.clone()));
     }
     out
 }
@@ -378,6 +389,26 @@ mod tests {
             .flat_map(|l| l.left.iter())
             .collect();
         assert!(!all.contains(&&ItemSpec::Id("cost.today".into())));
+
+        let mut c = Commands::new(&doc.presets);
+        for ch in "beijing".chars() {
+            c.handle(key(KeyCode::Char(ch)), &mut doc);
+        }
+        assert_eq!(c.matches()[0].label, "Asia/Shanghai");
+        c.handle(key(KeyCode::Enter), &mut doc);
+        assert_eq!(
+            doc.config.timezone,
+            Timezone::Custom("Asia/Shanghai".into())
+        );
+
+        let mut c = Commands::new(&doc.presets);
+        for ch in "set timezone".chars() {
+            c.handle(key(KeyCode::Char(ch)), &mut doc);
+        }
+        assert!(matches!(
+            c.handle(key(KeyCode::Enter), &mut doc),
+            Reply::Then(Action::Timezone)
+        ));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

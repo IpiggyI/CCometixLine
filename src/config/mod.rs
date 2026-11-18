@@ -3,6 +3,7 @@
 use crate::i18n::Language;
 use crate::presets;
 use crate::style::{BarGlyphs, ColorDepth, Edges, FillStyle, GlyphTier, SkinKind};
+use crate::timezone::Timezone;
 use crate::widgets::{Coloring, WidgetKind};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Cow;
@@ -208,6 +209,8 @@ pub struct Config {
     pub preset: Option<String>,
     /// The configuration TUI's language.
     pub language: Language,
+    /// Timezone for wall-clock times and daily cost rollovers.
+    pub timezone: Timezone,
     pub palette: String,
     pub skin: SkinKind,
     /// How pill and powerline segments are colored.
@@ -241,6 +244,7 @@ impl Default for Config {
             version: VERSION,
             preset: None,
             language: Language::Auto,
+            timezone: Timezone::Auto,
             palette: "terminal".into(),
             skin: SkinKind::Plain,
             fill: FillStyle::Solid,
@@ -416,6 +420,29 @@ mod tests {
         empty.lines.clear();
         empty.save(&path).unwrap();
         assert_eq!(load_from(&path), (empty, LoadNote::Fine));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn preserves_other_settings_with_custom_or_unknown_timezone() {
+        let dir = std::env::temp_dir().join(format!("ccline-tz-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.toml");
+        std::fs::write(&path, "timezone = \"Asia/Shanghai\"\npalette = \"nord\"\n").unwrap();
+        let (config, note) = load_from(&path);
+        assert_eq!(note, LoadNote::Fine);
+        assert_eq!(
+            config.timezone,
+            Timezone::Custom("Asia/Shanghai".to_string())
+        );
+        assert_eq!(config.timezone.invalid_spec(), None);
+        assert_eq!(config.palette, "nord");
+
+        std::fs::write(&path, "timezone = \"Mars/Phobos\"\npalette = \"dracula\"\n").unwrap();
+        let (config, note) = load_from(&path);
+        assert_eq!(note, LoadNote::Fine);
+        assert_eq!(config.timezone.invalid_spec(), Some("Mars/Phobos"));
+        assert_eq!(config.palette, "dracula");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

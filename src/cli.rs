@@ -87,6 +87,10 @@ pub struct PreviewArgs {
     /// Color depth: auto, truecolor, 256, 16 or none
     #[arg(long, default_value = "auto")]
     pub color: String,
+
+    /// Timezone for clock times: auto, Asia/Shanghai, +08:00, UTC+8, …
+    #[arg(long)]
+    pub tz: Option<String>,
 }
 
 impl Cli {

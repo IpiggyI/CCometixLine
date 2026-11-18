@@ -87,9 +87,10 @@ pub struct Env {
 
 impl Env {
     pub fn detect() -> Env {
+        let now = chrono::Utc::now().timestamp();
         Env {
-            now: chrono::Utc::now().timestamp(),
-            tz: *chrono::Local::now().offset(),
+            now,
+            tz: crate::timezone::detect_system_offset(now),
             session: crate::state::session::latest(),
             seen: crate::state::models_seen::load(),
             settings: crate::cc_settings::Settings::user_path(),

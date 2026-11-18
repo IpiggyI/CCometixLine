@@ -127,7 +127,7 @@ Run `ccline` (or `ccline -c`). Six pages, switched with `1`–`6`; every change 
 | 3 Layout | Pick metrics from the library, arrange them on lines and sides, and tune the selected item: form, bar glyphs and cells, templates, icon, colors, thresholds |
 | 4 Style | Skin, palette, glyphs, color depth, fill, and color overrides on top of the palette |
 | 5 Models | The model registry: unrecognized ids from recent sessions, your rules with hit counts, and a tester |
-| 6 Claude Code | `statusLine`, `subagentStatusLine` and `refreshInterval`, update checks and the configurator's language, the companion mod |
+| 6 Claude Code | `statusLine`, `subagentStatusLine` and `refreshInterval`, update checks, configurator language and timezone, the companion mod |
 
 ![Layout page](assets/tui-layout.webp)
 
@@ -138,6 +138,8 @@ The icon picker covers all 10,617 icons of Nerd Fonts 3.5.1, searchable by name,
 Keys everywhere: `^S` save, `^Z` / `^Y` undo and redo, `^P` command palette, `[` `]` sample session, `-` `+` preview width, `{` color depth, `}` glyphs, `?` help, `q` quit.
 
 The configurator speaks English and Chinese. `language` in `config.toml` picks `en` or `zh`; `auto`, the default, uses Chinese when the first of `LC_ALL`, `LC_MESSAGES` and `LANG` that is set starts with `zh`, and English otherwise. Change it on the Claude Code page, with `L` in the first-run setup, or from `^P`. The status line itself is not translated.
+
+`timezone` in `config.toml` sets the timezone used for wall-clock times (quota resets, `quota.eta`, `session.start`, `session.last_reply`) and daily cost rollovers (`cost.today`, `cost.week`, `cost.month`). Use `"auto"` (default: `CCLINE_TZ` if set, otherwise the OS local timezone), an IANA name such as `"Asia/Shanghai"` (`"Beijing"` also works), or a UTC offset such as `"+08:00"` or `"UTC+8"`. Change it on the Claude Code page or from `^P`.
 
 ## Metrics
 
@@ -208,10 +210,11 @@ These are set per item under `options`, or in the inspector on the Layout page:
 Everything lives in `~/.claude/ccline/` (`CCLINE_HOME` moves it). The configurator writes `config.toml`; you can edit it by hand too:
 
 ```toml
-preset  = "cometix"
-palette = "terminal"
-skin    = "plain"
-glyphs  = "nerd"
+preset   = "cometix"
+palette  = "terminal"
+skin     = "plain"
+glyphs   = "nerd"
+timezone = "Asia/Shanghai"
 separator = " | "
 
 [[line]]
@@ -301,7 +304,7 @@ margin_secs = 180    # compact this long before the cache expires; kept within 3
 | Command | |
 |---|---|
 | `ccline` | Opens the configurator in a terminal; renders the status line when Claude Code pipes it a session |
-| `ccline preview` | Renders your config with the built-in sample sessions (`--all`, `-s <name or JSON file>`, `--subagent`, `--list`) |
+| `ccline preview` | Renders your config with the built-in sample sessions (`--all`, `-s <name or JSON file>`, `--tz <timezone>`, `--subagent`, `--list`) |
 | `ccline update` | Checks for a newer version now. ccline also checks once a day in the background and shows `update` when one is out; it never downloads anything |
 | `ccline mod` | Installs, updates or removes the companion mod |
 

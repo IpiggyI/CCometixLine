@@ -10,7 +10,8 @@ use crate::config::IdleCompactConfig;
 use crate::i18n::{Language, t};
 use crate::state::update;
 use crate::tf;
-use crate::tui::dialogs::{ModSteps, SettingsDiff, shown_path};
+use crate::timezone::{QUICK_TIMEZONES, Timezone, format_offset};
+use crate::tui::dialogs::{ModSteps, SettingsDiff, TimezoneDialog, shown_path};
 use crate::tui::doc::Doc;
 use crate::tui::ui;
 use crate::version::Version;
@@ -34,7 +35,7 @@ enum Pane {
 /// In the order they sit on screen: left to right, top to bottom.
 const PANES: [Pane; 4] = [Pane::StatusLine, Pane::Mod, Pane::Agents, Pane::Updates];
 /// Rows per pane; the status line's last row applies the draft.
-const ROWS: [usize; 4] = [5, 4, 2, 4];
+const ROWS: [usize; 4] = [5, 4, 2, 5];
 const REFRESH: [Option<u64>; 7] = [
     None,
     Some(1),
@@ -345,10 +346,25 @@ impl ClaudePage {
 
     fn render_updates(&self, f: &mut Frame, area: Rect, cx: &Cx) {
         let pane = Pane::Updates;
-        let block = self.block(t("Updates & language").into(), Some(pane), cx);
-        let width = block.inner(area).width as usize;
+        let block = self.block(t("Updates, language & timezone").into(), Some(pane), cx);
+        let inner = block.inner(area);
+        let width = inner.width as usize;
         let u = &cx.doc.config.update;
         let language = cx.doc.config.language;
+        let tz = &cx.doc.config.timezone;
+        let tz_value = match tz.invalid_spec() {
+            Some(bad) => vec![
+                Span::styled(bad.to_string(), Style::default().fg(ui::WARN)),
+                Span::styled(format!("  {}", t("unknown")), Style::default().fg(ui::WARN)),
+            ],
+            None => {
+                let offset = format_offset(tz.resolve(cx.env.now, cx.env.tz));
+                vec![
+                    ui::choice(tz.as_str()),
+                    Span::styled(format!("  {offset}"), ui::muted()),
+                ]
+            }
+        };
         let latest = match &cx.env.update.latest {
             Some(v) if update::is_newer(v, update::CURRENT) => Span::styled(
                 tf!("{v}  ↑ available", v = v),
@@ -357,7 +373,7 @@ impl ClaudePage {
             Some(v) => Span::raw(tf!("{v}  up to date", v = v)),
             None => Span::styled(t("not checked yet"), ui::muted()),
         };
-        let text = vec![
+        let mut text = vec![
             self.row(pane, 0, "check", vec![on_off(u.check)], (cx, width)),
             self.row(
                 pane,
@@ -374,16 +390,34 @@ impl ClaudePage {
                 vec![ui::choice(language.label())],
                 (cx, width),
             ),
-            Self::info(pane, "current", Span::raw(update::CURRENT), width),
-            Self::info(pane, "latest", latest, width),
-            Line::raw(""),
-            Line::styled(
+            self.row(pane, 4, "timezone", tz_value, (cx, width)),
+        ];
+        if inner.height >= 9 {
+            text.push(Self::info(
+                pane,
+                "current",
+                Span::raw(update::CURRENT),
+                width,
+            ));
+            text.push(Self::info(pane, "latest", latest, width));
+            text.push(Line::raw(""));
+            text.push(Line::styled(
                 t(
                     "Checked in the background; never slows the status line. Enter on upgrade copies the command.",
                 ),
                 ui::muted(),
-            ),
-        ];
+            ));
+        } else {
+            text.push(Line::from(ui::clip(
+                vec![
+                    Span::styled(format!("  {} ", t("current")), ui::muted()),
+                    Span::raw(update::CURRENT),
+                    Span::styled(format!(" · {} ", t("latest")), ui::muted()),
+                    latest,
+                ],
+                width,
+            )));
+        }
         f.render_widget(
             Paragraph::new(text).wrap(Wrap { trim: false }).block(block),
             area,
@@ -592,6 +626,30 @@ impl ClaudePage {
             (2, KeyCode::Enter) => Outcome::Copy(UPGRADE.into()),
             (3, KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Left | KeyCode::Right) => {
                 doc.edit(|c, _| c.language = step(&Language::ALL, c.language, forward));
+                Outcome::Consumed
+            }
+            (4, KeyCode::Enter) => {
+                Outcome::Open(Box::new(TimezoneDialog::new(&doc.config.timezone)))
+            }
+            (4, KeyCode::Left | KeyCode::Right | KeyCode::Char(' ')) => {
+                doc.edit(|c, _| {
+                    let cur = c.timezone.as_str();
+                    let ids: Vec<&str> = QUICK_TIMEZONES.iter().map(|(id, _)| *id).collect();
+                    let next =
+                        if let Some(i) = ids.iter().position(|id| id.eq_ignore_ascii_case(cur)) {
+                            let n = ids.len();
+                            ids[(i + if forward { 1 } else { n - 1 }) % n]
+                        } else if forward {
+                            ids[1]
+                        } else {
+                            ids[0]
+                        };
+                    c.timezone = Timezone::parse(next).unwrap_or(Timezone::Auto);
+                });
+                Outcome::Consumed
+            }
+            (4, KeyCode::Delete | KeyCode::Backspace) => {
+                doc.edit(|c, _| c.timezone = Timezone::Auto);
                 Outcome::Consumed
             }
             _ => Outcome::Ignored,
@@ -919,6 +977,46 @@ mod tests {
         app.handle_key(key(KeyCode::Down));
         app.handle_key(key(KeyCode::Enter));
         assert!(screen(&mut app, 112, 33).contains("Library"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn timezone_cycles_opens_dialog_and_resets() {
+        let (dir, paths) = temp_paths("claude-tz");
+        let config = paths.config.clone();
+        let mut app = App::new(Doc::open(paths), env());
+        app.open_page(PageId::Claude);
+        for _ in 0..3 {
+            app.handle_key(key(KeyCode::Tab));
+        }
+        for _ in 0..4 {
+            app.handle_key(key(KeyCode::Down));
+        }
+        // Right cycles from auto to Asia/Shanghai; Delete returns to auto.
+        app.handle_key(key(KeyCode::Right));
+        assert_eq!(
+            app.doc.config.timezone,
+            Timezone::Custom("Asia/Shanghai".into())
+        );
+        let s = screen(&mut app, 112, 33);
+        assert!(
+            s.contains("‹Asia/Shanghai›") && s.contains("UTC+08:00"),
+            "{s}"
+        );
+        app.handle_key(key(KeyCode::Delete));
+        assert_eq!(app.doc.config.timezone, Timezone::Auto);
+
+        // Enter opens TimezoneDialog; typing "+08:00" and Enter saves it.
+        app.handle_key(key(KeyCode::Enter));
+        assert!(screen(&mut app, 112, 33).contains("Asia/Shanghai"));
+        for ch in "+08:00".chars() {
+            app.handle_key(key(KeyCode::Char(ch)));
+        }
+        app.handle_key(key(KeyCode::Enter));
+        assert_eq!(app.doc.config.timezone, Timezone::Custom("+08:00".into()));
+        app.handle_key(ctrl('s'));
+        let saved = std::fs::read_to_string(&config).unwrap();
+        assert!(saved.contains("timezone = \"+08:00\""), "{saved}");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

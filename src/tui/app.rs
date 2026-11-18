@@ -432,6 +432,9 @@ impl App {
             }
             Action::Setup => self.open_setup(),
             Action::SavePreset => self.dialogs.push(Box::new(dialogs::PresetDialog::new())),
+            Action::Timezone => self.dialogs.push(Box::new(dialogs::TimezoneDialog::new(
+                &self.doc.config.timezone,
+            ))),
             Action::Reload => {
                 self.doc.reload();
                 self.toast(t("Reloaded from disk"), false);
@@ -588,7 +591,10 @@ pub(crate) mod tests {
         app.handle_key(key(KeyCode::Right));
         assert_eq!(app.doc.config.language, crate::i18n::Language::Zh);
         let zh = text(&mut app);
-        assert!(zh.contains("更新与语言") && zh.contains("‹中文›"), "{zh}");
+        assert!(
+            zh.contains("更新、语言与时区") && zh.contains("‹中文›"),
+            "{zh}"
+        );
         app.open_page(PageId::Home);
         assert!(text(&mut app).contains("健康检查"));
         std::fs::remove_dir_all(&dir).unwrap();
@@ -784,6 +790,27 @@ pub(crate) mod tests {
         app.handle_key(key(KeyCode::Char('-')));
         let s = screen(&mut app, 100, 30);
         assert!(s.contains("‹fresh›") && s.contains("‹94›"), "{s}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn preview_updates_when_timezone_changes() {
+        let (dir, paths) = temp_paths("app-tz");
+        let mut app = App::new(Doc::open(paths), env());
+        app.doc.config = crate::presets::get("hud").unwrap();
+        app.page = PageId::Style;
+        // BASE is 2026-10-01 00:00:00 UTC; hud's normal scenario 5h limit resets at 02:07 UTC.
+        let utc = screen(&mut app, 112, 33);
+        assert!(utc.contains("02:07") && utc.contains("01:00"), "{utc}");
+
+        app.doc.edit(|c, _| {
+            c.timezone = crate::timezone::Timezone::Custom("Asia/Shanghai".into());
+        });
+        let bj = screen(&mut app, 112, 33);
+        assert!(
+            bj.contains("10:07") && bj.contains("09:00") && !bj.contains("02:07"),
+            "{bj}"
+        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

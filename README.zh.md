@@ -127,7 +127,7 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 | 3 Layout | 从指标库挑选指标，安排到各行和左右两侧，再细调选中的条目：形态、进度条字形与格数、文字模板、图标、颜色、阈值 |
 | 4 Style | 骨架、调色板、字形、色深、填充方式，以及在调色板之上的颜色覆盖 |
 | 5 Models | 模型登记表：最近会话里没认出的模型 id、你的规则及命中次数、解析测试器 |
-| 6 Claude Code | `statusLine`、`subagentStatusLine`、`refreshInterval`、更新检查与配置器语言、配套 mod |
+| 6 Claude Code | `statusLine`、`subagentStatusLine`、`refreshInterval`、更新检查、配置器语言与时区、配套 mod |
 
 ![Layout 页](assets/tui-layout.webp)
 
@@ -138,6 +138,8 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 全局按键：`^S` 保存，`^Z` / `^Y` 撤销与重做，`^P` 命令面板，`[` `]` 切换示例会话，`-` `+` 调整预览宽度，`{` 色深，`}` 字形，`?` 帮助，`q` 退出。
 
 配置器支持英文和中文。`config.toml` 里的 `language` 可以设为 `en` 或 `zh`。默认值 `auto` 会依次查看 `LC_ALL`、`LC_MESSAGES`、`LANG`，取第一个已设置的值：它以 `zh` 开头时用中文，否则用英文。可以在 Claude Code 页、首次设置向导（按 `L`）或 `^P` 命令面板里切换。状态栏本身的内容不翻译。
+
+`config.toml` 里的 `timezone` 用于指定时钟显示（额度重置时间、`quota.eta`、`session.start`、`session.last_reply`）和按日计费切换（`cost.today`、`cost.week`、`cost.month`）所用的时区。可设为 `"auto"`（默认：优先读 `CCLINE_TZ`，否则使用系统本地时区）、IANA 名称如 `"Asia/Shanghai"`（也支持 `"Beijing"`），或偏移量如 `"+08:00"`、`"UTC+8"`。可在 Claude Code 页或 `^P` 命令面板里修改。
 
 ## 指标
 
@@ -208,10 +210,11 @@ cp target/release/ccometixline ~/.claude/ccline/ccline
 所有文件都在 `~/.claude/ccline/`（可用 `CCLINE_HOME` 改位置）。配置器写的是 `config.toml`，也可以手动编辑：
 
 ```toml
-preset  = "cometix"
-palette = "terminal"
-skin    = "plain"
-glyphs  = "nerd"
+preset   = "cometix"
+palette  = "terminal"
+skin     = "plain"
+glyphs   = "nerd"
+timezone = "Asia/Shanghai"
 separator = " | "
 
 [[line]]
@@ -301,7 +304,7 @@ margin_secs = 180    # 在缓存过期前这么多秒压缩；限制在 30–900
 | 命令 | 说明 |
 |---|---|
 | `ccline` | 在终端里运行时打开配置器；Claude Code 通过管道传入会话数据时绘制状态栏 |
-| `ccline preview` | 用内置示例会话渲染你的配置（`--all`、`-s <名称或 JSON 文件>`、`--subagent`、`--list`） |
+| `ccline preview` | 用内置示例会话渲染你的配置（`--all`、`-s <名称或 JSON 文件>`、`--tz <时区>`、`--subagent`、`--list`） |
 | `ccline update` | 立即检查新版本。ccline 平时每天在后台检查一次，有新版本时显示 `update`；它从不自行下载 |
 | `ccline mod` | 安装、更新或移除配套 mod |
 

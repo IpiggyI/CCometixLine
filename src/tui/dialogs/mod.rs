@@ -12,6 +12,7 @@ mod prompts;
 mod rule;
 mod settings;
 mod setup;
+mod timezone;
 
 use super::doc::Doc;
 use super::pages::{Cx, PageId};
@@ -29,6 +30,7 @@ pub use prompts::{Conflict, Quit};
 pub use rule::{ModifierDialog, RuleDialog};
 pub use settings::{SettingsDiff, shown_path};
 pub use setup::Setup;
+pub use timezone::TimezoneDialog;
 
 /// Something only the app can do, asked for by a closing dialog.
 #[derive(Clone, Debug, PartialEq)]
@@ -55,6 +57,8 @@ pub enum Action {
     Setup,
     /// Ask for a name and save the current setup as a preset.
     SavePreset,
+    /// Open the timezone picker dialog.
+    Timezone,
 }
 
 pub enum Reply {

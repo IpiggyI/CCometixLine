@@ -10,7 +10,8 @@ use ccometixline::scenarios;
 use ccometixline::state::{self, StateView};
 use ccometixline::statusline::{self, Frame};
 use ccometixline::style::palette::Token;
-use chrono::{Local, Utc};
+use ccometixline::timezone::{self, Timezone};
+use chrono::Utc;
 use std::io::{self, IsTerminal, Read};
 
 fn main() {
@@ -74,7 +75,10 @@ fn run(subagent: bool) {
     let (config, note) = Config::load();
     let registry = Registry::load();
     let settings = ClaudeSettings::for_input(&input);
-    let (now, tz) = (Utc::now().timestamp(), *Local::now().offset());
+    let now = Utc::now().timestamp();
+    let tz = config
+        .timezone
+        .resolve(now, timezone::detect_system_offset(now));
     let mut view = state::observe(&input, &text, &registry, now, tz);
     view.latest_version = state::update::available(&config.update, now);
     let frame = Frame {
@@ -89,18 +93,27 @@ fn run(subagent: bool) {
         },
     };
     let mut lines = statusline::lines(&input, &config, &registry, frame);
+    let mut warnings = Vec::new();
     if let LoadNote::Invalid(_) = note {
+        warnings.push(" ! ccline config");
+    }
+    if config.timezone.invalid_spec().is_some() {
+        warnings.push(" ! ccline tz");
+    }
+    if !warnings.is_empty() {
         let warn = statusline::theme(&config).palette.color(Token::Warn);
-        let mark = Span::styled(
-            " ! ccline config",
-            Style {
-                fg: warn,
-                ..Style::default()
-            },
-        );
-        match lines.first_mut() {
-            Some(first) => first.push(mark),
-            None => lines.push(vec![mark]),
+        for text in warnings {
+            let mark = Span::styled(
+                text,
+                Style {
+                    fg: warn,
+                    ..Style::default()
+                },
+            );
+            match lines.first_mut() {
+                Some(first) => first.push(mark),
+                None => lines.push(vec![mark]),
+            }
         }
     }
     let opts = EmitOptions {
@@ -116,9 +129,13 @@ fn run(subagent: bool) {
 fn run_subagent(payload: &SubagentInput, raw: &str) {
     let (config, _) = Config::load();
     let registry = Registry::load();
+    let now = Utc::now().timestamp();
+    let tz = config
+        .timezone
+        .resolve(now, timezone::detect_system_offset(now));
     let frame = Frame {
-        now: Utc::now().timestamp(),
-        tz: *Local::now().offset(),
+        now,
+        tz,
         width: None,
         git: GitSource::Cached(config.git.cache_ms),
         state: StateView::default(),
@@ -232,7 +249,22 @@ fn preview(args: PreviewArgs) {
         .unwrap_or(100);
     let registry = Registry::load();
     let now = Utc::now().timestamp();
-    let tz = *Local::now().offset();
+    let fallback_tz = timezone::detect_system_offset(now);
+    let tz = match args.tz.as_deref() {
+        Some(spec) => match Timezone::parse(spec) {
+            Ok(parsed) => parsed.resolve(now, fallback_tz),
+            Err(e) => {
+                eprintln!("ccline: invalid timezone {spec:?}: {e}");
+                std::process::exit(1);
+            }
+        },
+        None => {
+            if let Some(bad) = config.timezone.invalid_spec() {
+                eprintln!("ccline: unknown timezone {bad:?} in config.toml; using local time");
+            }
+            config.timezone.resolve(now, fallback_tz)
+        }
+    };
     let opts = EmitOptions {
         depth,
         guards: true,

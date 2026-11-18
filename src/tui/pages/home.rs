@@ -105,6 +105,11 @@ fn checks(cx: &Cx) -> Vec<Check> {
         LoadNote::Missing => check(Mark::Info, t("no config.toml yet: the default preset")),
         LoadNote::Invalid(e) => check(Mark::Warn, tf!("config.toml invalid: {e}", e = e)),
     });
+    if let Some(bad) = cx.doc.config.timezone.invalid_spec() {
+        out.push(
+            check(Mark::Warn, tf!("timezone unknown: {tz}", tz = bad)).fix("t", "set timezone"),
+        );
+    }
     out.push(match &cx.doc.models_error {
         Some(e) => check(Mark::Warn, tf!("models.toml unreadable: {e}", e = e)),
         None => {
@@ -255,7 +260,7 @@ impl Page for Home {
         Self::render_now(f, now, lines, title);
     }
 
-    fn handle(&mut self, key: KeyEvent, _: &mut Doc, env: &Env) -> Outcome {
+    fn handle(&mut self, key: KeyEvent, doc: &mut Doc, env: &Env) -> Outcome {
         match key.code {
             // Up from the first entry goes to the tab row.
             KeyCode::Up if self.selected == 0 => Outcome::Ignored,
@@ -277,6 +282,9 @@ impl Page for Home {
             KeyCode::Char('s') => change_settings(env, false),
             KeyCode::Char('i') => change_settings(env, true),
             KeyCode::Char('m') => Outcome::Goto(PageId::Models),
+            KeyCode::Char('t') => Outcome::Open(Box::new(
+                crate::tui::dialogs::TimezoneDialog::new(&doc.config.timezone),
+            )),
             KeyCode::Char('u') => Outcome::Copy(UPGRADE.into()),
             _ => Outcome::Ignored,
         }
@@ -336,6 +344,28 @@ mod tests {
         app.handle_key(key(KeyCode::Char('y')));
         let line = Settings::load(&settings).unwrap().status_line().unwrap();
         assert_eq!(line.refresh_interval, Some(REFRESH));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn health_flags_unknown_timezone_and_opens_picker() {
+        let (dir, paths) = temp_paths("home-tz");
+        std::fs::write(&paths.config, "timezone = \"Mars/Phobos\"\n").unwrap();
+        let mut app = App::new(Doc::open(paths), env());
+        let s = screen(&mut app, 112, 33);
+        assert!(
+            s.contains("timezone unknown: Mars/Phobos") && s.contains("t set timezone"),
+            "{s}"
+        );
+        app.handle_key(key(KeyCode::Char('t')));
+        assert!(screen(&mut app, 112, 33).contains("unknown timezone"));
+        app.handle_key(key(KeyCode::Down));
+        app.handle_key(key(KeyCode::Down));
+        app.handle_key(key(KeyCode::Enter));
+        assert_eq!(
+            app.doc.config.timezone,
+            crate::timezone::Timezone::Custom("Asia/Shanghai".into())
+        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }
