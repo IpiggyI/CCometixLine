@@ -38,25 +38,23 @@ pub struct Sample {
 }
 
 impl Sample {
-    pub fn from_input(input: &Input, now: i64) -> Sample {
-        let rl = input.rate_limits.as_ref();
+    pub fn from_input(input: &Input, now: i64, resolved_cost: Option<f64>) -> Sample {
+        let h5 = input.quota_window("auto", crate::input::QuotaKind::FiveHour, now);
+        let d7 = input.quota_window("auto", crate::input::QuotaKind::Weekly, now);
+        let ctx_tokens = input
+            .context_window
+            .as_ref()
+            .and_then(|c| c.total_input_tokens)
+            .filter(|t| *t > 0);
         Sample {
             t: now,
             p: input.prompt_id.as_deref().map(prompt_key),
-            ctx: input
-                .context_window
-                .as_ref()
-                .and_then(|c| c.total_input_tokens)
-                .filter(|t| *t > 0),
-            cost: input.cost.as_ref().and_then(|c| c.total_cost_usd),
-            h5: rl.and_then(|r| r.five_hour.as_ref()?.used_percentage),
-            h5_reset: rl
-                .and_then(|r| r.five_hour.as_ref()?.resets_at)
-                .map(|t| t as i64),
-            d7: rl.and_then(|r| r.seven_day.as_ref()?.used_percentage),
-            d7_reset: rl
-                .and_then(|r| r.seven_day.as_ref()?.resets_at)
-                .map(|t| t as i64),
+            ctx: ctx_tokens,
+            cost: resolved_cost.or_else(|| input.cost.as_ref().and_then(|c| c.usd())),
+            h5: h5.as_ref().map(|q| q.used_percentage),
+            h5_reset: h5.and_then(|q| q.resets_at),
+            d7: d7.as_ref().map(|q| q.used_percentage),
+            d7_reset: d7.and_then(|q| q.resets_at),
         }
     }
 

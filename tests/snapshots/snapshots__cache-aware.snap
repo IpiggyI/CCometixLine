@@ -16,13 +16,13 @@ expression: render_preset(preset.name)
 ── fresh @ 60
  Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  12% · 24k⏎
                                 󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\ ·  $0.06⏎
- ●●●●●●○○ warm 4:20⏎
+ ●●●●●●○○ warm 4:20 · 0% hit⏎
 ── fresh @ 100
  Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  12% · 24k                       󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\ ·  $0.06⏎
- ●●●●●●○○ warm 4:20⏎
+ ●●●●●●○○ warm 4:20 · 0% hit⏎
 ── fresh @ 140
  Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  12% · 24k                                                               󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\ ·  $0.06⏎
- ●●●●●●○○ warm 4:20⏎
+ ●●●●●●○○ warm 4:20 · 0% hit⏎
 ── near-full @ 60
  Opus 4.8 · Max · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\⏎
  91% · 182k                                         $18.42⏎
@@ -82,8 +82,19 @@ expression: render_preset(preset.name)
  Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  40% · 80k                                                                                     $3.10⏎
  ●●●●●○○○ warm 40:00 · 93% hit · 1× miss⏎
 ── old-cc @ 60
-ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
 ── old-cc @ 100
-ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
 ── old-cc @ 140
-ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
+── agy @ 60
+ Orchestrator (Neon) · High · claude-opus-4-6-thinking⏎
+󰉋 app · 󰊢 feat/agyline ● ↑1 ·  32% · 320k ↻1×      $1.48⏎
+ ○○○○○○○○ · 99% hit                                $2.12/h⏎
+── agy @ 100
+ Orchestrator (Neon) · High · claude-opus-4-6-thinking · 󰉋 app · 󰊢 feat/agyline ● ↑1⏎
+ 32% · 320k ↻1×                                                                            $1.48⏎
+ ○○○○○○○○ · 99% hit                                                                        $2.12/h⏎
+── agy @ 140
+ Orchestrator (Neon) · High · claude-opus-4-6-thinking · 󰉋 app · 󰊢 feat/agyline ● ↑1 ·  32% · 320k ↻1×                            $1.48⏎
+ ○○○○○○○○ · 99% hit                                                                                                                $2.12/h⏎

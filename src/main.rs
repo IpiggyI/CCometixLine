@@ -40,11 +40,11 @@ fn main() {
 
     if cli.config || io::stdin().is_terminal() {
         if !io::stdout().is_terminal() {
-            eprintln!("ccline: the configuration TUI needs a terminal.");
+            eprintln!("agyline: the configuration TUI needs a terminal.");
             std::process::exit(1);
         }
         if let Err(e) = ccometixline::tui::run() {
-            eprintln!("ccline: {e}");
+            eprintln!("agyline: {e}");
             std::process::exit(1);
         }
         return;
@@ -68,7 +68,7 @@ fn run(subagent: bool) {
     let input = match Input::parse(&text) {
         Ok(input) => input,
         Err(e) => {
-            println!("\x1b[0mccline: could not read the status line input ({e})\x1b[0m");
+            println!("\x1b[0magyline: could not read the status line input ({e})\x1b[0m");
             return;
         }
     };
@@ -84,7 +84,7 @@ fn run(subagent: bool) {
     let frame = Frame {
         now,
         tz,
-        width: statusline::budget(&config, &settings),
+        width: statusline::budget(&config, &input, &settings),
         git: GitSource::Cached(config.git.cache_ms),
         state: view,
         compact: settings.auto_compact(),
@@ -95,10 +95,10 @@ fn run(subagent: bool) {
     let mut lines = statusline::lines(&input, &config, &registry, frame);
     let mut warnings = Vec::new();
     if let LoadNote::Invalid(_) = note {
-        warnings.push(" ! ccline config");
+        warnings.push(" ! agyline config");
     }
     if config.timezone.invalid_spec().is_some() {
-        warnings.push(" ! ccline tz");
+        warnings.push(" ! agyline tz");
     }
     if !warnings.is_empty() {
         let warn = statusline::theme(&config).palette.color(Token::Warn);

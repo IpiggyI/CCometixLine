@@ -51,8 +51,15 @@ Sonnet 5 · Med · 40% · cache 40:00 · $3.10⏎
 ── gateway @ 140
 Sonnet 5 · Med · 40% · cache 40:00 · $3.10⏎
 ── old-cc @ 60
-ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
 ── old-cc @ 100
-ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
 ── old-cc @ 140
-ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
+── agy @ 60
+Orchestrator (Neon) · High · claude-opus-4-6-thinking · 32%⏎
+99% · $1.48⏎
+── agy @ 100
+Orchestrator (Neon) · High · claude-opus-4-6-thinking · 32% · 99% · $1.48⏎
+── agy @ 140
+Orchestrator (Neon) · High · claude-opus-4-6-thinking · 32% · 99% · $1.48⏎

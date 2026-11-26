@@ -1,5 +1,5 @@
 use super::{Ctx, Metric, MetricMeta, OptKind, OptSpec, Options, Reading};
-use crate::style::{Category, IconKey};
+use crate::style::{Category, IconKey, Role, Severity};
 use crate::widgets::WidgetKind;
 
 fn meta(
@@ -34,12 +34,20 @@ pub(super) fn metrics() -> Vec<Metric> {
         Metric {
             meta: MetricMeta {
                 priority: 5,
-                options: &[OptSpec {
-                    key: "effort",
-                    kind: OptKind::Flag,
-                    default: "true",
-                    summary: "Add the reasoning effort while thinking is on",
-                }],
+                options: &[
+                    OptSpec {
+                        key: "effort",
+                        kind: OptKind::Flag,
+                        default: "true",
+                        summary: "Add the reasoning effort while thinking is on",
+                    },
+                    OptSpec {
+                        key: "api_model",
+                        kind: OptKind::Flag,
+                        default: "true",
+                        summary: "Show the backend model id from the session DB when it differs from the alias",
+                    },
+                ],
                 ..meta(
                     "model",
                     Category::Identity,
@@ -47,11 +55,11 @@ pub(super) fn metrics() -> Vec<Metric> {
                     "Model name, corrected by the model registry, with its reasoning effort",
                     IconKey::Model,
                     [
-                        "{name}[ · {effort}][ · {fast}]",
+                        "{name}[ · {effort}][ · {fast}][ · {api_model}]",
                         "{name}[ · {effort}][ · {fast}]",
                         "{family}[ · {fast}]",
                     ],
-                    &["name", "family", "id", "effort", "fast"],
+                    &["name", "family", "id", "effort", "fast", "api_model"],
                 )
             },
             compute: model,
@@ -136,7 +144,7 @@ pub(super) fn metrics() -> Vec<Metric> {
                     "update",
                     Category::System,
                     "Update",
-                    "A newer ccline is published; links to its release notes",
+                    "A newer agyline is published; links to its release notes",
                     IconKey::Update,
                     ["{version} available", "{version}", "{version}"],
                     &["version", "current"],
@@ -144,16 +152,84 @@ pub(super) fn metrics() -> Vec<Metric> {
             },
             compute: update,
         },
+        Metric {
+            meta: MetricMeta {
+                priority: 1,
+                ..meta(
+                    "auth",
+                    Category::System,
+                    "Auth",
+                    "Antigravity account plan tier and signed-in email",
+                    IconKey::Auth,
+                    ["{user}", "{user}", "{user}"],
+                    &["user", "plan", "email", "name"],
+                )
+            },
+            compute: auth,
+        },
+        Metric {
+            meta: MetricMeta {
+                priority: 3,
+                ..meta(
+                    "agy.state",
+                    Category::Activity,
+                    "Agent state",
+                    "Live Antigravity agent execution state",
+                    IconKey::State,
+                    ["{state}", "{state}", "{short}"],
+                    &["state", "short"],
+                )
+            },
+            compute: agy_state,
+        },
+        Metric {
+            meta: MetricMeta {
+                priority: 2,
+                ..meta(
+                    "agy.mode",
+                    Category::System,
+                    "Cycle mode",
+                    "Antigravity cycle mode and sandbox indicator",
+                    IconKey::Mode,
+                    ["{mode}[ · {sandbox}]", "{mode}", "{short}"],
+                    &["mode", "short", "sandbox"],
+                )
+            },
+            compute: agy_mode,
+        },
+        Metric {
+            meta: MetricMeta {
+                priority: 2,
+                ..meta(
+                    "agy.tasks",
+                    Category::Activity,
+                    "Tasks & artifacts",
+                    "Count of active Antigravity tasks and artifacts",
+                    IconKey::Todos,
+                    ["{summary}", "{tasks}", "{total}"],
+                    &["summary", "tasks", "artifacts", "total"],
+                )
+            },
+            compute: agy_tasks,
+        },
     ]
 }
 
 fn model(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     let resolved = ctx.model()?;
     let family = resolved.name.split_whitespace().next().unwrap_or_default();
+    let stdin_id = ctx.input.model_id().unwrap_or_default();
+    let id = ctx
+        .state
+        .db
+        .as_ref()
+        .and_then(|d| d.api_model.as_deref())
+        .or_else(|| ctx.input.model_id())
+        .unwrap_or_default();
     let mut r = Reading::default()
         .set("name", &resolved.name)
         .set("family", family)
-        .set("id", ctx.input.model_id().unwrap_or_default());
+        .set("id", id);
     let with_effort = opts.get("effort").and_then(|v| v.as_bool()).unwrap_or(true);
     if with_effort && let Some(level) = effort(ctx) {
         r = r.set("effort", level);
@@ -161,20 +237,44 @@ fn model(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     if ctx.input.fast_mode == Some(true) {
         r = r.set("fast", "fast");
     }
+    let with_api = opts
+        .get("api_model")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let is_orchestrator = stdin_id.to_ascii_lowercase().starts_with("orchestrator");
+    if with_api
+        && is_orchestrator
+        && let Some(api) = active_backend_model(ctx)
+        && !api.eq_ignore_ascii_case(&resolved.name)
+    {
+        r = r.set_role("api_model", api, Role::Muted);
+    }
     Some(r)
 }
 
-/// The reasoning effort as `Low`, `Med`, `High`, `xHigh` or `Max`, for
-/// models that have one. Thinking and effort go together: with thinking off
-/// there is none to show.
-fn effort(ctx: &Ctx) -> Option<String> {
-    if ctx.input.thinking.as_ref().and_then(|t| t.enabled) == Some(false) {
+fn active_backend_model(ctx: &Ctx) -> Option<String> {
+    if let Some(db) = ctx.state.db.as_ref()
+        && let Some(api) = db.api_model.as_deref()
+    {
+        if id_effort_suffix(api).is_none()
+            && !api.to_ascii_lowercase().ends_with("-thinking")
+            && let Some(eff) = db.display_model.as_deref().and_then(display_effort_suffix)
+        {
+            return Some(format!("{api}-{}", eff.trim().to_ascii_lowercase()));
+        }
+        return Some(api.to_string());
+    }
+    ctx.transcript().and_then(|t| t.last_model.clone())
+}
+
+fn normalize_effort(raw: &str) -> Option<String> {
+    let lower = raw.trim().to_lowercase();
+    if lower.is_empty() {
         return None;
     }
-    let level = ctx.input.effort.as_ref()?.level.as_deref()?.to_lowercase();
-    Some(match level.as_str() {
+    Some(match lower.as_str() {
         "low" => "Low".into(),
-        "medium" => "Med".into(),
+        "med" | "medium" => "Med".into(),
         "high" => "High".into(),
         "xhigh" => "xHigh".into(),
         "max" => "Max".into(),
@@ -185,6 +285,79 @@ fn effort(ctx: &Ctx) -> Option<String> {
                 .unwrap_or_default()
         }
     })
+}
+
+fn display_effort_suffix(display_name: &str) -> Option<&str> {
+    let trimmed = display_name.trim_end();
+    let inner = trimmed.strip_suffix(')')?.rsplit('(').next()?;
+    let lower = inner.trim().to_ascii_lowercase();
+    matches!(
+        lower.as_str(),
+        "low" | "med" | "medium" | "high" | "xhigh" | "max"
+    )
+    .then_some(inner)
+}
+
+fn id_effort_suffix(id: &str) -> Option<&str> {
+    let (_, tail) = id.trim().rsplit_once('-')?;
+    let lower = tail.to_ascii_lowercase();
+    matches!(
+        lower.as_str(),
+        "low" | "med" | "medium" | "high" | "xhigh" | "max"
+    )
+    .then_some(tail)
+}
+
+/// The reasoning effort as `Low`, `Med`, `High`, `xHigh` or `Max`, for
+/// models that have one. Thinking and effort go together: with thinking off
+/// there is none to show.
+fn effort(ctx: &Ctx) -> Option<String> {
+    if ctx.input.thinking.as_ref().and_then(|t| t.enabled) == Some(false) {
+        return None;
+    }
+    let is_orchestrator = ctx
+        .input
+        .model_id()
+        .is_some_and(|id| id.to_ascii_lowercase().starts_with("orchestrator"));
+    let planner = is_orchestrator
+        .then(|| ctx.orchestrator_planner())
+        .flatten();
+    let raw = ctx
+        .input
+        .effort
+        .as_ref()
+        .and_then(|e| e.level.as_deref())
+        .or_else(|| ctx.input.model.as_ref().and_then(|m| m.effort.as_deref()))
+        .or_else(|| {
+            ctx.input
+                .model
+                .as_ref()
+                .and_then(|m| m.display_name.as_deref())
+                .and_then(display_effort_suffix)
+        })
+        .or_else(|| planner.and_then(display_effort_suffix))
+        .or_else(|| planner.and_then(id_effort_suffix))
+        .or_else(|| {
+            ctx.state
+                .db
+                .as_ref()
+                .and_then(|d| d.display_model.as_deref())
+                .and_then(display_effort_suffix)
+        })
+        .or_else(|| {
+            ctx.transcript()
+                .and_then(|t| t.selected_model.as_deref())
+                .and_then(display_effort_suffix)
+        })
+        .or_else(|| {
+            ctx.state
+                .db
+                .as_ref()
+                .and_then(|d| d.api_model.as_deref())
+                .or_else(|| ctx.transcript().and_then(|t| t.last_model.as_deref()))
+                .and_then(id_effort_suffix)
+        })?;
+    normalize_effort(raw)
 }
 
 fn output_style(ctx: &Ctx, opts: &Options) -> Option<Reading> {
@@ -213,13 +386,170 @@ fn agent(ctx: &Ctx, _: &Options) -> Option<Reading> {
 }
 
 fn session_name(ctx: &Ctx, opts: &Options) -> Option<Reading> {
-    let name = ctx.input.session_name.as_deref()?;
+    let owned;
+    let name = match ctx.input.title() {
+        Some(t) => t,
+        None => {
+            owned = ctx
+                .input
+                .conv_id()
+                .and_then(crate::state::transcript::read_annotation_title)?;
+            &owned
+        }
+    };
     let max = opts
         .get("max_len")
         .and_then(|v| v.as_integer())
         .unwrap_or(30)
         .max(4) as usize;
     Some(Reading::default().set("name", crate::render::width::truncate(name, max)))
+}
+
+fn auth(ctx: &Ctx, _: &Options) -> Option<Reading> {
+    let plan = ctx
+        .input
+        .plan_tier
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let email = ctx
+        .input
+        .email
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    if plan.is_none() && email.is_none() {
+        return None;
+    }
+    let mut r = Reading::default();
+    if let Some(p) = plan {
+        r = r.set("plan", p);
+    }
+    if let Some(e) = email {
+        r = r.set("email", e);
+    }
+    if let Some(user) = email
+        .and_then(|e| e.split('@').next())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .or(plan)
+    {
+        r = r.set("user", user);
+    }
+    let combined = match (plan, email) {
+        (Some(p), Some(e)) => format!("{p} ({e})"),
+        (Some(p), None) => p.to_string(),
+        (None, Some(e)) => e.to_string(),
+        (None, None) => unreachable!(),
+    };
+    Some(r.set("name", combined))
+}
+
+fn agy_state(ctx: &Ctx, _: &Options) -> Option<Reading> {
+    let raw = if ctx.input.tool_confirmation_pending == Some(true) {
+        "approval"
+    } else if ctx.input.pending_input_count.unwrap_or(0) > 0 {
+        "input"
+    } else {
+        ctx.input
+            .agent_state
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())?
+    };
+    let lower = raw.to_ascii_lowercase();
+    let short = lower
+        .chars()
+        .next()
+        .map(|c| c.to_ascii_uppercase().to_string())?;
+    let mut r = Reading::default().set("state", &lower).set("short", short);
+    match lower.as_str() {
+        "approval" | "waiting_approval" | "error" | "failed" => {
+            r = r
+                .set_role("state", &lower, Role::Bad)
+                .severity(Severity::Crit);
+        }
+        "running" | "thinking" | "working" | "input" => {
+            r = r
+                .set_role("state", &lower, Role::Fill(Severity::Warn))
+                .severity(Severity::Warn);
+        }
+        "idle" | "done" => {
+            r = r.set_role("state", &lower, Role::Muted);
+        }
+        _ => {}
+    }
+    Some(r)
+}
+
+fn agy_mode(ctx: &Ctx, _: &Options) -> Option<Reading> {
+    let mode = ctx
+        .input
+        .cycle_mode
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let sandbox = ctx
+        .input
+        .sandbox
+        .as_ref()
+        .and_then(|s| s.enabled)
+        .filter(|e| *e);
+    if mode.is_none() && sandbox.is_none() {
+        return None;
+    }
+    let mut r = Reading::default();
+    if let Some(m) = mode {
+        let short = m
+            .chars()
+            .next()
+            .map(|c| c.to_ascii_uppercase().to_string())
+            .unwrap_or_default();
+        r = r.set("mode", m).set("short", short);
+    }
+    if sandbox == Some(true) {
+        r = r.set("sandbox", "sandbox");
+    }
+    Some(r)
+}
+
+fn agy_tasks(ctx: &Ctx, _: &Options) -> Option<Reading> {
+    let tasks = ctx.input.task_count.unwrap_or(0);
+    let artifacts = ctx.input.artifact_count.unwrap_or(0);
+    if tasks == 0 && artifacts == 0 {
+        return None;
+    }
+    let tasks_str = (tasks > 0).then(|| {
+        if tasks == 1 {
+            "1 task".to_string()
+        } else {
+            format!("{tasks} tasks")
+        }
+    });
+    let artifacts_str = (artifacts > 0).then(|| {
+        if artifacts == 1 {
+            "1 artifact".to_string()
+        } else {
+            format!("{artifacts} artifacts")
+        }
+    });
+    let mut parts = Vec::new();
+    if let Some(ref s) = tasks_str {
+        parts.push(s.as_str());
+    }
+    if let Some(ref s) = artifacts_str {
+        parts.push(s.as_str());
+    }
+    let mut r = Reading::default()
+        .set("summary", parts.join(" · "))
+        .set("total", (tasks + artifacts).to_string());
+    if let Some(s) = tasks_str {
+        r = r.set("tasks", s);
+    }
+    if artifacts > 0 {
+        r = r.set("artifacts", artifacts.to_string());
+    }
+    Some(r)
 }
 
 fn cc_version(ctx: &Ctx, _: &Options) -> Option<Reading> {
@@ -306,5 +636,72 @@ mod tests {
         assert_eq!(model_text(&off, "", 0), "Opus 4.8");
         let none = format!(r#"{{{OPUS}}}"#);
         assert_eq!(model_text(&none, "", 0), "Opus 4.8");
+    }
+
+    #[test]
+    fn orchestrator_shows_planner_family_and_active_backend_model() {
+        let json =
+            r#"{"model": {"id": "Orchestrator (Neon)", "display_name": "Orchestrator (Neon)"}}"#;
+        let input = Input::parse(json).unwrap();
+        let reg = Registry::default();
+        let state = crate::state::StateView {
+            db: Some(crate::state::agy_db::DbSummary {
+                api_model: Some("gemini-4-hydrogen".into()),
+                display_model: Some("Gemini 4 Hydrogen (High)".into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let ctx = Ctx::new(
+            &input,
+            &reg,
+            0,
+            FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        )
+        .with_state(state)
+        .with_transcript(crate::metrics::TranscriptSource::Fixed(None))
+        .with_orchestrator_planner(Some("Gemini 4 Carbon (High)".into()));
+        let m = find("model").unwrap();
+        let r = read(m, &ctx, &Options::default()).unwrap();
+        let text: String = crate::widgets::template::render(m.meta.templates[0], &r)
+            .iter()
+            .map(|p| p.text.as_str())
+            .collect();
+        assert_eq!(
+            text,
+            "Orchestrator (Carbon) · High · gemini-4-hydrogen-high"
+        );
+    }
+
+    #[test]
+    fn non_orchestrator_omits_backend_api_model() {
+        let json = r#"{"model": {"id": "Gemini 4 Carbon (High)", "display_name": "Gemini 4 Carbon (High)"}}"#;
+        let input = Input::parse(json).unwrap();
+        let reg = Registry::default();
+        let state = crate::state::StateView {
+            db: Some(crate::state::agy_db::DbSummary {
+                api_model: Some("gemini-4-carbon".into()),
+                display_model: Some("Gemini 4 Carbon (High)".into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let ctx = Ctx::new(
+            &input,
+            &reg,
+            0,
+            FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        )
+        .with_state(state)
+        .with_transcript(crate::metrics::TranscriptSource::Fixed(None));
+        let m = find("model").unwrap();
+        let r = read(m, &ctx, &Options::default()).unwrap();
+        let text: String = crate::widgets::template::render(m.meta.templates[0], &r)
+            .iter()
+            .map(|p| p.text.as_str())
+            .collect();
+        assert_eq!(text, "Gemini 4 Carbon · High");
     }
 }

@@ -14,13 +14,13 @@ expression: render_preset(preset.name)
 ∿ ▁▂▃▄▅▆▆▇█ +12k │ 43k to compact · ~5 turns                                                                                ≈ 3:42 · 94% hit⏎
 ── fresh @ 60
 ◔ ▕██▍                 ▏ 12% · 24k          ◆ Sonnet 5 · Med⏎
-143k to compact                                       ≈ 4:20⏎
+143k to compact                              ≈ 4:20 · 0% hit⏎
 ── fresh @ 100
 ◔ ▕██▍                 ▏ 12% · 24k                                                  ◆ Sonnet 5 · Med⏎
-143k to compact                                                                               ≈ 4:20⏎
+143k to compact                                                                      ≈ 4:20 · 0% hit⏎
 ── fresh @ 140
 ◔ ▕██▍                 ▏ 12% · 24k                                                                                          ◆ Sonnet 5 · Med⏎
-143k to compact                                                                                                                       ≈ 4:20⏎
+143k to compact                                                                                                              ≈ 4:20 · 0% hit⏎
 ── near-full @ 60
 ◔ ▕██████████████████▎ ▏ 91% · 182k         ◆ Opus 4.8 · Max⏎
 ∿ ▁▃▅▆▇█ +11k │ compact due                 ≈ cold · 71% hit⏎
@@ -77,8 +77,18 @@ expression: render_preset(preset.name)
 ◔ ▕████████            ▏ 40% · 80k                                                                                          ◆ Sonnet 5 · Med⏎
 87k to compact                                                                                                             ≈ 40:00 · 93% hit⏎
 ── old-cc @ 60
-ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
 ── old-cc @ 100
-ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
 ── old-cc @ 140
-ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
+── agy @ 60
+◔ ▕██████▍             ▏ 32% · 320k ↻1×⏎
+     ◆ Orchestrator (Neon) · High · claude-opus-4-6-thinking⏎
+∿ ▁▅█ +60k │ 647k to compact                       ≈ 99% hit⏎
+── agy @ 100
+◔ ▕██████▍             ▏ 32% · 320k ↻1×      ◆ Orchestrator (Neon) · High · claude-opus-4-6-thinking⏎
+∿ ▁▅█ +60k │ 647k to compact                                                               ≈ 99% hit⏎
+── agy @ 140
+◔ ▕██████▍             ▏ 32% · 320k ↻1×                                              ◆ Orchestrator (Neon) · High · claude-opus-4-6-thinking⏎
+∿ ▁▅█ +60k │ 647k to compact                                                                                                       ≈ 99% hit⏎

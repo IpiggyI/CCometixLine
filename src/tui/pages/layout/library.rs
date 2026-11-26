@@ -408,17 +408,17 @@ mod tests {
 
     #[test]
     fn gates_by_version_and_line() {
-        let cache = metrics::find("cache").unwrap();
+        let breakdown = metrics::find("context.breakdown").unwrap();
         let old = Version::parse("2.1.200");
         assert_eq!(
-            avail(&cache.meta, Target::Status, old),
-            Avail::Needs(Version::parse("2.1.251").unwrap())
+            avail(&breakdown.meta, Target::Status, old),
+            Avail::Needs(Version::parse("2.1.287").unwrap())
         );
-        assert_eq!(avail(&cache.meta, Target::Status, None), Avail::Yes);
+        assert_eq!(avail(&breakdown.meta, Target::Status, None), Avail::Yes);
         let task = metrics::find("task.name").unwrap();
         assert_eq!(avail(&task.meta, Target::Status, None), Avail::TaskOnly);
         assert_eq!(avail(&task.meta, Target::Subagent, None), Avail::Yes);
-        assert_eq!(marks(&cache.meta), "251+");
+        assert_eq!(marks(&breakdown.meta), "mod 287+");
         assert_eq!(marks(&metrics::find("cost.rate").unwrap().meta), "S");
     }
 }

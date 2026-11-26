@@ -53,6 +53,8 @@ pub struct Reading {
     pub draining: bool,
     /// Replaces the metric's default icon.
     pub icon: Option<IconKey>,
+    /// Short group label rendered after the icon (e.g. `gemini` / `3p`).
+    pub prefix: Option<String>,
     pub link: Option<String>,
 }
 
@@ -92,6 +94,14 @@ impl Reading {
 
     pub fn draining(mut self) -> Self {
         self.draining = true;
+        self
+    }
+
+    pub fn prefix(mut self, prefix: impl Into<String>) -> Self {
+        let p = prefix.into();
+        if !p.is_empty() {
+            self.prefix = Some(p);
+        }
         self
     }
 
@@ -162,6 +172,7 @@ pub enum GitSource {
 
 /// Where session transcript data comes from.
 #[derive(Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum TranscriptSource {
     Live,
     Fixed(Option<crate::state::transcript::Summary>),
@@ -202,6 +213,7 @@ pub struct Ctx<'a> {
     git: GitSource,
     git_cache: OnceCell<Option<GitInfo>>,
     model_cache: OnceCell<Option<Resolved>>,
+    orchestrator_cache: OnceCell<Option<String>>,
     transcript: TranscriptSource,
     transcript_cache: OnceCell<Option<crate::state::transcript::Summary>>,
     mcp: McpSource,
@@ -231,12 +243,20 @@ impl<'a> Ctx<'a> {
             git: GitSource::Live,
             git_cache: OnceCell::new(),
             model_cache: OnceCell::new(),
+            orchestrator_cache: OnceCell::new(),
             transcript: TranscriptSource::Live,
             transcript_cache: OnceCell::new(),
             mcp: McpSource::Live,
             mcp_cache: OnceCell::new(),
             environment_cache: OnceCell::new(),
         }
+    }
+
+    pub fn with_orchestrator_planner(mut self, planner: Option<String>) -> Self {
+        let cell = OnceCell::new();
+        let _ = cell.set(planner);
+        self.orchestrator_cache = cell;
+        self
     }
 
     pub fn with_git(mut self, git: GitSource) -> Self {
@@ -257,9 +277,10 @@ impl<'a> Ctx<'a> {
     pub fn transcript(&self) -> Option<&crate::state::transcript::Summary> {
         self.transcript_cache
             .get_or_init(|| match &self.transcript {
-                TranscriptSource::Live => crate::state::transcript::read(Path::new(
-                    self.input.transcript_path.as_deref()?,
-                )),
+                TranscriptSource::Live => self.state.transcript.clone().or_else(|| {
+                    crate::state::transcript::resolve_path(self.input)
+                        .and_then(|p| crate::state::transcript::read(&p))
+                }),
                 TranscriptSource::Fixed(summary) => summary.clone(),
             })
             .as_ref()
@@ -314,21 +335,92 @@ impl<'a> Ctx<'a> {
             .as_ref()
     }
 
-    /// The model as the registry resolves it.
+    /// Configured planner model when `input.model` is an `Orchestrator (...)` wrapper.
+    pub fn orchestrator_planner(&self) -> Option<&str> {
+        let is_orchestrator = self
+            .input
+            .model_id()
+            .is_some_and(|id| id.to_ascii_lowercase().starts_with("orchestrator"));
+        if !is_orchestrator {
+            return None;
+        }
+        self.orchestrator_cache
+            .get_or_init(|| {
+                if matches!(self.transcript, TranscriptSource::Live) {
+                    let path = crate::paths::agy_cli_dir().join("settings.json");
+                    if let Ok(raw) = std::fs::read_to_string(path)
+                        && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+                        && let Some(planner) = val
+                            .get("orchestrator")
+                            .and_then(|o| o.get("planner"))
+                            .and_then(|p| p.as_str())
+                            .map(str::trim)
+                            .filter(|s| !s.is_empty())
+                    {
+                        return Some(planner.to_string());
+                    }
+                }
+                self.transcript()
+                    .and_then(|t| t.selected_model.as_deref())
+                    .map(str::trim)
+                    .filter(|s| {
+                        !s.is_empty() && !s.to_ascii_lowercase().starts_with("orchestrator")
+                    })
+                    .map(str::to_string)
+            })
+            .as_deref()
+    }
+
+    /// The model as the registry resolves it. When `input.model` is absent,
+    /// fall back to the active backend model from the SQLite conversation DB or
+    /// session transcript. When `input.model` is an `Orchestrator (...)` wrapper,
+    /// preserve the Orchestrator prefix and refine its family from the configured
+    /// planner when known.
     pub fn model(&self) -> Option<&Resolved> {
         self.model_cache
             .get_or_init(|| {
-                let model = self.input.model.as_ref()?;
-                let id = model.id.as_deref().or(model.display_name.as_deref())?;
                 let window = self
                     .input
                     .context_window
                     .as_ref()
                     .and_then(|c| c.context_window_size);
-                Some(
-                    self.registry
-                        .resolve(id, model.display_name.as_deref(), window),
-                )
+                let stdin_model = self.input.model.as_ref();
+                let stdin_id =
+                    stdin_model.and_then(|m| m.id.as_deref().or(m.display_name.as_deref()));
+                if stdin_model.is_none() {
+                    if let Some(db) = self.state.db.as_ref()
+                        && (db.api_model.is_some() || db.display_model.is_some())
+                    {
+                        let id = db.api_model.as_deref().or(db.display_model.as_deref())?;
+                        return Some(self.registry.resolve(
+                            id,
+                            db.display_model.as_deref(),
+                            window,
+                        ));
+                    }
+                    if let Some(t) = self.transcript()
+                        && (t.selected_model.is_some() || t.last_model.is_some())
+                    {
+                        let id = t.last_model.as_deref().or(t.selected_model.as_deref())?;
+                        return Some(self.registry.resolve(
+                            id,
+                            t.selected_model.as_deref(),
+                            window,
+                        ));
+                    }
+                }
+                let model = stdin_model?;
+                let id = stdin_id?;
+                let mut resolved = self
+                    .registry
+                    .resolve(id, model.display_name.as_deref(), window);
+                if id.to_ascii_lowercase().starts_with("orchestrator")
+                    && let Some(planner) = self.orchestrator_planner()
+                    && let Some(fam) = orchestrator_family(planner, self.registry)
+                {
+                    resolved.name = format!("Orchestrator ({fam})");
+                }
+                Some(resolved)
             })
             .as_ref()
     }
@@ -338,6 +430,33 @@ impl<'a> Ctx<'a> {
     pub fn supports(&self, min: Version) -> bool {
         self.cc.is_none_or(|v| v >= min)
     }
+}
+
+fn orchestrator_family(planner: &str, registry: &Registry) -> Option<String> {
+    let res = registry.resolve(planner, Some(planner), None);
+    let name = res.name.trim();
+    if name.is_empty() || name.to_ascii_lowercase().starts_with("orchestrator") {
+        return None;
+    }
+    let lower = name.to_ascii_lowercase();
+    for prefix in [
+        "gemini 4 ",
+        "gemini 3.8 ",
+        "gemini 3.6 ",
+        "gemini 3.5 ",
+        "gemini 3.1 ",
+        "gemini 3 ",
+        "gemini 2.5 ",
+        "claude ",
+    ] {
+        if lower.starts_with(prefix) {
+            let rest = name[prefix.len()..].trim();
+            if !rest.is_empty() {
+                return Some(rest.to_string());
+            }
+        }
+    }
+    Some(name.to_string())
 }
 
 pub fn catalog() -> &'static [Metric] {
@@ -402,7 +521,7 @@ mod tests {
 
     #[test]
     fn gates_on_claude_code_version() {
-        let input = Input::parse(r#"{"version": "2.1.200", "prompt_cache": {"warm": true, "caching_observed": true, "ttl": "5m", "expires_at": 9999999999}}"#).unwrap();
+        let input = Input::parse(r#"{"version": "2.1.200"}"#).unwrap();
         let reg = Registry::default();
         let ctx = Ctx::new(
             &input,
@@ -411,7 +530,7 @@ mod tests {
             FixedOffset::east_opt(0).unwrap(),
             GlyphTier::Unicode,
         );
-        let cache = find("cache").unwrap();
-        assert!(read(cache, &ctx, &Options::new()).is_none());
+        let breakdown = find("context.breakdown").unwrap();
+        assert!(read(breakdown, &ctx, &Options::new()).is_none());
     }
 }

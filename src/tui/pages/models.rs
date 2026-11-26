@@ -794,7 +794,9 @@ mod tests {
     #[test]
     fn fits_a_small_terminal() {
         let (dir, paths) = temp_paths("models-small");
-        let mut app = App::new(Doc::open(paths), env_with_ids());
+        let mut doc = Doc::open(paths);
+        doc.config = crate::presets::get("cometix").unwrap();
+        let mut app = App::new(doc, env_with_ids());
         app.open_page(PageId::Models);
         let s = screen(&mut app, 80, 24);
         assert!(

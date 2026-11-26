@@ -372,14 +372,14 @@ mod tests {
 
         let run = |doc: &mut Doc| {
             let mut c = Commands::new(&doc.presets);
-            for ch in "remove cost.today".chars() {
+            for ch in "remove cost.week".chars() {
                 c.handle(key(KeyCode::Char(ch)), doc);
             }
             c.handle(key(KeyCode::Enter), doc);
         };
         run(&mut doc);
         let last = doc.config.lines.last().unwrap();
-        assert_eq!(last.left.last(), Some(&ItemSpec::Id("cost.today".into())));
+        assert_eq!(last.left.last(), Some(&ItemSpec::Id("cost.week".into())));
         // Run again, it comes off: never twice.
         run(&mut doc);
         let all: Vec<_> = doc
@@ -388,7 +388,7 @@ mod tests {
             .iter()
             .flat_map(|l| l.left.iter())
             .collect();
-        assert!(!all.contains(&&ItemSpec::Id("cost.today".into())));
+        assert!(!all.contains(&&ItemSpec::Id("cost.week".into())));
 
         let mut c = Commands::new(&doc.presets);
         for ch in "beijing".chars() {

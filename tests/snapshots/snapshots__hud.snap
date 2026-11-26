@@ -178,8 +178,33 @@ expression: render_preset(preset.name)
 📝 ▸ cover the new segment (0/1)⏎
 📚 ◐ trellis-meta⏎
 ── old-cc @ 60
-ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
 ── old-cc @ 100
-ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
 ── old-cc @ 140
-ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
+── agy @ 60
+上下文 ▰▰▰▱▱▱▱▱▱▱ 32% (320k/1.0M)⏎
+◆ Orchestrator (Neon) · High · claude-opus-4-6-thinking⏎
+▣ app | ⎇ feat/agyline ● ↑1⏎
+用量 ▰▰▱▱▱▱▱▱▱▱ 28% (3h, 03:00)⏎
+本周 ▰▱▱▱▱▱▱▱▱▱ 15% (5d, 10月6日 00:00)⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
+🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+📝 ▸ cover the new segment (0/1)⏎
+📚 ◐ trellis-meta⏎
+── agy @ 100
+上下文 ▰▰▰▱▱▱▱▱▱▱ 32% (320k/1.0M) | ◆ Orchestrator (Neon) · High · claude-opus-4-6-thinking | ▣ app⏎
+⎇ feat/agyline ● ↑1⏎
+用量 ▰▰▱▱▱▱▱▱▱▱ 28% (3h, 03:00) | 本周 ▰▱▱▱▱▱▱▱▱▱ 15% (5d, 10月6日 00:00)⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
+🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+📝 ▸ cover the new segment (0/1)⏎
+📚 ◐ trellis-meta⏎
+── agy @ 140
+上下文 ▰▰▰▱▱▱▱▱▱▱ 32% (320k/1.0M) | ◆ Orchestrator (Neon) · High · claude-opus-4-6-thinking | ▣ app | ⎇ feat/agyline ● ↑1⏎
+用量 ▰▰▱▱▱▱▱▱▱▱ 28% (3h, 03:00) | 本周 ▰▱▱▱▱▱▱▱▱▱ 15% (5d, 10月6日 00:00)⏎
+🔧 ◐ Bash: cargo test | ✓ Edit ×11⏎
+🤖 ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+📝 ▸ cover the new segment (0/1)⏎
+📚 ◐ trellis-meta⏎

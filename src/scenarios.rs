@@ -462,16 +462,62 @@ pub const SCENARIOS: &[Scenario] = &[
     },
     Scenario {
         name: "old-cc",
-        summary: "A Claude Code older than the minimum ccline supports",
+        summary: "A Claude Code older than the minimum agyline supports",
         git: None,
         history: &[],
         today: None,
         latest: None,
         bridge: None,
         json: r#"{
-  "session_id": "s-old", "cwd": "/home/u/app", "version": "2.1.140",
+  "session_id": "s-old", "cwd": "/home/u/app", "version": "1.2.0",
   "model": {"id": "claude-sonnet-4-5", "display_name": "Sonnet 4.5"},
   "workspace": {"current_dir": "/home/u/app", "project_dir": "/home/u/app"}
+}"#,
+    },
+    Scenario {
+        name: "agy",
+        summary: "An Antigravity CLI session with dual Gemini/3P quota pools and DB telemetry",
+        git: Some(GitSpec {
+            branch: "feat/agyline",
+            ahead: 1,
+            behind: 0,
+            modified: 3,
+            untracked: 1,
+            conflicts: 0,
+        }),
+        history: &[
+            h(1800, "a-1", 180_000, 0.42, Some(15.0)),
+            h(900, "a-2", 260_000, 0.95, Some(22.0)),
+        ],
+        today: Some(6.40),
+        latest: None,
+        bridge: None,
+        json: r#"{
+  "conversation_id": "s-agy",
+  "conversation_title": "Build agyline statusline",
+  "version": "1.5.8",
+  "cwd": "/home/u/app",
+  "model": {"id": "Orchestrator (Neon)", "display_name": "Orchestrator (Neon)", "effort": "high"},
+  "workspace": {"current_dir": "/home/u/app", "project_dir": "/home/u/app"},
+  "context_window": {
+    "total_input_tokens": 320000,
+    "total_output_tokens": 2400,
+    "context_window_size": 1000000,
+    "current_usage": {"input_tokens": 4200, "output_tokens": 2400, "cache_creation_input_tokens": 8000, "cache_read_input_tokens": 307800}
+  },
+  "quota": {
+    "gemini-5h": {"remaining_fraction": 0.72, "reset_in_seconds": 10800},
+    "gemini-weekly": {"remaining_fraction": 0.85, "reset_in_seconds": 432000},
+    "3p-5h": {"remaining_fraction": 0.61, "reset_in_seconds": 0},
+    "3p-weekly": {"remaining_fraction": 0.54, "reset_in_seconds": 0}
+  },
+  "agent_state": "running",
+  "cycle_mode": "Planning",
+  "sandbox": {"enabled": false},
+  "task_count": 3,
+  "artifact_count": 2,
+  "plan_tier": "Google AI Ultra",
+  "email": "yeye@example.com"
 }"#,
     },
 ];
@@ -574,6 +620,14 @@ impl Scenario {
                 content: "cover the new segment".into(),
                 status: "in_progress".into(),
             }],
+            compactions: if self.name == "agy" { 1 } else { 0 },
+            session_tokens: crate::state::transcript::SessionTokens {
+                input: 120_000,
+                output: 14_000,
+                cache_read: 980_000,
+                cache_write: 25_000,
+            },
+            ..Summary::default()
         })
     }
 
@@ -603,9 +657,32 @@ impl Scenario {
         input
     }
 
+    pub fn db(&self, now: i64) -> Option<crate::state::agy_db::DbSummary> {
+        (self.name == "agy").then(|| crate::state::agy_db::DbSummary {
+            api_model: Some("claude-opus-4-6-thinking".into()),
+            display_model: Some("Orchestrator (Neon)".into()),
+            ttft_ms: Some(920),
+            tps: Some(68.4),
+            total_cost_usd: Some(1.48),
+            first_call_at: Some(now - 2400),
+            input_tokens: 18_500,
+            cache_read_tokens: 890_000,
+            cache_write_tokens: 12_000,
+            output_tokens: 9_200,
+            last_input_tokens: 4_200,
+            last_cache_read_tokens: 307_800,
+            last_cache_write_tokens: 8_000,
+        })
+    }
+
     /// The session's history up to `now`, ending with the current render.
     pub fn state(&self, now: i64) -> StateView {
-        let current = Sample::from_input(&self.input(now), now);
+        let db = self.db(now);
+        let current = Sample::from_input(
+            &self.input(now),
+            now,
+            db.as_ref().and_then(|d| d.total_cost_usd),
+        );
         let samples = self
             .history
             .iter()
@@ -625,7 +702,7 @@ impl Scenario {
             transcript: self.transcript(now),
             mcp: self.mcp(),
             environment: Some(crate::metrics::environment::Environment {
-                claude_md: vec!["~/.claude/CLAUDE.md".into(), ".claude/CLAUDE.md".into()],
+                claude_md: vec!["~/.gemini/GEMINI.md".into(), "AGENTS.md".into()],
                 rules: vec!["style".into(), "review".into()],
                 hooks: vec!["Post: format.sh".into()],
             }),
@@ -640,8 +717,6 @@ impl Scenario {
             month_cost: self.today.map(|today| today * 12.0),
             latest_version: self.latest.map(str::to_string),
             bridge: self.bridge(now).map(std::rc::Rc::new),
-            // A subscriber's weekly window comes with Fable's own, as the
-            // usage snapshot would carry it.
             scoped: current
                 .d7_reset
                 .map(|reset| {
@@ -652,6 +727,8 @@ impl Scenario {
                     }]
                 })
                 .unwrap_or_default(),
+            session_cost: db.as_ref().and_then(|d| d.total_cost_usd),
+            db,
         }
     }
 }
@@ -731,7 +808,16 @@ mod tests {
     #[test]
     fn normal_shows_all_but_situational_metrics() {
         use crate::metrics::{self, Ctx, GitSource, McpSource, Options, TranscriptSource};
-        let situational = ["update", "quota.spend", "quota.eta", "worktree"];
+        let situational = [
+            "update",
+            "quota.spend",
+            "quota.eta",
+            "worktree",
+            "auth",
+            "agy.state",
+            "agy.mode",
+            "agy.tasks",
+        ];
         let registry = crate::models::Registry::default();
         let tz = chrono::FixedOffset::east_opt(0).unwrap();
         let readings: Vec<_> = SCENARIOS

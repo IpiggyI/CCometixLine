@@ -154,11 +154,27 @@ fn config_path(config_dir: Option<std::ffi::OsString>, home: Option<PathBuf>) ->
 }
 
 pub(super) fn servers(input: &Input) -> Option<Vec<String>> {
-    servers_at(
-        &config_path(std::env::var_os("CLAUDE_CONFIG_DIR"), dirs::home_dir())?,
-        input.project_dir().map(Path::new),
-        &crate::state::dir().join("mcp-v2"),
-    )
+    let mut out = BTreeSet::new();
+    let cache = crate::state::dir().join("mcp-v2");
+    for cfg in [
+        crate::paths::agy_config_dir().join("mcp_config.json"),
+        input
+            .project_dir()
+            .map(|d| Path::new(d).join(".agents/mcp_config.json"))
+            .unwrap_or_default(),
+    ] {
+        if !cfg.as_os_str().is_empty()
+            && let Some(parsed) = load(&cfg, &cache)
+        {
+            out.extend(parsed.servers);
+        }
+    }
+    if let Some(claude_cfg) = config_path(std::env::var_os("CLAUDE_CONFIG_DIR"), dirs::home_dir())
+        && let Some(cc) = servers_at(&claude_cfg, input.project_dir().map(Path::new), &cache)
+    {
+        out.extend(cc);
+    }
+    (!out.is_empty()).then(|| out.into_iter().collect())
 }
 
 fn servers_at(config: &Path, dir: Option<&Path>, cache: &Path) -> Option<Vec<String>> {
@@ -204,14 +220,17 @@ pub(super) fn metric() -> Metric {
 }
 
 fn compute(ctx: &Ctx, _: &Options) -> Option<Reading> {
-    let names: BTreeSet<_> = ctx.mcp()?.iter().collect();
+    let mut names: BTreeSet<String> = ctx
+        .mcp()
+        .map(|s| s.iter().cloned().collect())
+        .unwrap_or_default();
+    if let Some(t) = ctx.transcript() {
+        names.extend(t.mcp_servers.iter().cloned());
+    }
     (!names.is_empty()).then(|| {
         Reading::default()
             .set("count", names.len().to_string())
-            .set(
-                "names",
-                names.into_iter().cloned().collect::<Vec<_>>().join(", "),
-            )
+            .set("names", names.into_iter().collect::<Vec<_>>().join(", "))
     })
 }
 

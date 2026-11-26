@@ -97,10 +97,22 @@ pub struct Price {
     pub cache_read: f64,
 }
 
-/// Official pricing: https://platform.claude.com/docs/en/about-claude/pricing.
-/// `prompt_tokens` includes input, cache reads and cache writes. US-only
-/// `inference_geo` adds 1.1x, but is not reported by the input and is not applied.
+/// `2026-12-01T08:00:00Z` (midnight PT): Carbon and Argon rate increase.
+const CARBON_ARGON_RISE_AT: i64 = 1_796_112_000;
+/// `2027-01-01T08:00:00Z` (midnight PT): 3.6/3.8 Flash rate increase.
+const FLASH_38_RISE_AT: i64 = 1_798_790_400;
+
+/// Official pricing for Claude and Gemini models at `at_epoch` (Unix seconds).
+/// `prompt_tokens` includes input, cache reads and cache writes.
 pub fn price(id: &str, fast_mode: bool, prompt_tokens: u64) -> Option<Price> {
+    price_at(id, fast_mode, prompt_tokens, 0)
+}
+
+/// Official pricing at a specific call timestamp `at_epoch` (for scheduled Gemini price changes).
+pub fn price_at(id: &str, fast_mode: bool, prompt_tokens: u64, at_epoch: i64) -> Option<Price> {
+    if let Some(p) = gemini_price(id, at_epoch) {
+        return Some(p);
+    }
     let m = claude_model(id)?;
     let version = (m.major, m.minor.unwrap_or(0));
     let (mut input, mut output) = match (m.family.as_str(), version) {
@@ -136,6 +148,82 @@ pub fn price(id: &str, fast_mode: bool, prompt_tokens: u64) -> Option<Price> {
         cache_write_1h: input * 2.0,
         cache_read: input * read,
     })
+}
+
+fn gemini_price(id: &str, at_epoch: i64) -> Option<Price> {
+    let lower = id.to_ascii_lowercase();
+    let (input, cache_read, output) = if lower.contains("orchestrator-neon")
+        || (lower.contains("orchestrator") && lower.contains("neon"))
+        || lower.contains("gemini-4-neon")
+    {
+        (3.0, 0.15, 15.0)
+    } else if lower.contains("orchestrator-argon")
+        || (lower.contains("orchestrator") && lower.contains("argon"))
+        || lower.contains("gemini-4-argon")
+        || lower.contains("orchestrator")
+        || lower.contains("gemini-4-carbon")
+    {
+        if at_epoch >= CARBON_ARGON_RISE_AT {
+            (4.0, 0.2, 20.0)
+        } else {
+            (2.0, 0.1, 10.0)
+        }
+    } else if lower.contains("flash-worker") || lower.contains("gemini-4-hydrogen") {
+        (1.5, 0.075, 7.5)
+    } else if lower.contains("gemini-3.8-flash")
+        || lower.contains("gemini-3-8-flash")
+        || lower.contains("gemini-3.6-flash")
+        || lower.contains("gemini-3-6-flash")
+    {
+        if at_epoch >= FLASH_38_RISE_AT {
+            (1.5, 0.15, 7.5)
+        } else {
+            (0.75, 0.075, 3.75)
+        }
+    } else if lower.contains("gemini-3.5-flash-lite") || lower.contains("gemini-3-5-flash-lite") {
+        (0.3, 0.03, 2.5)
+    } else {
+        return None;
+    };
+    Some(Price {
+        input,
+        output,
+        cache_write_5m: 0.0,
+        cache_write_1h: 0.0,
+        cache_read,
+    })
+}
+
+/// Human-friendly display name for known Gemini/Orchestrator model ids.
+pub fn gemini_name(id: &str) -> Option<&'static str> {
+    let lower = id.to_ascii_lowercase();
+    if lower.contains("orchestrator-neon")
+        || (lower.contains("orchestrator") && lower.contains("neon"))
+    {
+        Some("Orchestrator (Neon)")
+    } else if lower.contains("orchestrator-argon")
+        || (lower.contains("orchestrator") && lower.contains("argon"))
+    {
+        Some("Orchestrator (Argon)")
+    } else if lower.contains("orchestrator") {
+        Some("Orchestrator (Carbon)")
+    } else if lower.contains("gemini-4-neon") {
+        Some("Gemini 4 Neon")
+    } else if lower.contains("gemini-4-carbon") {
+        Some("Gemini 4 Carbon")
+    } else if lower.contains("gemini-4-argon") {
+        Some("Gemini 4 Argon")
+    } else if lower.contains("gemini-4-hydrogen") || lower.contains("flash-worker") {
+        Some("Gemini 4 Hydrogen")
+    } else if lower.contains("gemini-3.8-flash") || lower.contains("gemini-3-8-flash") {
+        Some("Gemini 3.8 Flash")
+    } else if lower.contains("gemini-3.6-flash") || lower.contains("gemini-3-6-flash") {
+        Some("Gemini 3.6 Flash")
+    } else if lower.contains("gemini-3.5-flash-lite") || lower.contains("gemini-3-5-flash-lite") {
+        Some("Gemini 3.5 Flash-Lite")
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]

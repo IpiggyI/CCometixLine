@@ -44,20 +44,18 @@ pub fn theme(config: &Config) -> Theme {
     }
 }
 
-/// Columns Claude Code's footer keeps clear on each side of the status line
-/// (`paddingX: 2` around it, as of 2.1.302). Lines wider than what's left
-/// are cut with `…` rather than wrapped.
-const FOOTER_PADDING: usize = 2;
+/// Antigravity CLI passes exact usable width in `terminal_width`.
+const FOOTER_PADDING: usize = 0;
 
-/// Columns the status line may use: the configured or reported terminal
-/// width, minus Claude Code's footer padding and `statusLine.padding` on
-/// both sides, and any configured reserve.
-pub fn budget(config: &Config, settings: &ClaudeSettings) -> Option<usize> {
+/// Columns the status line may use: the configured, payload, or reported
+/// terminal width, minus any configured padding and reserve.
+pub fn budget(config: &Config, input: &Input, settings: &ClaudeSettings) -> Option<usize> {
     let width = config
         .layout
         .width
         .0
         .map(usize::from)
+        .or(input.terminal_width)
         .or_else(crate::env::columns)?;
     let padding = config
         .layout
@@ -74,7 +72,7 @@ pub fn lines(input: &Input, config: &Config, registry: &Registry, frame: Frame) 
         && v < version::MIN_SUPPORTED
     {
         let text = format!(
-            "ccline needs Claude Code {} or newer (running {v})",
+            "agyline needs Antigravity CLI {} or newer (running {v})",
             version::MIN_SUPPORTED
         );
         return vec![vec![Span::styled(
@@ -401,7 +399,7 @@ mod tests {
                 "cover the new segment",
                 "trellis-meta",
                 "format",
-                "CLAUDE.md:",
+                "AGENTS.md:",
             ] {
                 assert!(output.contains(expected), "{expected}: {output}");
             }
@@ -506,7 +504,7 @@ mod tests {
         let out = render("cometix", "old-cc", None);
         assert_eq!(
             out,
-            vec!["ccline needs Claude Code 2.1.153 or newer (running 2.1.140)"]
+            vec!["agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)"]
         );
     }
 
@@ -601,11 +599,12 @@ mod tests {
     fn leaves_room_for_the_footer_padding() {
         let mut config = presets::default_config();
         config.layout.width = crate::config::Dim(Some(120));
+        let input = Input::default();
         let settings = ClaudeSettings::default();
-        assert_eq!(budget(&config, &settings), Some(116));
+        assert_eq!(budget(&config, &input, &settings), Some(120));
         config.layout.padding = crate::config::Dim(Some(1));
         config.layout.reserve = 2;
-        assert_eq!(budget(&config, &settings), Some(112));
+        assert_eq!(budget(&config, &input, &settings), Some(116));
     }
 
     #[test]

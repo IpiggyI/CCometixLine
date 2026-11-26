@@ -48,7 +48,7 @@ pub fn tab_current() -> Style {
 }
 
 /// The app's name, at the start of the tab row.
-pub const BRAND: &str = "CCometixLine";
+pub const BRAND: &str = "agyline";
 
 /// Claude Code's rainbow for `ultrathink`: the colors, then the lighter
 /// shades its glint passes over them in. Its truecolor themes use these
@@ -280,10 +280,14 @@ mod tests {
     fn draws_the_name_in_claude_codes_rainbow() {
         let fg = |spans: &[Span], i: usize| spans[i].style.fg;
         let ansi = brand(false, None);
-        assert_eq!(ansi.len(), 12);
+        assert_eq!(ansi.len(), BRAND.chars().count());
         assert_eq!(
-            (fg(&ansi, 0), fg(&ansi, 1), fg(&ansi, 7)),
-            (Some(Color::Red), Some(Color::LightRed), Some(Color::Red))
+            (fg(&ansi, 0), fg(&ansi, 1), fg(&ansi, 6)),
+            (
+                Some(Color::Red),
+                Some(Color::LightRed),
+                Some(Color::Magenta)
+            )
         );
         assert_eq!(fg(&brand(true, None), 1), Some(Color::Rgb(245, 139, 87)));
         // The glint lights its letter and the ones either side.
@@ -303,15 +307,17 @@ mod tests {
     #[test]
     fn the_glint_sweeps_past_the_name_and_rests_between() {
         let ms = Duration::from_millis;
+        let cycle = (BRAND.chars().count() as u64) + 2 * GLINT_RUN as u64;
+        let end = (GLINT_RUN + BRAND.chars().count() as i64) as u64;
         assert_eq!(glint(ms(0)), -10);
         assert_eq!(glint(ms(500)), 0);
-        assert_eq!(glint(ms(32 * 50)), -10);
+        assert_eq!(glint(ms(cycle * 50)), -10);
         // Off the name it sleeps until it comes back; on it, a step.
         assert_eq!(next_glint(ms(0)), ms(450));
         assert_eq!(next_glint(ms(20)), ms(430));
         assert_eq!(next_glint(ms(500)), ms(50));
-        assert_eq!(next_glint(ms(22 * 50)), ms(50));
-        assert_eq!(next_glint(ms(23 * 50)), ms(18 * 50));
+        assert_eq!(next_glint(ms(end * 50)), ms(50));
+        assert_eq!(next_glint(ms((end + 1) * 50)), ms(18 * 50));
     }
 
     #[test]

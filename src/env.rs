@@ -40,10 +40,11 @@ impl ClaudeSettings {
     pub fn load(project_dir: Option<&str>) -> Self {
         let mut files = Vec::new();
         if let Some(dir) = project_dir.map(Path::new) {
+            files.push(dir.join(".agents").join("settings.json"));
             files.push(dir.join(".claude").join("settings.local.json"));
             files.push(dir.join(".claude").join("settings.json"));
         }
-        files.push(crate::paths::claude_dir().join("settings.json"));
+        files.push(crate::paths::agy_cli_dir().join("settings.json"));
         ClaudeSettings(
             files
                 .iter()
@@ -53,12 +54,13 @@ impl ClaudeSettings {
     }
 
     /// Settings for the session's project, falling back to
-    /// `CLAUDE_PROJECT_DIR` when the input has none.
+    /// `AGY_PROJECT_DIR` / `CLAUDE_PROJECT_DIR` when the input has none.
     pub fn for_input(input: &Input) -> Self {
         let project = input
             .workspace
             .as_ref()
             .and_then(|w| w.project_dir.clone())
+            .or_else(|| std::env::var("AGY_PROJECT_DIR").ok())
             .or_else(|| std::env::var("CLAUDE_PROJECT_DIR").ok());
         ClaudeSettings::load(project.as_deref())
     }
@@ -91,7 +93,8 @@ impl ClaudeSettings {
                 .unwrap_or(true);
         // The variable wins over the setting; Claude Code keeps it within
         // 100k..1M and ignores values it can't parse.
-        let window = match var("CLAUDE_CODE_AUTO_COMPACT_WINDOW")
+        let window = match var("AGY_AUTO_COMPACT_WINDOW")
+            .or_else(|| var("CLAUDE_CODE_AUTO_COMPACT_WINDOW"))
             .and_then(|v| v.trim().parse::<f64>().ok())
             .filter(|v| *v > 0.0)
         {

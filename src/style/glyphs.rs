@@ -53,6 +53,7 @@ pub enum IconKey {
     Trend,
     Compact,
     Quota,
+    QuotaWeek,
     Eta,
     Spend,
     Cost,
@@ -78,10 +79,14 @@ pub enum IconKey {
     Hooks,
     Mcp,
     Todos,
+    Auth,
+    State,
+    Mode,
+    Tokens,
 }
 
 impl IconKey {
-    pub const ALL: [IconKey; 38] = [
+    pub const ALL: [IconKey; 43] = [
         IconKey::Model,
         IconKey::Effort,
         IconKey::Thinking,
@@ -95,6 +100,7 @@ impl IconKey {
         IconKey::Trend,
         IconKey::Compact,
         IconKey::Quota,
+        IconKey::QuotaWeek,
         IconKey::Eta,
         IconKey::Spend,
         IconKey::Cost,
@@ -120,6 +126,10 @@ impl IconKey {
         IconKey::Hooks,
         IconKey::Mcp,
         IconKey::Todos,
+        IconKey::Auth,
+        IconKey::State,
+        IconKey::Mode,
+        IconKey::Tokens,
     ];
 
     /// A short lowercase name, for pickers.
@@ -151,7 +161,8 @@ pub fn icon(key: IconKey, tier: GlyphTier) -> &'static str {
         IconKey::Context => ("\u{f49b}", "◔"),
         IconKey::Trend => ("\u{f201}", "∿"),
         IconKey::Compact => ("\u{f066}", "⇲"),
-        IconKey::Quota => ("\u{f0520}", "◷"),
+        IconKey::Quota => ("\u{f02da}", "◴"),
+        IconKey::QuotaWeek => ("\u{f00ed}", "▦"),
         IconKey::Eta => ("\u{f252}", "⇥"),
         IconKey::Spend => ("\u{f155}", "$"),
         IconKey::Cost => ("\u{eec1}", "$"),
@@ -177,6 +188,10 @@ pub fn icon(key: IconKey, tier: GlyphTier) -> &'static str {
         IconKey::Hooks => ("\u{f13d}", "⌁"),
         IconKey::Mcp => ("\u{f1e6}", "⇌"),
         IconKey::Todos => ("\u{f0ae}", "☑"),
+        IconKey::Auth => ("\u{f0004}", "☺"),
+        IconKey::State => ("\u{f0130}", "◉"),
+        IconKey::Mode => ("\u{f0493}", "◈"),
+        IconKey::Tokens => ("\u{f0765}", "Σ"),
     };
     match tier {
         GlyphTier::Nerd => nerd,
@@ -263,6 +278,7 @@ impl BarGlyphs {
 pub fn gauge_steps(tier: GlyphTier) -> &'static [&'static str] {
     match tier {
         GlyphTier::Nerd => &[
+            "\u{f0766}",
             "\u{f0a9e}",
             "\u{f0a9f}",
             "\u{f0aa0}",
@@ -333,6 +349,12 @@ mod tests {
             IconKey::Hooks,
             IconKey::Mcp,
             IconKey::Todos,
+            IconKey::Quota,
+            IconKey::QuotaWeek,
+            IconKey::Auth,
+            IconKey::State,
+            IconKey::Mode,
+            IconKey::Tokens,
         ];
         for tier in [GlyphTier::Nerd, GlyphTier::Unicode] {
             for key in newer {

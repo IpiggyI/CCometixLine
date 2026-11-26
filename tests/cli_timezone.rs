@@ -4,11 +4,11 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 fn bin() -> &'static str {
-    env!("CARGO_BIN_EXE_ccometixline")
+    env!("CARGO_BIN_EXE_agyline")
 }
 
 fn temp_home(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("ccline-cli-tz-{tag}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("agyline-cli-tz-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -16,13 +16,14 @@ fn temp_home(tag: &str) -> PathBuf {
 
 fn run_statusline(home: &std::path::Path, extra_tz: Option<&str>, payload: &str) -> String {
     let mut cmd = Command::new(bin());
-    cmd.env("CCLINE_HOME", home)
+    cmd.env("AGYLINE_HOME", home)
+        .env_remove("AGYLINE_TZ")
         .env_remove("CCLINE_TZ")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     if let Some(tz) = extra_tz {
-        cmd.env("CCLINE_TZ", tz);
+        cmd.env("AGYLINE_TZ", tz);
     }
     let mut child = cmd.spawn().unwrap();
     child
@@ -121,14 +122,14 @@ left = [{ metric = "quota.5h", widget = "text", format = "{reset}", options = { 
         "expected {expected_bj} in {stdout_bj:?}"
     );
 
-    // Invalid timezone in config.toml preserves lines and appends `! ccline tz`.
+    // Invalid timezone in config.toml preserves lines and appends `! agyline tz`.
     std::fs::write(
         home.join("config.toml"),
         config.replace("timezone = \"auto\"", "timezone = \"Mars/Phobos\""),
     )
     .unwrap();
     let stdout_bad = run_statusline(&home, None, &payload);
-    assert!(stdout_bad.contains("! ccline tz"), "{stdout_bad:?}");
+    assert!(stdout_bad.contains("! agyline tz"), "{stdout_bad:?}");
 
     std::fs::remove_dir_all(&home).unwrap();
 }
@@ -143,7 +144,7 @@ fn preview_accepts_tz_flag_and_rejects_invalid_tz() {
     .unwrap();
     let run = |tz: &str| {
         let out = Command::new(bin())
-            .env("CCLINE_HOME", &home)
+            .env("AGYLINE_HOME", &home)
             .args(["preview", "-s", "normal", "--tz", tz, "--color", "none"])
             .output()
             .unwrap();
@@ -172,7 +173,7 @@ fn preview_accepts_tz_flag_and_rejects_invalid_tz() {
     assert_eq!((parse_hhmm(&bj) + 1440 - parse_hhmm(&utc)) % 1440, 8 * 60);
 
     let bad = Command::new(bin())
-        .env("CCLINE_HOME", &home)
+        .env("AGYLINE_HOME", &home)
         .args(["preview", "--tz", "Mars/Phobos"])
         .output()
         .unwrap();

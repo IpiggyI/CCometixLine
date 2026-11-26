@@ -337,6 +337,20 @@ pub fn gradient(theme: &Theme, t: f32) -> Option<Color> {
     })
 }
 
+fn chip_colors(
+    sev: Severity,
+    base: Option<Color>,
+    seg_bg: Option<Color>,
+    theme: &Theme,
+) -> (Option<Color>, Option<Color>) {
+    let fg = severity_token(sev).and_then(|t| theme.token(t)).or(base);
+    let surface = seg_bg
+        .or_else(|| theme.token(Token::Bg))
+        .or(Some(Color::Rgb(26, 27, 38)));
+    let chip_bg = shade(surface, fg, 0.24).or(Some(Color::Ansi256(58)));
+    (fg, chip_bg)
+}
+
 /// Style each piece of an item.
 pub fn paint(item: &ItemView, theme: &Theme) -> Vec<Span> {
     let base = base_color(item, theme);
@@ -351,16 +365,25 @@ pub fn paint(item: &ItemView, theme: &Theme) -> Vec<Span> {
             .pieces
             .iter()
             .map(|p| {
+                let mut bg = None;
                 let fg = match p.role {
                     Role::Icon => item.icon_color.or(base),
                     Role::Text | Role::Strong => sev.or(item.fg).or(base),
-                    Role::Steady => item.icon_color.or_else(|| theme.token(item.category.into())),
+                    Role::Steady => item
+                        .icon_color
+                        .or_else(|| theme.token(item.category.into())),
                     Role::Muted | Role::Empty => muted,
                     Role::Sep => sep,
                     Role::Fill(s) => severity_token(s).and_then(|t| theme.token(t)).or(base),
                     Role::Gradient(t) => gradient(theme, t),
                     Role::Good => theme.token(Token::Ok),
                     Role::Bad => theme.token(Token::Crit),
+                    Role::Chip(s) => {
+                        let (c_fg, c_bg) = chip_colors(s, base, None, theme);
+                        bg = c_bg;
+                        c_fg
+                    }
+                    Role::ChipCap(s) => chip_colors(s, base, None, theme).1,
                     Role::Pace { used, .. } => {
                         if used {
                             sev.or(base)
@@ -369,15 +392,15 @@ pub fn paint(item: &ItemView, theme: &Theme) -> Vec<Span> {
                         }
                     }
                 };
-                let bg = match p.role {
-                    Role::Pace { elapsed: true, .. } => passed,
-                    Role::Pace { elapsed: false, .. } => muted,
-                    _ => None,
-                };
+                if matches!(p.role, Role::Pace { elapsed: true, .. }) {
+                    bg = passed;
+                } else if matches!(p.role, Role::Pace { elapsed: false, .. }) {
+                    bg = muted;
+                }
                 let style = Style {
                     fg,
                     bg,
-                    bold: p.role == Role::Strong,
+                    bold: matches!(p.role, Role::Strong | Role::Chip(_)),
                     ..Style::default()
                 };
                 Span::styled(p.text.clone(), style).with_link(p.link.clone())
@@ -416,6 +439,19 @@ pub fn paint(item: &ItemView, theme: &Theme) -> Vec<Span> {
                     dim: mid.is_none(),
                     ..Style::default()
                 },
+                (Role::Chip(s), _) => {
+                    let (c_fg, c_bg) = chip_colors(s, fg, bg, theme);
+                    Style {
+                        fg: c_fg,
+                        bg: c_bg,
+                        bold: true,
+                        ..Style::default()
+                    }
+                }
+                (Role::ChipCap(s), _) => {
+                    let (_, c_bg) = chip_colors(s, fg, bg, theme);
+                    style(c_bg, bg)
+                }
                 (Role::Icon, false) => style(item.icon_color.or(fg), bg),
                 (role, false) => Style {
                     fg,

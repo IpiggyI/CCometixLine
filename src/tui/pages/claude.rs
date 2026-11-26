@@ -784,7 +784,7 @@ mod tests {
         let line = written.status_line().unwrap();
         assert!(cc_settings::is_ccline(&line.command));
         assert_eq!(line.refresh_interval, Some(2));
-        assert!(dir.join("settings.json.ccline-bak").exists());
+        assert!(dir.join("settings.json.agyline-bak").exists());
         assert!(screen(&mut app, 112, 33).contains("no changes"));
 
         // The companion mod pane shows the commands before running any.

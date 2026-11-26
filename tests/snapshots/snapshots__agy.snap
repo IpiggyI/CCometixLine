@@ -1,0 +1,243 @@
+---
+source: tests/snapshots.rs
+expression: render_preset(preset.name)
+---
+── normal @ 60
+ Opus 4.8 · High | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ | ± +128 -34⏎
+ Fix the login redirect | 󰆋 Opus 5.5⏎
+󰪟 24% (124k/512k) |  3:42 · 94% hit |  $1.20⏎
+ $4.85 today⏎
+󰐍 9-30 20:48 | 󱦻 30m30s |  9-30 23:59 |  0.8s | 󰓅 74 tok/s⏎
+󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta⏎
+ context7, github⏎
+── normal @ 100
+ Opus 4.8 · High | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ | ± +128 -34 |  Fix the login redirect | 󰆋 Opus 5.5⏎
+󰪟 24% (124k/512k) |  3:42 · 94% hit |  $1.20 |  $4.85 today⏎
+󰐍 9-30 20:48 | 󱦻 30m30s |  9-30 23:59 |  0.8s | 󰓅 74 tok/s⏎
+󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── normal @ 140
+ Opus 4.8 · High | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ | ± +128 -34 |  Fix the login redirect | 󰆋 Opus 5.5⏎
+󰪟 24% (124k/512k) |  3:42 · 94% hit |  $1.20 |  $4.85 today⏎
+󰐍 9-30 20:48 | 󱦻 30m30s |  9-30 23:59 |  0.8s | 󰓅 74 tok/s | 󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── fresh @ 60
+ Sonnet 5 · Med | 󰉋 app | 󰊢 main ✓ | 󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\⏎
+󰆋 Opus 5.5⏎
+󰝦 5% (24k/512k) |  4:20 · 0% hit |  $0.06⏎
+󰐍 9-30 20:48 | 󱦻 40s |  9-30 23:59 |  1.4s | 󰓅 88 tok/s⏎
+󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta⏎
+ context7, github⏎
+── fresh @ 100
+ Sonnet 5 · Med | 󰉋 app | 󰊢 main ✓ | 󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\ | 󰆋 Opus 5.5⏎
+󰝦 5% (24k/512k) |  4:20 · 0% hit |  $0.06⏎
+󰐍 9-30 20:48 | 󱦻 40s |  9-30 23:59 |  1.4s | 󰓅 88 tok/s | 󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── fresh @ 140
+ Sonnet 5 · Med | 󰉋 app | 󰊢 main ✓ | 󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\ | 󰆋 Opus 5.5⏎
+󰝦 5% (24k/512k) |  4:20 · 0% hit |  $0.06⏎
+󰐍 9-30 20:48 | 󱦻 40s |  9-30 23:59 |  1.4s | 󰓅 88 tok/s | 󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── near-full @ 60
+ Opus 4.8 · Max | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\✨auth ⚠ ↓3]8;;\ | ± +1450 -610⏎
+󰆋 Opus 5.5⏎
+󰪠 36% (182k/512k) |  cold · 71% hit |  $18.42⏎
+ $31.60 today⏎
+󰐍 9-30 20:48 | 󱦻 4h |  9-30 23:59 |  2.4s | 󰓅 41 tok/s⏎
+󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta⏎
+ context7, github⏎
+── near-full @ 100
+ Opus 4.8 · Max | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\✨auth ⚠ ↓3]8;;\ | ± +1450 -610 | 󰆋 Opus 5.5⏎
+󰪠 36% (182k/512k) |  cold · 71% hit |  $18.42 |  $31.60 today⏎
+󰐍 9-30 20:48 | 󱦻 4h |  9-30 23:59 |  2.4s | 󰓅 41 tok/s | 󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── near-full @ 140
+ Opus 4.8 · Max | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\✨auth ⚠ ↓3]8;;\ | ± +1450 -610 | 󰆋 Opus 5.5⏎
+󰪠 36% (182k/512k) |  cold · 71% hit |  $18.42 |  $31.60 today⏎
+󰐍 9-30 20:48 | 󱦻 4h |  9-30 23:59 |  2.4s | 󰓅 41 tok/s | 󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── big-context @ 60
+ Opus 5.5 1M · xHigh · fast | 󰉋 api | 󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\ | ± +40 -2⏎
+󰆋 Opus 5.5⏎
+󰪡 53% (270k/512k) |  45:00 · 97% hit |  $7.74⏎
+ $12.40 today⏎
+󰐍 9-30 20:48 | 󱦻 1h30m |  9-30 23:59 |  3.1s | 󰓅 96 tok/s⏎
+󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta⏎
+ context7, github⏎
+── big-context @ 100
+ Opus 5.5 1M · xHigh · fast | 󰉋 api | 󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\ | ± +40 -2 | 󰆋 Opus 5.5⏎
+󰪡 53% (270k/512k) |  45:00 · 97% hit |  $7.74 |  $12.40 today⏎
+󰐍 9-30 20:48 | 󱦻 1h30m |  9-30 23:59 |  3.1s | 󰓅 96 tok/s⏎
+󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── big-context @ 140
+ Opus 5.5 1M · xHigh · fast | 󰉋 api | 󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\ | ± +40 -2 | 󰆋 Opus 5.5⏎
+󰪡 53% (270k/512k) |  45:00 · 97% hit |  $7.74 |  $12.40 today⏎
+󰐍 9-30 20:48 | 󱦻 1h30m |  9-30 23:59 |  3.1s | 󰓅 96 tok/s | 󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── third-party @ 60
+ Kimi K2 Turbo | 󰉋 app | 󰊢 main ● | 󰆋 Opus 5.5⏎
+󰪞 20% (104k/512k) |  3:00 · 88% hit |  $0.84⏎
+ $0.84 today⏎
+󰐍 9-30 20:48 | 󱦻 15m |  9-30 23:59 |  1.1s | 󰓅 120 tok/s⏎
+󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta⏎
+ context7, github⏎
+── third-party @ 100
+ Kimi K2 Turbo | 󰉋 app | 󰊢 main ● | 󰆋 Opus 5.5⏎
+󰪞 20% (104k/512k) |  3:00 · 88% hit |  $0.84 |  $0.84 today⏎
+󰐍 9-30 20:48 | 󱦻 15m |  9-30 23:59 |  1.1s | 󰓅 120 tok/s⏎
+󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── third-party @ 140
+ Kimi K2 Turbo | 󰉋 app | 󰊢 main ● | 󰆋 Opus 5.5⏎
+󰪞 20% (104k/512k) |  3:00 · 88% hit |  $0.84 |  $0.84 today⏎
+󰐍 9-30 20:48 | 󱦻 15m |  9-30 23:59 |  1.1s | 󰓅 120 tok/s | 󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── worktree @ 60
+ Sonnet 5 · High | 󰉋 feature-x | 󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\⏎
+ feature-x | ± +12 |  Refactor the auth middleware⏎
+󰆋 Opus 5.5⏎
+󰝦 7% (38k/512k) |  3:30 · 91% hit |  $0.31 |  $2.15 today⏎
+󰐍 9-30 20:48 | 󱦻 7m |  9-30 23:59 |  1.6s | 󰓅 70 tok/s⏎
+󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta⏎
+ context7, github⏎
+── worktree @ 100
+ Sonnet 5 · High | 󰉋 feature-x | 󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\ |  feature-x | ± +12⏎
+ Refactor the auth middleware | 󰆋 Opus 5.5⏎
+󰝦 7% (38k/512k) |  3:30 · 91% hit |  $0.31 |  $2.15 today⏎
+󰐍 9-30 20:48 | 󱦻 7m |  9-30 23:59 |  1.6s | 󰓅 70 tok/s | 󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── worktree @ 140
+ Sonnet 5 · High | 󰉋 feature-x | 󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\ |  feature-x | ± +12 |  Refactor the auth middleware | 󰆋 Opus 5.5⏎
+󰝦 7% (38k/512k) |  3:30 · 91% hit |  $0.31 |  $2.15 today⏎
+󰐍 9-30 20:48 | 󱦻 7m |  9-30 23:59 |  1.6s | 󰓅 70 tok/s | 󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── non-git @ 60
+ Haiku 4.5 | 󰉋 scratch | 󰆋 Opus 5.5⏎
+󰝦 2% (9k/512k) |  1:35 · 40% hit |  $0.02⏎
+󰐍 9-30 20:48 | 󱦻 1m1s |  9-30 23:59 |  0.5s | 󰓅 160 tok/s⏎
+󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta⏎
+ context7, github⏎
+── non-git @ 100
+ Haiku 4.5 | 󰉋 scratch | 󰆋 Opus 5.5⏎
+󰝦 2% (9k/512k) |  1:35 · 40% hit |  $0.02⏎
+󰐍 9-30 20:48 | 󱦻 1m1s |  9-30 23:59 |  0.5s | 󰓅 160 tok/s⏎
+󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── non-git @ 140
+ Haiku 4.5 | 󰉋 scratch | 󰆋 Opus 5.5⏎
+󰝦 2% (9k/512k) |  1:35 · 40% hit |  $0.02⏎
+󰐍 9-30 20:48 | 󱦻 1m1s |  9-30 23:59 |  0.5s | 󰓅 160 tok/s | 󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── gateway @ 60
+ Sonnet 5 · Med | 󰉋 app | 󰊢 main ✓ | 󰆋 Opus 5.5⏎
+󰪞 16% (80k/512k) |  40:00 · 93% hit |  $3.10⏎
+󰐍 9-30 20:48 | 󱦻 40m |  9-30 23:59 |  1.3s | 󰓅 65 tok/s⏎
+󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta⏎
+ context7, github⏎
+── gateway @ 100
+ Sonnet 5 · Med | 󰉋 app | 󰊢 main ✓ | 󰆋 Opus 5.5⏎
+󰪞 16% (80k/512k) |  40:00 · 93% hit |  $3.10⏎
+󰐍 9-30 20:48 | 󱦻 40m |  9-30 23:59 |  1.3s | 󰓅 65 tok/s | 󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── gateway @ 140
+ Sonnet 5 · Med | 󰉋 app | 󰊢 main ✓ | 󰆋 Opus 5.5⏎
+󰪞 16% (80k/512k) |  40:00 · 93% hit |  $3.10⏎
+󰐍 9-30 20:48 | 󱦻 40m |  9-30 23:59 |  1.3s | 󰓅 65 tok/s | 󰝥 1.1M (in: 120k, cache: 980k, out: 14k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── old-cc @ 60
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
+── old-cc @ 100
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
+── old-cc @ 140
+agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
+── agy @ 60
+ Orchestrator (Neon) · High · claude-opus-4-6-thinking⏎
+󰉋 app | 󰊢 ✨agyline ● ↑1 |  Build agyline statusline⏎
+󰆋 Opus 5.5 | 󰀄 yeye⏎
+󰪢 63% (320k/512k) ↻1× |  99% hit |  $1.48⏎
+ $6.40 today | 󰄰 running | 󰒓 Planning⏎
+ 3 tasks · 2 artifacts⏎
+󰋚 gemini ▰▰▱▱▱▱▱▱▱▱ 28% (3h, 03:00) · ↓12%⏎
+󰃭 15% · 10/6 00:00 · ↓14% | 󰋚 3p ▰▰▰▱▱▱▱▱▱▱ 39% | 󰃭 46%⏎
+󰐍 9-30 20:48 | 󱦻 40m |  9-30 23:59 |  0.9s | 󰓅 68 tok/s⏎
+󰝥 930k (in: 18.5k, cache: 890k, out: 9.2k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta⏎
+ context7, github⏎
+── agy @ 100
+ Orchestrator (Neon) · High · claude-opus-4-6-thinking | 󰉋 app | 󰊢 ✨agyline ● ↑1⏎
+ Build agyline statusline | 󰆋 Opus 5.5 | 󰀄 yeye⏎
+󰪢 63% (320k/512k) ↻1× |  99% hit |  $1.48 |  $6.40 today | 󰄰 running | 󰒓 Planning⏎
+ 3 tasks · 2 artifacts⏎
+󰋚 gemini ▰▰▱▱▱▱▱▱▱▱ 28% (3h, 03:00) · ↓12% | 󰃭 15% · 10/6 00:00 · ↓14% | 󰋚 3p ▰▰▰▱▱▱▱▱▱▱ 39% | 󰃭 46%⏎
+󰐍 9-30 20:48 | 󱦻 40m |  9-30 23:59 |  0.9s | 󰓅 68 tok/s⏎
+󰝥 930k (in: 18.5k, cache: 890k, out: 9.2k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎
+── agy @ 140
+ Orchestrator (Neon) · High · claude-opus-4-6-thinking | 󰉋 app | 󰊢 ✨agyline ● ↑1 |  Build agyline statusline | 󰆋 Opus 5.5 | 󰀄 yeye⏎
+󰪢 63% (320k/512k) ↻1× |  99% hit |  $1.48 |  $6.40 today | 󰄰 running | 󰒓 Planning |  3 tasks · 2 artifacts⏎
+󰋚 gemini ▰▰▱▱▱▱▱▱▱▱ 28% (3h, 03:00) · ↓12% | 󰃭 15% · 10/6 00:00 · ↓14% | 󰋚 3p ▰▰▰▱▱▱▱▱▱▱ 39% | 󰃭 46%⏎
+󰐍 9-30 20:48 | 󱦻 40m |  9-30 23:59 |  0.9s | 󰓅 68 tok/s | 󰝥 930k (in: 18.5k, cache: 890k, out: 9.2k)⏎
+ ◐ Bash: cargo test | ✓ Edit ×11⏎
+ ◐ Explore [haiku-4.5 high] · scan the crate (1m 2s)⏎
+ ▸ cover the new segment (0/1) |  ◐ trellis-meta |  context7, github⏎

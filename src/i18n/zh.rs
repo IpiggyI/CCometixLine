@@ -329,8 +329,8 @@ pub const TEXT: &[(&str, &str)] = &[
         " 把 Claude Code 的状态栏指向 ccline：",
     ),
     (
-        " The old file is kept as settings.json.ccline-bak.",
-        " 旧文件会保留为 settings.json.ccline-bak。",
+        " The old file is kept as settings.json.agyline-bak.",
+        " 旧文件会保留为 settings.json.agyline-bak。",
     ),
     (
         " There is no settings.json yet; this creates it.",
@@ -802,8 +802,8 @@ pub const TEXT: &[(&str, &str)] = &[
         "某个模型自己的每周窗口，例如 Fable 的，读自额度快照文件",
     ),
     (
-        "A newer ccline is published; links to its release notes",
-        "有新版 ccline 发布；链接到它的发布说明",
+        "A newer agyline is published; links to its release notes",
+        "有新版 agyline 发布；链接到它的发布说明",
     ),
     (
         "Add the reasoning effort while thinking is on",
@@ -816,6 +816,60 @@ pub const TEXT: &[(&str, &str)] = &[
         "会话记录中报告的顾问模型",
     ),
     ("Agent", "代理"),
+    ("Agent state", "代理状态"),
+    (
+        "Antigravity account plan tier and signed-in email",
+        "Antigravity 账户订阅层级和登录邮箱",
+    ),
+    (
+        "Antigravity cycle mode and sandbox indicator",
+        "Antigravity 循环模式与沙箱状态",
+    ),
+    ("Auth", "账户"),
+    (
+        "Count of active Antigravity tasks and artifacts",
+        "当前 Antigravity 任务和产物数量",
+    ),
+    (
+        "Cumulative tokens consumed across the session",
+        "本次会话累计消耗的 token 数",
+    ),
+    ("Cycle mode", "循环模式"),
+    (
+        "Escalate color when linear burn projection reaches 90% or 100% before reset",
+        "当按线性速率预计在重置前达到 90% 或 100% 时升级预警颜色",
+    ),
+    (
+        "Live Antigravity agent execution state",
+        "Antigravity 代理实时执行状态",
+    ),
+    (
+        "Quota pool to read when both Gemini and 3P pools exist",
+        "同时存在 Gemini 和 3P 配额池时选择读取哪个池",
+    ),
+    ("Session tokens", "会话 tokens"),
+    (
+        "Show the backend model id from the session DB when it differs from the alias",
+        "当会话数据库中的后端模型 id 与别名不同时将其显示",
+    ),
+    (
+        "Show the quota pool group label next to the icon",
+        "在图标旁显示配额池分组标签",
+    ),
+    ("Tasks & artifacts", "任务与产物"),
+    (
+        "Antigravity HUD + agy-zh-pack: ring context gauge with compactions, dual Gemini/3P 5h & weekly quota icons with speed, timing and token telemetry",
+        "Antigravity HUD + agy-zh-pack：圆环上下文与压缩次数、双 Gemini/3P 5h 与周配额图标及消耗速率、响应速度与 token 统计",
+    ),
+    (
+        "Compact single-line Antigravity status bar with ring context, compactions and dual quota speed indicators",
+        "紧凑单行 Antigravity 状态栏：圆环上下文、压缩次数与双配额消耗速率指示",
+    ),
+    (
+        "An Antigravity CLI session with dual Gemini/3P quota pools and DB telemetry",
+        "带双 Gemini/3P 配额池与数据库遥测的 Antigravity CLI 会话",
+    ),
+    ("agy", "Antigravity"),
     (
         "Agent name when started with --agent",
         "用 --agent 启动时的代理名称",

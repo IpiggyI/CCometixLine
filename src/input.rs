@@ -1,10 +1,11 @@
-//! The JSON Claude Code writes to the status line command's stdin.
+//! The JSON Antigravity CLI (and Claude Code) writes to the status line command's stdin.
 //!
 //! Every field is optional and parsed leniently: a top-level field with an
 //! unexpected shape is dropped on its own instead of failing the whole input,
 //! so a schema change upstream degrades one widget rather than the line.
 
 use crate::version::Version;
+use chrono::DateTime;
 use serde::{Deserialize, Deserializer};
 use std::collections::BTreeMap;
 
@@ -23,7 +24,11 @@ pub struct Input {
     #[serde(deserialize_with = "lenient")]
     pub session_id: Option<String>,
     #[serde(deserialize_with = "lenient")]
+    pub conversation_id: Option<String>,
+    #[serde(deserialize_with = "lenient")]
     pub session_name: Option<String>,
+    #[serde(deserialize_with = "lenient")]
+    pub conversation_title: Option<String>,
     #[serde(deserialize_with = "lenient")]
     pub transcript_path: Option<String>,
     #[serde(deserialize_with = "lenient")]
@@ -32,6 +37,10 @@ pub struct Input {
     pub prompt_id: Option<String>,
     #[serde(deserialize_with = "lenient")]
     pub version: Option<String>,
+    #[serde(deserialize_with = "lenient")]
+    pub product: Option<String>,
+    #[serde(deserialize_with = "lenient")]
+    pub terminal_width: Option<usize>,
     #[serde(deserialize_with = "lenient")]
     pub model: Option<Model>,
     #[serde(deserialize_with = "lenient")]
@@ -53,11 +62,35 @@ pub struct Input {
     #[serde(deserialize_with = "lenient")]
     pub rate_limits: Option<RateLimits>,
     #[serde(deserialize_with = "lenient")]
+    pub quota: Option<BTreeMap<String, Option<QuotaBucket>>>,
+    #[serde(deserialize_with = "lenient")]
     pub prompt_cache: Option<PromptCache>,
     #[serde(deserialize_with = "lenient")]
     pub vim: Option<Vim>,
     #[serde(deserialize_with = "lenient")]
     pub agent: Option<Agent>,
+    #[serde(deserialize_with = "lenient")]
+    pub agent_state: Option<String>,
+    #[serde(deserialize_with = "lenient")]
+    pub cycle_mode: Option<String>,
+    #[serde(deserialize_with = "lenient")]
+    pub sandbox: Option<Sandbox>,
+    #[serde(deserialize_with = "lenient")]
+    pub tool_confirmation_pending: Option<bool>,
+    #[serde(deserialize_with = "lenient")]
+    pub pending_input_count: Option<u64>,
+    #[serde(deserialize_with = "lenient")]
+    pub task_count: Option<u64>,
+    #[serde(deserialize_with = "lenient")]
+    pub artifact_count: Option<u64>,
+    #[serde(deserialize_with = "lenient")]
+    pub plan_tier: Option<String>,
+    #[serde(deserialize_with = "lenient")]
+    pub email: Option<String>,
+    #[serde(deserialize_with = "lenient_list")]
+    pub subagents: Vec<StdinSubagent>,
+    #[serde(deserialize_with = "lenient")]
+    pub vcs: Option<Vcs>,
     #[serde(deserialize_with = "lenient")]
     pub remote: Option<Remote>,
     #[serde(deserialize_with = "lenient")]
@@ -71,6 +104,7 @@ pub struct Input {
 pub struct Model {
     pub id: Option<String>,
     pub display_name: Option<String>,
+    pub effort: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -101,10 +135,22 @@ pub struct OutputStyle {
 #[serde(default)]
 pub struct Cost {
     pub total_cost_usd: Option<f64>,
+    pub total_usd: Option<f64>,
+    pub subagent_usd: Option<f64>,
+    pub estimated: Option<bool>,
     pub total_duration_ms: Option<f64>,
     pub total_api_duration_ms: Option<f64>,
     pub total_lines_added: Option<u64>,
     pub total_lines_removed: Option<u64>,
+}
+
+impl Cost {
+    /// Reported session cost in USD (`total_usd` for agy, `total_cost_usd` for CC).
+    pub fn usd(&self) -> Option<f64> {
+        self.total_usd
+            .or(self.total_cost_usd)
+            .filter(|v| v.is_finite() && *v >= 0.0)
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -163,6 +209,53 @@ pub struct SpendLimit {
     pub used_usd: Option<f64>,
     pub limit_usd: Option<f64>,
     pub period: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct QuotaBucket {
+    pub remaining_fraction: Option<f64>,
+    pub remaining_amount: Option<f64>,
+    pub reset_time: Option<String>,
+    pub reset_in_seconds: Option<f64>,
+    pub disabled: Option<bool>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QuotaKind {
+    FiveHour,
+    Weekly,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ResolvedQuota {
+    /// Canonical group name (`"gemini"`, `"3p"`, or `""` for bare/rate_limits).
+    pub pool: String,
+    pub used_percentage: f64,
+    pub resets_at: Option<i64>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct Sandbox {
+    pub enabled: Option<bool>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct StdinSubagent {
+    pub name: Option<String>,
+    pub role: Option<String>,
+    pub status: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct Vcs {
+    #[serde(rename = "type")]
+    pub kind: Option<String>,
+    pub branch: Option<String>,
+    pub dirty: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -248,7 +341,7 @@ where
     })
 }
 
-/// The JSON Claude Code writes to the `subagentStatusLine` command: the
+/// The JSON written to the `subagentStatusLine` command: the
 /// session and the background tasks (subagents, shells, workflows) listed
 /// under the prompt, one line each.
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -258,7 +351,7 @@ pub struct SubagentInput {
     pub session_id: Option<String>,
     #[serde(deserialize_with = "lenient")]
     pub cwd: Option<String>,
-    /// Columns left for each task's line after Claude Code's own prefix.
+    /// Columns left for each task's line after the host prefix.
     #[serde(deserialize_with = "lenient")]
     pub columns: Option<usize>,
     #[serde(deserialize_with = "lenient_list")]
@@ -276,7 +369,7 @@ pub struct Task {
     /// `in_process_teammate`.
     #[serde(rename = "type", deserialize_with = "lenient")]
     pub kind: Option<String>,
-    /// The subagent type, e.g. `Explore` (Claude Code 2.1.293+).
+    /// The subagent type, e.g. `Explore`.
     #[serde(deserialize_with = "lenient")]
     pub agent_type: Option<String>,
     #[serde(deserialize_with = "lenient")]
@@ -332,6 +425,7 @@ impl Task {
             model: self.model.clone().map(|id| Model {
                 id: Some(id),
                 display_name: None,
+                effort: None,
             }),
             workspace: Some(Workspace {
                 current_dir: cwd,
@@ -352,6 +446,80 @@ impl Task {
 /// Largest stdin payload accepted; real payloads are a few KiB.
 pub const MAX_INPUT_BYTES: usize = 1024 * 1024;
 
+fn parse_bucket_reset(bucket: &QuotaBucket, now: i64) -> Option<i64> {
+    if let Some(raw) = bucket.reset_time.as_deref().map(str::trim)
+        && !raw.is_empty()
+        && let Ok(dt) = DateTime::parse_from_rfc3339(raw)
+    {
+        let ts = dt.timestamp();
+        // `1970-01-01T00:00:00Z` (epoch 0) means no active timer, not expired.
+        return (ts > 0).then_some(ts);
+    }
+    bucket
+        .reset_in_seconds
+        .filter(|s| s.is_finite() && *s > 0.0 && *s <= (86_400.0 * 36_500.0))
+        .map(|s| now.saturating_add(s.round() as i64))
+}
+
+fn bucket_to_resolved(pool: &str, bucket: &QuotaBucket, now: i64) -> Option<ResolvedQuota> {
+    if bucket.disabled == Some(true) {
+        return None;
+    }
+    let frac = bucket.remaining_fraction.filter(|f| f.is_finite())?;
+    let used_percentage = (1.0 - frac.clamp(0.0, 1.0)) * 100.0;
+    Some(ResolvedQuota {
+        pool: pool.to_string(),
+        used_percentage,
+        resets_at: parse_bucket_reset(bucket, now),
+    })
+}
+
+fn match_pool_bucket<'a>(
+    quota: &'a BTreeMap<String, Option<QuotaBucket>>,
+    pool: &str,
+    kind: QuotaKind,
+) -> Option<(&'static str, &'a QuotaBucket)> {
+    let candidates: &[&str] = match (pool, kind) {
+        ("gemini", QuotaKind::FiveHour) => &["gemini-5h", "gemini-five-hour", "gemini_5h"],
+        ("gemini", QuotaKind::Weekly) => &["gemini-weekly", "gemini-7d", "gemini-seven-day"],
+        ("3p", QuotaKind::FiveHour) => &["3p-5h", "3p-five-hour", "3p_5h"],
+        ("3p", QuotaKind::Weekly) => &["3p-weekly", "3p-7d", "3p-seven-day"],
+        ("bare", QuotaKind::FiveHour) => &["5h", "five_hour", "five-hour", "session"],
+        ("bare", QuotaKind::Weekly) => &["weekly", "7d", "seven_day", "seven-day"],
+        _ => &[],
+    };
+    let label = if pool == "bare" {
+        ""
+    } else if pool == "gemini" {
+        "gemini"
+    } else {
+        "3p"
+    };
+    for want in candidates {
+        for (k, v) in quota {
+            if k.eq_ignore_ascii_case(want)
+                && let Some(bucket) = v.as_ref()
+                && bucket.disabled != Some(true)
+                && bucket.remaining_fraction.is_some_and(f64::is_finite)
+            {
+                return Some((label, bucket));
+            }
+        }
+    }
+    None
+}
+
+fn prefers_gemini_pool(input: &Input) -> bool {
+    let model = input.model.as_ref();
+    let id = model.and_then(|m| m.id.as_deref()).unwrap_or("");
+    let disp = model.and_then(|m| m.display_name.as_deref()).unwrap_or("");
+    if id.is_empty() && disp.is_empty() {
+        return true;
+    }
+    let combined = format!("{id} {disp}").to_lowercase();
+    combined.contains("gemini") || combined.contains("orchestrator")
+}
+
 impl Input {
     pub fn parse(json: &str) -> serde_json::Result<Input> {
         serde_json::from_str(json)
@@ -359,6 +527,93 @@ impl Input {
 
     pub fn cc_version(&self) -> Option<Version> {
         self.version.as_deref().and_then(Version::parse)
+    }
+
+    /// Conversation or session id (`conversation_id` preferred for agy).
+    pub fn conv_id(&self) -> Option<&str> {
+        self.conversation_id
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+            .or_else(|| self.session_id.as_deref().filter(|s| !s.trim().is_empty()))
+    }
+
+    /// Session title (`conversation_title` preferred for agy).
+    pub fn title(&self) -> Option<&str> {
+        self.conversation_title
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+            .or_else(|| {
+                self.session_name
+                    .as_deref()
+                    .filter(|s| !s.trim().is_empty())
+            })
+    }
+
+    /// Resolve a quota window from `quota` (Antigravity CLI) or `rate_limits` (Claude Code).
+    /// `pool` is `"auto"`, `"gemini"`, `"3p"`, or `"bare"`.
+    pub fn quota_window(&self, pool: &str, kind: QuotaKind, now: i64) -> Option<ResolvedQuota> {
+        let pool_norm = pool.trim().to_ascii_lowercase();
+        if let Some(quota) = self.quota.as_ref() {
+            let order: &[&str] = match pool_norm.as_str() {
+                "gemini" => &["gemini"],
+                "3p" => &["3p"],
+                "bare" => &["bare"],
+                _ => {
+                    if prefers_gemini_pool(self) {
+                        &["gemini", "bare", "3p"]
+                    } else {
+                        &["3p", "bare", "gemini"]
+                    }
+                }
+            };
+            for candidate in order {
+                if let Some((label, bucket)) = match_pool_bucket(quota, candidate, kind)
+                    && let Some(resolved) = bucket_to_resolved(label, bucket, now)
+                {
+                    return Some(resolved);
+                }
+            }
+            // Also accept single-pool custom names in `auto` mode (e.g. `session-5h`, `team-weekly`).
+            if pool_norm == "auto" {
+                for (k, v) in quota {
+                    let kl = k.to_ascii_lowercase();
+                    let matches_kind = match kind {
+                        QuotaKind::FiveHour => {
+                            kl.contains("5h") || kl.contains("5-hour") || kl.contains("session")
+                        }
+                        QuotaKind::Weekly => {
+                            kl.contains("weekly") || kl.contains("7d") || kl.contains("week")
+                        }
+                    };
+                    if matches_kind
+                        && let Some(bucket) = v.as_ref()
+                        && let Some(resolved) = bucket_to_resolved("", bucket, now)
+                    {
+                        return Some(resolved);
+                    }
+                }
+            }
+            return None;
+        }
+        if matches!(pool_norm.as_str(), "auto" | "bare" | "")
+            && let Some(rl) = self.rate_limits.as_ref()
+        {
+            let w = match kind {
+                QuotaKind::FiveHour => rl.five_hour.as_ref()?,
+                QuotaKind::Weekly => rl.seven_day.as_ref()?,
+            };
+            let used_percentage = w.used_percentage.filter(|p| p.is_finite())?;
+            let resets_at = w
+                .resets_at
+                .filter(|t| t.is_finite() && *t > 0.0)
+                .map(|t| t as i64);
+            return Some(ResolvedQuota {
+                pool: String::new(),
+                used_percentage,
+                resets_at,
+            });
+        }
+        None
     }
 
     /// The working directory, preferring `workspace.current_dir`.
@@ -372,7 +627,9 @@ impl Input {
     }
 
     pub fn model_id(&self) -> Option<&str> {
-        self.model.as_ref().and_then(|m| m.id.as_deref())
+        self.model
+            .as_ref()
+            .and_then(|m| m.id.as_deref().or(m.display_name.as_deref()))
     }
 
     /// The project root for project-scoped configuration, falling back to cwd.
@@ -428,6 +685,41 @@ mod tests {
         let pc = input.prompt_cache.unwrap();
         assert_eq!(pc.expires_at, Some(1_790_812_000.0));
         assert!(pc.last_miss_cause.is_none());
+    }
+
+    #[test]
+    fn parses_antigravity_four_pool_quota_with_epoch_zero_resets() {
+        let json = r#"{
+            "conversation_id": "c1",
+            "conversation_title": "Test Agy",
+            "version": "1.5.17",
+            "terminal_width": 131,
+            "model": {"id": "Orchestrator (Neon)", "display_name": "Orchestrator (Neon)"},
+            "agent_state": "working",
+            "cycle_mode": "auto",
+            "plan_tier": "Google AI Ultra",
+            "email": "user@example.com",
+            "quota": {
+                "3p-5h": {"remaining_fraction": 0.967, "reset_time": "1970-01-01T00:00:00Z", "reset_in_seconds": 0},
+                "3p-weekly": {"remaining_fraction": 0.614, "reset_time": "1970-01-01T00:00:00Z", "reset_in_seconds": 0},
+                "gemini-5h": {"remaining_fraction": 0.974, "reset_time": "2026-11-26T12:04:55Z", "reset_in_seconds": 16855},
+                "gemini-weekly": {"remaining_fraction": 0.993, "reset_time": "2026-12-03T07:04:55Z", "reset_in_seconds": 603655}
+            }
+        }"#;
+        let input = Input::parse(json).unwrap();
+        assert_eq!(input.conv_id(), Some("c1"));
+        assert_eq!(input.title(), Some("Test Agy"));
+        let g5 = input
+            .quota_window("auto", QuotaKind::FiveHour, 1_795_677_839)
+            .unwrap();
+        assert_eq!(g5.pool, "gemini");
+        assert!(g5.resets_at.is_some());
+        let tp_w = input
+            .quota_window("3p", QuotaKind::Weekly, 1_795_677_839)
+            .unwrap();
+        assert_eq!(tp_w.pool, "3p");
+        assert_eq!(tp_w.resets_at, None);
+        assert!((tp_w.used_percentage - 38.6).abs() < 0.01);
     }
 
     #[test]

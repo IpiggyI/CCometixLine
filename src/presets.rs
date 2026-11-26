@@ -20,9 +20,100 @@ pub struct Preset {
     toml: &'static str,
 }
 
-pub const DEFAULT: &str = "cometix";
+pub const DEFAULT: &str = "agy";
 
 pub const PRESETS: &[Preset] = &[
+    Preset {
+        name: "agy",
+        summary: "Antigravity HUD + agy-zh-pack: ring context gauge with compactions, dual Gemini/3P 5h & weekly quota icons with speed, timing and token telemetry",
+        tags: &["multi-line", "quota", "context", "cache"],
+        toml: r#"
+palette = "tokyo-night"
+skin = "plain"
+glyphs = "nerd"
+separator = " | "
+
+[[line]]
+left = [
+  "model",
+  { metric = "dir", icon_color = "bright_yellow" },
+  { metric = "git", options = { branch_prefixes = "feature/=✨,feat/=✨,fix/=🐛,docs/=📝,refactor/=♻,chore/=🔧" } },
+  "worktree",
+  "lines",
+  "update",
+  { metric = "session_name", color = "256:183" },
+  { metric = "advisor", color = "256:216" },
+  "auth",
+]
+
+[[line]]
+left = [
+  { metric = "context", format = "{pct}%[ ({tokens}/{window})][ {compact_badge}]", options = { compact_window = 512000 } },
+  "cache",
+  "cost",
+  "cost.today",
+  "agy.state",
+  "agy.mode",
+  "agy.tasks",
+]
+
+[[line]]
+left = [
+  { metric = "quota.5h", widget = "bar", bar = "shapes", cells = 10, coloring = "gradient", format = "{pct}%[ ({left}, {reset})][ · {arrow}]", options = { pool = "gemini", label = "full", countdown = "spaced", reset_format = "%H:%M" } },
+  { metric = "quota.7d", widget = "text", format = "{pct}%[ · {reset}][ · {arrow}]", options = { pool = "gemini", label = "none", reset_format = "%-m/%-d %H:%M" } },
+  { metric = "quota.5h", widget = "bar", bar = "shapes", cells = 10, coloring = "gradient", format = "{pct}%[ ({left}, {reset})][ · {arrow}]", options = { pool = "3p", label = "full", countdown = "spaced", reset_format = "%H:%M" } },
+  { metric = "quota.7d", widget = "text", format = "{pct}%[ · {reset}][ · {arrow}]", options = { pool = "3p", label = "none", reset_format = "%-m/%-d %H:%M" } },
+]
+
+[[line]]
+left = [
+  { metric = "session.start", format = "{at}" },
+  "duration",
+  { metric = "session.last_reply", format = "{at}" },
+  "timing.ttft",
+  "timing.tps",
+  "session.tokens",
+]
+
+[[line]]
+left = ["activity.tools"]
+
+[[line]]
+left = ["activity.agents"]
+
+[[line]]
+left = ["activity.todos", "activity.skills", "mcp"]
+"#,
+    },
+    Preset {
+        name: "agy-zh",
+        summary: "Compact single-line Antigravity status bar with ring context, compactions and dual quota speed indicators",
+        tags: &["quota", "context"],
+        toml: r#"
+palette = "tokyo-night"
+skin = "plain"
+glyphs = "nerd"
+separator = " | "
+
+[[line]]
+left = [
+  "model",
+  { metric = "dir", icon_color = "bright_yellow" },
+  { metric = "git", options = { branch_prefixes = "feature/=✨,feat/=✨,fix/=🐛,docs/=📝,refactor/=♻,chore/=🔧" } },
+  { metric = "context", format = "{pct}%[ ({tokens}/{window})][ {compact_badge}]", options = { compact_window = 512000 } },
+]
+right = ["timing.ttft", "timing.tps", "cache", "cost", "cost.today"]
+
+[[line]]
+left = [
+  { metric = "quota.5h", widget = "bar", bar = "shapes", cells = 8, coloring = "gradient", format = "{pct}%[ ({left})][ · {arrow}]", options = { pool = "gemini", label = "short", countdown = "spaced" } },
+  { metric = "quota.7d", widget = "text", format = "{pct}%[ · {reset}][ · {arrow}]", options = { pool = "gemini", label = "none", reset_format = "%-m/%-d %H:%M" } },
+  { metric = "quota.5h", widget = "bar", bar = "shapes", cells = 8, coloring = "gradient", format = "{pct}%[ ({left})][ · {arrow}]", options = { pool = "3p", label = "short", countdown = "spaced" } },
+  { metric = "quota.7d", widget = "text", format = "{pct}%[ · {reset}][ · {arrow}]", options = { pool = "3p", label = "none", reset_format = "%-m/%-d %H:%M" } },
+]
+right = ["agy.state", "agy.mode", "auth"]
+"#,
+    },
     Preset {
         name: "cometix",
         summary: "Classic look: model, directory, git, context and cache on one line",
@@ -77,7 +168,7 @@ left = ["model", "dir", "git"]
 right = ["update", "cost"]
 
 [[line]]
-left = [{ metric = "context", bar = "eighths", cells = 10 }, "context.trend", { metric = "quota.5h", cells = 8 }]
+left = [{ metric = "context", widget = "bar", bar = "eighths", cells = 10 }, "context.trend", { metric = "quota.5h", cells = 8 }]
 right = ["cache"]
 
 [[line]]
@@ -99,7 +190,7 @@ left = [{ metric = "quota.5h", cells = 10 }, { metric = "quota.7d", cells = 10 }
 right = ["cost", "cost.rate", "cost.today"]
 
 [[line]]
-left = [{ metric = "context", bar = "blocks" }, "context.to_compact", "cache"]
+left = [{ metric = "context", widget = "bar", bar = "blocks" }, "context.to_compact", "cache"]
 "#,
     },
     Preset {
@@ -134,7 +225,7 @@ skin = "plain"
 glyphs = "unicode"
 
 [[line]]
-left = [{ metric = "context", bar = "eighths", cells = 20, coloring = "gradient", priority = 5 }]
+left = [{ metric = "context", widget = "bar", bar = "eighths", cells = 20, coloring = "gradient", priority = 5 }]
 right = [{ metric = "model", priority = 2 }]
 
 [[line]]
@@ -188,7 +279,7 @@ separator = " | "
 
 [[line]]
 left = [
-  { metric = "context", icon = "上下文", format = "{pct}%[ ({tokens}/{window})]", options = { token_style = "decimal" } },
+  { metric = "context", widget = "bar", icon = "上下文", format = "{pct}%[ ({tokens}/{window})]", options = { token_style = "decimal" } },
   "model",
   "dir",
   "git",

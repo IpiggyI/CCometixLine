@@ -103,14 +103,17 @@ pub fn format_offset(offset: FixedOffset) -> String {
     format!("UTC{sign}{hours:02}:{mins:02}")
 }
 
-/// Detect the ambient offset: `CCLINE_TZ` if valid (and `TZ` on Windows),
+/// Detect the ambient offset: `AGYLINE_TZ` (or `CCLINE_TZ`) if valid (and `TZ` on Windows),
 /// else the OS local offset.
 pub fn detect_system_offset(now: i64) -> FixedOffset {
     from_env(|k| std::env::var(k).ok(), now).unwrap_or_else(|| *chrono::Local::now().offset())
 }
 
 fn from_env(var: impl Fn(&str) -> Option<String>, now: i64) -> Option<FixedOffset> {
-    if let Some(raw) = var("CCLINE_TZ").filter(|s| !s.trim().is_empty()) {
+    if let Some(raw) = var("AGYLINE_TZ")
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| var("CCLINE_TZ").filter(|s| !s.trim().is_empty()))
+    {
         let trimmed = raw.trim();
         if trimmed.eq_ignore_ascii_case("auto") {
             return None;

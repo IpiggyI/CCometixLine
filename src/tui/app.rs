@@ -683,10 +683,10 @@ pub(crate) mod tests {
         let wide = row(123);
         let (start, end) = span(&wide);
         assert!(start.abs_diff(123 - end) <= 1, "{wide:?}");
-        assert!(wide.starts_with(" CCometixLine") && !wide.contains("help"));
+        assert!(wide.starts_with(" agyline") && !wide.contains("help"));
         // The smallest frame: they keep clear of the name.
         let narrow = row(MIN_SIZE.0 - 2);
-        assert!(span(&narrow).0 >= " CCometixLine".len() + 2, "{narrow:?}");
+        assert!(span(&narrow).0 >= " agyline".len() + 2, "{narrow:?}");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -696,9 +696,7 @@ pub(crate) mod tests {
         let mut app = App::new(Doc::open(paths), env());
         let home = screen(&mut app, 100, 30);
         assert!(
-            home.contains(" CCometixLine ")
-                && home.contains(" Home ")
-                && !home.contains("[1 Home]"),
+            home.contains(" agyline ") && home.contains(" Home ") && !home.contains("[1 Home]"),
             "{home}"
         );
         assert!(

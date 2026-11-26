@@ -36,6 +36,10 @@ pub enum Role {
     Good,
     /// Something bad, e.g. lines removed or being over budget.
     Bad,
+    /// Compact rounded badge (`↻1×`).
+    Chip(Severity),
+    /// Left/right pill endcap surrounding a `Chip`.
+    ChipCap(Severity),
     /// One `▀` cell of a pace bar: the top half shows usage, the bottom half
     /// how much of the window has passed.
     Pace {

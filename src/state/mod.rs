@@ -4,6 +4,7 @@
 //! read-modify-write with the last writer winning, which the next render
 //! corrects.
 
+pub mod agy_db;
 pub mod bridge;
 pub mod cmd_cache;
 pub mod git_cache;
@@ -183,6 +184,10 @@ pub struct StateView {
     pub bridge: Option<std::rc::Rc<bridge::Bridge>>,
     /// Per-model weekly limits from the usage snapshot file.
     pub scoped: Vec<usage_snapshot::ScopedWindow>,
+    /// Antigravity conversation SQLite DB summary (TTFT, tok/s, API model, cost).
+    pub db: Option<agy_db::DbSummary>,
+    /// Resolved session cost in USD (`input.cost`, else DB, else transcript).
+    pub session_cost: Option<f64>,
 }
 
 /// Record this render: add a session sample, fold the session's cost into
@@ -195,15 +200,24 @@ pub fn observe(
     now: i64,
     tz: FixedOffset,
 ) -> StateView {
-    let current = Sample::from_input(input, now);
-    let Some(id) = input
-        .session_id
-        .as_deref()
-        .filter(|id| safe_name(id).is_some())
-    else {
+    let conv_id = input.conv_id().filter(|id| safe_name(id).is_some());
+    let db = conv_id.and_then(|id| agy_db::read(id, now));
+    let transcript = transcript::resolve_path(input).and_then(|p| transcript::read(&p));
+    let session_cost = input
+        .cost
+        .as_ref()
+        .and_then(|c| c.usd())
+        .or_else(|| db.as_ref().and_then(|d| d.total_cost_usd))
+        .or_else(|| transcript.as_ref().and_then(|t| t.estimated_cost_usd()));
+
+    let current = Sample::from_input(input, now, session_cost);
+    let Some(id) = conv_id else {
         return StateView {
+            transcript,
             samples: vec![current],
             scoped: usage_snapshot::read(now),
+            db,
+            session_cost,
             ..StateView::default()
         };
     };
@@ -213,14 +227,17 @@ pub fn observe(
     session.last_input = serde_json::from_str(raw).ok();
     session.save_if_needed(id, now, added);
 
-    let ledger = current.cost.and_then(|cost| {
+    let ledger = session_cost.and_then(|cost| {
         let local = DateTime::from_timestamp(now, 0)?.with_timezone(&tz);
         let midnight = now - local.num_seconds_from_midnight() as i64;
         let started_today = input
             .cost
             .as_ref()
             .and_then(|c| c.total_duration_ms)
-            .is_some_and(|ms| now - (ms / 1000.0) as i64 >= midnight);
+            .map(|ms| now - (ms / 1000.0) as i64 >= midnight)
+            .or_else(|| db.as_ref()?.first_call_at.map(|t| t >= midnight))
+            .or_else(|| transcript.as_ref()?.start.map(|t| t >= midnight))
+            .unwrap_or(session.samples.len() <= 1);
         let date = local.format("%Y-%m-%d").to_string();
         Some(ledger::update(id, cost, started_today, &date, now))
     });
@@ -246,7 +263,7 @@ pub fn observe(
     }
     bridge::prune();
     StateView {
-        transcript: None,
+        transcript,
         mcp: None,
         environment: None,
         samples,
@@ -257,6 +274,8 @@ pub fn observe(
         latest_version: None,
         bridge: bridge::read(id, now * 1000).map(std::rc::Rc::new),
         scoped: usage_snapshot::read(now),
+        db,
+        session_cost,
     }
 }
 
@@ -269,15 +288,26 @@ fn period_costs(
 ) -> Option<(f64, i64, f64)> {
     let local = DateTime::from_timestamp(now, 0)?.with_timezone(&tz);
     let midnight = now - local.num_seconds_from_midnight() as i64;
-    let since = input
+    let weekly_reset = input
         .rate_limits
         .as_ref()
         .and_then(|r| r.seven_day.as_ref())
         .and_then(|w| w.resets_at)
-        .filter(|t| t.is_finite())
-        .map_or(midnight - 6 * 86_400, |reset| {
-            (reset as i64).saturating_sub(7 * 86_400)
+        .filter(|t| t.is_finite() && *t > 0.0)
+        .map(|t| t as i64)
+        .or_else(|| {
+            input
+                .quota_window("auto", crate::input::QuotaKind::Weekly, now)
+                .and_then(|q| q.resets_at)
+        })
+        .or_else(|| {
+            input
+                .quota_window("gemini", crate::input::QuotaKind::Weekly, now)
+                .and_then(|q| q.resets_at)
         });
+    let since = weekly_reset.map_or(midnight - 6 * 86_400, |reset| {
+        reset.saturating_sub(7 * 86_400)
+    });
     let week_date = DateTime::from_timestamp(since, 0)?
         .with_timezone(&tz)
         .format("%Y-%m-%d")

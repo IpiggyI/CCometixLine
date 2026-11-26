@@ -209,7 +209,7 @@ impl Setup {
                 lines.push(Line::raw(""));
                 lines.push(Line::styled(
                     t(if base.exists() {
-                        " The old file is kept as settings.json.ccline-bak."
+                        " The old file is kept as settings.json.agyline-bak."
                     } else {
                         " There is no settings.json yet; this creates it."
                     }),

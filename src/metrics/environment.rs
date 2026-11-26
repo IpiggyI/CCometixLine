@@ -13,7 +13,7 @@ use std::path::Path;
 const LIMIT: usize = 128;
 const CONFIG_BYTES: u64 = 1024 * 1024;
 const TEMPLATE: &str =
-    "[CLAUDE.md: {claude_md}][ | rules: {rules}][ | MCPs: {mcp}][ | hooks: {hooks}]";
+    "[AGENTS.md: {claude_md}][ | rules: {rules}][ | MCPs: {mcp}][ | hooks: {hooks}]";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Environment {
@@ -69,12 +69,12 @@ fn compute(ctx: &Ctx, _: &Options) -> Option<Reading> {
 
 pub(super) fn collect(project: Option<&Path>) -> Environment {
     let home = dirs::home_dir();
-    let config = crate::paths::claude_dir();
+    let config = crate::paths::agy_config_dir();
     collect_at(
         Some(&config),
         project,
         home.as_deref(),
-        &crate::state::dir().join("env-v1"),
+        &crate::state::dir().join("env-v2"),
     )
 }
 
@@ -95,17 +95,30 @@ fn collect_at(
     cache: &Path,
 ) -> Environment {
     let mut env = Environment::default();
-    let paths =
-        config
-            .map(|d| d.join("CLAUDE.md"))
-            .into_iter()
-            .chain(project.into_iter().flat_map(|d| {
-                [
-                    d.join("CLAUDE.md"),
-                    d.join(".claude/CLAUDE.md"),
-                    d.join("CLAUDE.local.md"),
-                ]
-            }));
+    let paths = config
+        .into_iter()
+        .flat_map(|d| {
+            [
+                d.join("AGENTS.md"),
+                d.join("GEMINI.md"),
+                d.join("CLAUDE.md"),
+            ]
+        })
+        .chain(
+            home.into_iter()
+                .flat_map(|h| [h.join(".gemini/AGENTS.md"), h.join(".gemini/GEMINI.md")]),
+        )
+        .chain(project.into_iter().flat_map(|d| {
+            [
+                d.join("AGENTS.md"),
+                d.join("GEMINI.md"),
+                d.join(".agents/AGENTS.md"),
+                d.join(".agents/GEMINI.md"),
+                d.join("CLAUDE.md"),
+                d.join(".claude/CLAUDE.md"),
+                d.join("CLAUDE.local.md"),
+            ]
+        }));
     for path in paths.filter(|p| p.is_file()) {
         let name = display(&path, project, home);
         if !env.claude_md.contains(&name) {
@@ -113,25 +126,26 @@ fn collect_at(
         }
     }
     for dir in project
-        .map(|d| d.join(".claude/rules"))
         .into_iter()
+        .flat_map(|d| [d.join(".agents/rules"), d.join(".claude/rules")])
         .chain(config.map(|d| d.join("rules")))
+        .chain(home.map(|h| h.join(".agents/rules")))
     {
         env.rules.extend(rule_names(&dir, cache));
     }
     env.rules.sort();
     env.rules.dedup();
     env.rules.truncate(LIMIT);
-    let settings =
-        config
-            .map(|d| d.join("settings.json"))
-            .into_iter()
-            .chain(project.into_iter().flat_map(|d| {
-                [
-                    d.join(".claude/settings.json"),
-                    d.join(".claude/settings.local.json"),
-                ]
-            }));
+    let settings = config
+        .into_iter()
+        .flat_map(|d| [d.join("hooks.json"), d.join("settings.json")])
+        .chain(project.into_iter().flat_map(|d| {
+            [
+                d.join(".agents/hooks.json"),
+                d.join(".claude/settings.json"),
+                d.join(".claude/settings.local.json"),
+            ]
+        }));
     for path in settings {
         env.hooks.extend(hooks(&path, cache));
     }

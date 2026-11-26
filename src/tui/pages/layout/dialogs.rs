@@ -1008,11 +1008,16 @@ mod tests {
         };
 
         let mut w = WidgetDialog::new(item, &ItemConfig::default());
-        assert_eq!(w.row, 1, "context draws a bar of shapes by default");
-        w.handle(key(KeyCode::Down), &mut doc);
+        assert_eq!(w.row, 7, "context draws a gauge by default");
+        for _ in 0..5 {
+            w.handle(key(KeyCode::Up), &mut doc);
+        }
         w.handle(key(KeyCode::Enter), &mut doc);
         let c = item.current(&doc);
-        assert_eq!((c.widget, c.bar), (None, Some(BarGlyphs::Eighths)));
+        assert_eq!(
+            (c.widget, c.bar),
+            (Some(WidgetKind::Bar), Some(BarGlyphs::Eighths))
+        );
 
         let mut icon = IconDialog::new(item, GlyphTier::Unicode);
         icon.handle(key(KeyCode::Right), &mut doc);
@@ -1046,6 +1051,7 @@ mod tests {
             item.current(&doc),
             ItemConfig {
                 metric: "context".into(),
+                widget: Some(WidgetKind::Bar),
                 bar: Some(BarGlyphs::Eighths),
                 ..ItemConfig::default()
             }

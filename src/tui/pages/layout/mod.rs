@@ -651,7 +651,9 @@ mod tests {
     #[test]
     fn composes_lines() {
         let (dir, paths) = temp_paths("layout");
-        let mut app = App::new(Doc::open(paths), env());
+        let mut doc = Doc::open(paths);
+        doc.config = crate::presets::get("cometix").unwrap();
+        let mut app = App::new(doc, env());
         app.open_page(PageId::Layout);
         let s = screen(&mut app, 112, 33);
         for text in [
@@ -743,7 +745,9 @@ mod tests {
     #[test]
     fn shows_where_a_narrow_line_wraps() {
         let (dir, paths) = temp_paths("layout-wrap");
-        let mut app = App::new(Doc::open(paths), env());
+        let mut doc = Doc::open(paths);
+        doc.config = crate::presets::get("cometix").unwrap();
+        let mut app = App::new(doc, env());
         app.open_page(PageId::Layout);
         app.preview.width = Some(40);
         let s = screen(&mut app, 112, 33);

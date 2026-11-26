@@ -78,7 +78,7 @@ impl Dialog for SettingsDiff {
         text.push(Line::from(vec![
             Span::styled(format!(" {}  ", t("Backup")), ui::muted()),
             Span::raw(format!(
-                "{}.ccline-bak",
+                "{}.agyline-bak",
                 self.base
                     .path
                     .file_name()

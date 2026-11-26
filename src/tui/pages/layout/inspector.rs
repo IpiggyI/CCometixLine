@@ -560,8 +560,11 @@ mod tests {
     #[test]
     fn lists_fields_for_the_widget() {
         let ctx = meta("context");
+        let quota = meta("quota.5h");
+        let f_quota = fields(&bare("quota.5h"), quota, false);
+        assert!(f_quota.contains(&Field::Bar) && f_quota.contains(&Field::Coloring));
         let f = fields(&bare("context"), ctx, false);
-        assert!(f.contains(&Field::Bar) && f.contains(&Field::Coloring));
+        assert!(!f.contains(&Field::Bar) && f.contains(&Field::Widget));
         let mut text = bare("context");
         text.widget = Some(WidgetKind::Text);
         let f = fields(&text, ctx, false);

@@ -141,7 +141,51 @@ pub(super) fn metrics() -> Vec<Metric> {
             ),
             compute: hooks,
         },
+        Metric {
+            meta: meta(
+                "session.tokens",
+                Category::Session,
+                "Session tokens",
+                "Cumulative tokens consumed across the session",
+                IconKey::Tokens,
+                [
+                    "{total}[ (in: {in}, cache: {cache}, out: {out})]",
+                    "{total}",
+                    "{total}",
+                ],
+                &["total", "in", "out", "cache", "cache_write"],
+            ),
+            compute: session_tokens,
+        },
     ]
+}
+
+fn session_tokens(ctx: &Ctx, _: &Options) -> Option<Reading> {
+    let (inp, out, cr, cw) = if let Some(db) = ctx.state.db.as_ref() {
+        (
+            db.input_tokens,
+            db.output_tokens,
+            db.cache_read_tokens,
+            db.cache_write_tokens,
+        )
+    } else if let Some(t) = ctx.transcript() {
+        let s = &t.session_tokens;
+        (s.input, s.output, s.cache_read, s.cache_write)
+    } else {
+        return None;
+    };
+    let total = inp + out + cr + cw;
+    if total == 0 {
+        return None;
+    }
+    Some(
+        Reading::default()
+            .set("total", fmt::tokens(total))
+            .set("in", fmt::tokens(inp))
+            .set("out", fmt::tokens(out))
+            .set("cache", fmt::tokens(cr))
+            .set("cache_write", fmt::tokens(cw)),
+    )
 }
 
 fn advisor(ctx: &Ctx, _: &Options) -> Option<Reading> {
@@ -465,35 +509,82 @@ fn agent_now(ctx: &Ctx, agent: &Agent) -> String {
     )
 }
 
+fn stdin_agents(ctx: &Ctx) -> Option<Reading> {
+    let subs = &ctx.input.subagents;
+    if subs.is_empty() {
+        return None;
+    }
+    let running: Vec<_> = subs
+        .iter()
+        .filter(|s| {
+            s.status
+                .as_deref()
+                .map(|st| {
+                    matches!(
+                        st.to_ascii_lowercase().as_str(),
+                        "running" | "active" | "working" | "pending"
+                    )
+                })
+                .unwrap_or(true)
+        })
+        .collect();
+    let list = if running.is_empty() {
+        subs.iter().collect::<Vec<_>>()
+    } else {
+        running.clone()
+    };
+    let now = list
+        .iter()
+        .take(2)
+        .map(|a| {
+            let label = a.role.as_deref().or(a.name.as_deref()).unwrap_or("agent");
+            format!("{} {}", ctx.glyphs.running(), clean(label, 24))
+        })
+        .collect::<Vec<_>>()
+        .join(" | ");
+    Some(
+        Reading::default()
+            .set("now", now)
+            .set("count", running.len().to_string())
+            .set(
+                "counts",
+                agent_counts(subs.len(), running.len(), ctx.glyphs),
+            )
+            .set("arrow", ctx.glyphs.arrow()),
+    )
+}
+
 fn agents(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     let Some(summary) = ctx.transcript() else {
-        let legacy = super::live::agents(ctx, opts)?;
-        let active: Vec<_> = ctx
-            .state
-            .bridge
-            .as_ref()?
-            .agents
-            .iter()
-            .filter(|a| a.is_active())
-            .take(128)
-            .collect();
-        let now = active
-            .iter()
-            .map(|a| format!("{} {}", ctx.glyphs.running(), clean(&a.kind, 64)))
-            .collect::<Vec<_>>()
-            .join(" | ");
-        return Some(
-            legacy
-                .set("now", now)
-                .set(
-                    "counts",
-                    agent_counts(active.len(), active.len(), ctx.glyphs),
-                )
-                .set("arrow", ctx.glyphs.arrow()),
-        );
+        if let Some(legacy) = super::live::agents(ctx, opts) {
+            let active: Vec<_> = ctx
+                .state
+                .bridge
+                .as_ref()?
+                .agents
+                .iter()
+                .filter(|a| a.is_active())
+                .take(128)
+                .collect();
+            let now = active
+                .iter()
+                .map(|a| format!("{} {}", ctx.glyphs.running(), clean(&a.kind, 64)))
+                .collect::<Vec<_>>()
+                .join(" | ");
+            return Some(
+                legacy
+                    .set("now", now)
+                    .set(
+                        "counts",
+                        agent_counts(active.len(), active.len(), ctx.glyphs),
+                    )
+                    .set("arrow", ctx.glyphs.arrow()),
+            );
+        }
+        return stdin_agents(ctx);
     };
     if summary.agent_count == 0 {
-        return None;
+        return stdin_agents(ctx);
     }
     let running: Vec<_> = summary.agents.iter().filter(|a| a.end.is_none()).collect();
     let mut recent: Vec<_> = summary

@@ -218,6 +218,7 @@ impl Registry {
 
         let cc_base = cc_name
             .map(strip_context_suffix)
+            .map(|n| strip_effort_suffix(&n))
             .filter(|n| !n.is_empty() && !n.eq_ignore_ascii_case(id));
 
         let (base, source) =
@@ -230,10 +231,12 @@ impl Registry {
                 (name, NameSource::ClaudeCode)
             } else if let Some(name) = builtin::claude_name(id) {
                 (name, NameSource::Builtin)
+            } else if let Some(name) = builtin::gemini_name(id) {
+                (name.to_string(), NameSource::Builtin)
             } else if let Some(r) = builtin_rule {
                 (r.name.to_string(), NameSource::Builtin)
             } else {
-                (id.to_string(), NameSource::RawId)
+                (strip_effort_suffix(id), NameSource::RawId)
             };
 
         let name = match modifier {
@@ -304,6 +307,17 @@ fn strip_context_suffix(name: &str) -> String {
         Regex::new(r"(?i)\s*\([^)]*\bcontext\b[^)]*\)").expect("suffix regex compiles")
     });
     re.replace_all(name, "").trim().to_string()
+}
+
+/// Strip trailing reasoning effort parens (`Gemini 4 Carbon (High)` → `Gemini 4 Carbon`),
+/// while preserving model-variant parens (`Orchestrator (Neon)`).
+pub fn strip_effort_suffix(name: &str) -> String {
+    static EFFORT: OnceLock<Regex> = OnceLock::new();
+    let re = EFFORT.get_or_init(|| {
+        Regex::new(r"(?i)\s*\((?:low|medium|med|high|xhigh|max)\)\s*$")
+            .expect("effort suffix regex compiles")
+    });
+    re.replace(name, "").trim().to_string()
 }
 
 #[cfg(test)]

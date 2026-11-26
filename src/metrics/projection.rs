@@ -261,7 +261,12 @@ fn to_compact(ctx: &Ctx, _: &Options) -> Option<Reading> {
 }
 
 fn cost_rate(ctx: &Ctx, _: &Options) -> Option<Reading> {
-    let cost = ctx.input.cost.as_ref()?.total_cost_usd?;
+    let cost = ctx
+        .input
+        .cost
+        .as_ref()
+        .and_then(|c| c.usd())
+        .or(ctx.state.session_cost)?;
     // Measure from the oldest sample in the window, or from where the cost
     // last went down (the session's cost was reset).
     let mut start: Option<(i64, f64)> = None;

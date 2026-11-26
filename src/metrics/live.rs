@@ -59,27 +59,35 @@ pub(super) fn metrics() -> Vec<Metric> {
             compute: breakdown,
         },
         Metric {
-            meta: meta(
-                "timing.ttft",
-                Category::Timing,
-                "Time to first token",
-                "How long the main loop's last model request took to start answering",
-                IconKey::Ttft,
-                ["{ttft}", "{ttft}", "{ttft}"],
-                &["ttft"],
-            ),
+            meta: MetricMeta {
+                min_cc: None,
+                needs_mod: false,
+                ..meta(
+                    "timing.ttft",
+                    Category::Timing,
+                    "Time to first token",
+                    "How long the main loop's last model request took to start answering",
+                    IconKey::Ttft,
+                    ["{ttft}", "{ttft}", "{ttft}"],
+                    &["ttft"],
+                )
+            },
             compute: ttft,
         },
         Metric {
-            meta: meta(
-                "timing.tps",
-                Category::Timing,
-                "Output speed",
-                "Output tokens per second while the main loop's last answer streamed",
-                IconKey::Speed,
-                ["{tps} tok/s", "{tps}/s", "{tps}"],
-                &["tps"],
-            ),
+            meta: MetricMeta {
+                min_cc: None,
+                needs_mod: false,
+                ..meta(
+                    "timing.tps",
+                    Category::Timing,
+                    "Output speed",
+                    "Output tokens per second while the main loop's last answer streamed",
+                    IconKey::Speed,
+                    ["{tps} tok/s", "{tps}/s", "{tps}"],
+                    &["tps"],
+                )
+            },
             compute: tps,
         },
     ]
@@ -194,7 +202,12 @@ pub(super) fn agents(ctx: &Ctx, _: &Options) -> Option<Reading> {
 }
 
 fn ttft(ctx: &Ctx, _: &Options) -> Option<Reading> {
-    let ms = bridge(ctx)?.turn.as_ref()?.ttft_ms?;
+    let ms = ctx
+        .state
+        .db
+        .as_ref()
+        .and_then(|d| d.ttft_ms)
+        .or_else(|| bridge(ctx)?.turn.as_ref()?.ttft_ms)?;
     let text = if ms < 10_000 {
         format!("{:.1}s", ms as f64 / 1000.0)
     } else {
@@ -204,7 +217,13 @@ fn ttft(ctx: &Ctx, _: &Options) -> Option<Reading> {
 }
 
 fn tps(ctx: &Ctx, _: &Options) -> Option<Reading> {
-    let tps = bridge(ctx)?.turn.as_ref()?.tps.filter(|t| *t > 0.0)?;
+    let tps = ctx
+        .state
+        .db
+        .as_ref()
+        .and_then(|d| d.tps)
+        .or_else(|| bridge(ctx)?.turn.as_ref()?.tps)
+        .filter(|t| *t > 0.0)?;
     Some(Reading::default().set("tps", format!("{tps:.0}")))
 }
 
@@ -304,7 +323,8 @@ mod tests {
 
     #[test]
     fn needs_the_mod_and_its_claude_code() {
-        assert_eq!(text("timing.tps", "2.1.300", None), None);
-        assert_eq!(text("timing.tps", "2.1.285", Some(BRIDGE)), None);
+        assert_eq!(text("context.breakdown", "2.1.300", None), None);
+        assert_eq!(text("context.breakdown", "2.1.285", Some(BRIDGE)), None);
+        assert_eq!(text("timing.tps", "1.5.8", None), None);
     }
 }

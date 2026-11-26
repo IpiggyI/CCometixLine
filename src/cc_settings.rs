@@ -62,24 +62,30 @@ const STATUS_KEYS: [&str; 5] = [
     "hideVimModeIndicator",
 ];
 
-/// Whether `command` runs ccline.
+/// Whether `command` runs agyline.
 pub fn is_ccline(command: &str) -> bool {
-    command.contains("ccline") || command.contains("ccometixline")
+    command.contains("agyline")
 }
 
 /// What to put in `statusLine.command`: the installed binary under
-/// `~/.claude/ccline` when present, else this executable.
+/// `~/.gemini/antigravity-cli/agyline` when present, else this executable.
 pub fn suggested_command() -> String {
     let name = if cfg!(windows) {
-        "ccline.exe"
+        "agyline.exe"
     } else {
-        "ccline"
+        "agyline"
     };
-    let installed = crate::paths::claude_dir().join("ccline").join(name);
+    let installed = crate::paths::agy_cli_dir().join("agyline").join(name);
     let path = if installed.exists() {
         installed
+    } else if let Ok(exe) = std::env::current_exe()
+        && exe
+            .file_name()
+            .is_some_and(|n| n.to_string_lossy().contains("agyline"))
+    {
+        exe
     } else {
-        std::env::current_exe().unwrap_or(installed)
+        installed
     };
     let shown = path.to_string_lossy().into_owned();
     match dirs::home_dir() {
@@ -92,9 +98,9 @@ pub fn suggested_command() -> String {
 }
 
 impl Settings {
-    /// `settings.json` in Claude Code's config directory.
+    /// `settings.json` in Antigravity CLI's config directory.
     pub fn user_path() -> PathBuf {
-        crate::paths::claude_dir().join("settings.json")
+        crate::paths::agy_cli_dir().join("settings.json")
     }
 
     pub fn load(path: &Path) -> Result<Settings, String> {
@@ -262,12 +268,12 @@ impl Settings {
 
     fn backup_path(&self) -> PathBuf {
         let mut name = self.path.file_name().unwrap_or_default().to_os_string();
-        name.push(".ccline-bak");
+        name.push(".agyline-bak");
         self.path.with_file_name(name)
     }
 
     /// Write the settings unless the file changed since `base` was read,
-    /// keeping the old file as `settings.json.ccline-bak`. A symlinked file
+    /// keeping the old file as `settings.json.agyline-bak`. A symlinked file
     /// is written through the link. Returns the backup's path, if any.
     pub fn save(&self, base: &Settings) -> Result<Option<PathBuf>, SaveError> {
         let on_disk = match std::fs::read_to_string(&self.path) {
@@ -358,12 +364,12 @@ mod tests {
 
         let mut s = base.clone();
         s.set_status_line(Some(&StatusLine {
-            command: "~/.claude/ccline/ccline".into(),
+            command: "~/.gemini/antigravity-cli/agyline/agyline".into(),
             padding: Some(0),
             refresh_interval: Some(2),
             hide_vim_mode_indicator: None,
         }));
-        s.set_subagent(Some("~/.claude/ccline/ccline"));
+        s.set_subagent(Some("~/.gemini/antigravity-cli/agyline/agyline"));
         let text = s.render();
         let keys: Vec<usize> = [
             "\"model\"",
@@ -392,7 +398,7 @@ mod tests {
         assert_eq!(again.status_line().unwrap().refresh_interval, Some(2));
         assert_eq!(
             again.subagent_command().as_deref(),
-            Some("~/.claude/ccline/ccline")
+            Some("~/.gemini/antigravity-cli/agyline/agyline")
         );
 
         // Saving over a file that changed since is refused.
@@ -444,8 +450,10 @@ mod tests {
 
     #[test]
     fn spots_ccline_commands() {
-        assert!(is_ccline("~/.claude/ccline/ccline --subagent"));
-        assert!(is_ccline("/x/target/debug/ccometixline"));
+        assert!(is_ccline(
+            "~/.gemini/antigravity-cli/agyline/agyline --subagent"
+        ));
+        assert!(is_ccline("/x/target/debug/agyline"));
         assert!(!is_ccline("bash ~/.claude/statusline.sh"));
     }
 }

@@ -378,45 +378,38 @@ mod tests {
         let mut app = App::new(Doc::open(paths), env());
         app.open_page(PageId::Presets);
         let s = screen(&mut app, 112, 33);
-        for name in [
-            "Cometix",
-            "Minimal",
-            "Dashboard",
-            "Budget",
-            "Cache-aware",
-            "Focus",
-        ] {
+        for name in ["Agy", "Agy-zh", "Cometix", "Minimal", "Dashboard", "Budget"] {
             assert!(s.contains(name), "{name}: {s}");
         }
-        assert!(s.contains("✓ in use"), "the default config is cometix: {s}");
-        assert!(s.contains("Classic look"));
+        assert!(s.contains("✓ in use"), "the default config is agy: {s}");
+        assert!(s.contains("Antigravity HUD"));
 
-        // Right then down: from cometix to the card under minimal. The
-        // preview bar shows the card under the cursor, nothing applied yet.
+        // Right to `agy-zh`, then style-only from `minimal` (down+right or 3 rights):
+        // applying style only keeps `agy`'s 2-line layout and changes the palette.
         app.handle_key(key(KeyCode::Right));
         let s = screen(&mut app, 112, 33);
-        assert!(s.contains("Model, context, cache and cost"));
-        assert!(s.contains("Preview · minimal · enter applies"), "{s}");
+        assert!(s.contains("Compact single-line Antigravity"));
+        assert!(s.contains("Preview · agy-zh · enter applies"), "{s}");
         assert!(!app.doc.dirty());
         app.handle_key(key(KeyCode::Down));
         app.handle_key(key(KeyCode::Char('s')));
-        assert_eq!(app.doc.config.lines.len(), 1, "style only keeps the layout");
-        assert_ne!(app.doc.config.palette, "terminal");
+        assert_eq!(app.doc.config.lines.len(), 7, "style only keeps the layout");
+        assert_ne!(app.doc.config.palette, "tokyo-night");
         let s = screen(&mut app, 112, 33);
         assert!(s.contains("✓ in use, modified"), "{s}");
         app.handle_key(ctrl('z'));
         assert!(!app.doc.dirty());
 
-        // Filter down to cache presets and apply all of it.
+        // Filter down to cache presets (`agy` and `cache-aware`), step to `cache-aware`, and apply all.
         for _ in 0..6 {
             app.handle_key(key(KeyCode::Tab));
         }
+        app.handle_key(key(KeyCode::Right));
         let s = screen(&mut app, 112, 33);
-        // Every preset shows the cache; the tag marks the one about it.
         assert!(
             s.contains("● cache")
                 && s.contains("Cache-aware")
-                && !s.contains("Classic look")
+                && !s.contains("Compact single-line")
                 && !s.contains("Minimal"),
             "{s}"
         );
@@ -477,7 +470,7 @@ mod tests {
         // It comes first, selected, in use, with its summary below.
         assert!(s.contains("Work-laptop") && s.contains("✓ in use"), "{s}");
         assert!(
-            s.contains("— Quota first") && s.contains("mine · 1 line"),
+            s.contains("— Quota first") && s.contains("mine · 7 lines"),
             "{s}"
         );
         app.handle_key(key(KeyCode::Char('?')));
@@ -543,7 +536,7 @@ mod tests {
         let (dir, paths) = temp_paths("presets-small");
         let mut app = App::new(Doc::open(paths), env());
         app.open_page(PageId::Presets);
-        for _ in 0..8 {
+        for _ in 0..10 {
             app.handle_key(key(KeyCode::Down));
         }
         let s = screen(&mut app, 80, 24);

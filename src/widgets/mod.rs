@@ -112,20 +112,40 @@ pub fn render(
 
     // A gauge replaces the icon; other graphs sit between icon and text.
     let mut out = Vec::new();
+    let push_prefix = |out: &mut Vec<Piece>| {
+        if level != Level::Minimal
+            && let Some(prefix) = &reading.prefix
+            && !prefix.is_empty()
+        {
+            if !out.is_empty() {
+                out.push(Piece::new(" ", Role::Text));
+            }
+            out.push(Piece::new(prefix.clone(), Role::Steady));
+        }
+    };
     match (&graph, props.kind) {
-        (Some(g), WidgetKind::Gauge) => out.extend(g.iter().cloned()),
+        (Some(g), WidgetKind::Gauge) => {
+            out.extend(g.iter().cloned());
+            push_prefix(&mut out);
+        }
         (Some(g), _) => {
             out.extend(icon.clone());
+            push_prefix(&mut out);
             if !out.is_empty() {
                 out.push(Piece::new(" ", Role::Text));
             }
             out.extend(g.iter().cloned());
         }
-        (None, _) if level != Level::Minimal => out.extend(icon.clone()),
+        (None, _) if level != Level::Minimal => {
+            out.extend(icon.clone());
+            push_prefix(&mut out);
+        }
         (None, _) => {}
     }
 
-    let pace_text = props.kind == WidgetKind::Pace && level != Level::Minimal;
+    let pace_text = props.kind == WidgetKind::Pace
+        && level != Level::Minimal
+        && !props.templates[level.index()].contains("{arrow}");
     let mut tail = if pace_text {
         // Pace shows how far ahead of or behind the clock usage is.
         let arrow = reading
@@ -152,6 +172,20 @@ pub fn render(
         out.push(Piece::new(" ", Role::Text));
     }
     out.append(&mut tail);
+    if tier == GlyphTier::Nerd && out.iter().any(|p| matches!(p.role, Role::Chip(_))) {
+        let mut expanded = Vec::with_capacity(out.len() + 2);
+        for p in out {
+            if let Role::Chip(sev) = p.role {
+                let link = p.link.clone();
+                expanded.push(Piece::new("\u{e0b6}", Role::ChipCap(sev)).with_link(link.clone()));
+                expanded.push(p);
+                expanded.push(Piece::new("\u{e0b4}", Role::ChipCap(sev)).with_link(link));
+            } else {
+                expanded.push(p);
+            }
+        }
+        out = expanded;
+    }
     Some(template::merge(out))
 }
 

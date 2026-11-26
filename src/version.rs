@@ -40,8 +40,8 @@ impl fmt::Display for Version {
     }
 }
 
-/// Oldest Claude Code that passes `COLUMNS` to the status line command.
-pub const MIN_SUPPORTED: Version = Version::new(2, 1, 153);
+/// Oldest Antigravity CLI that passes statusline payloads cleanly.
+pub const MIN_SUPPORTED: Version = Version::new(1, 5, 8);
 
 /// Claude Code versions that introduced capabilities newer than
 /// `MIN_SUPPORTED`. Anything older is assumed present.
