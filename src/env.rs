@@ -15,18 +15,49 @@ pub fn columns() -> Option<usize> {
 }
 
 /// Color depth from the environment: `NO_COLOR` turns color off,
-/// `COLORTERM=truecolor|24bit` allows RGB, a `*256color` TERM allows 256.
+/// `COLORTERM=truecolor|24bit` or known truecolor terminals (including
+/// Windows Terminal and Windows 10+/11 ConPTY/PowerShell) allow RGB, and a
+/// `*256color` TERM allows 256.
 pub fn color_depth() -> ColorDepth {
-    let var = |k: &str| std::env::var(k).unwrap_or_default();
-    if std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty()) {
+    color_depth_from(|k| std::env::var(k).ok(), cfg!(windows))
+}
+
+fn color_depth_from(var: impl Fn(&str) -> Option<String>, is_windows: bool) -> ColorDepth {
+    let get = |k: &str| var(k).unwrap_or_default();
+    if var("NO_COLOR").is_some_and(|v| !v.is_empty()) {
         return ColorDepth::None;
     }
-    let colorterm = var("COLORTERM").to_lowercase();
+    let colorterm = get("COLORTERM").to_ascii_lowercase();
     if colorterm == "truecolor" || colorterm == "24bit" {
         return ColorDepth::TrueColor;
     }
-    if var("TERM").contains("256color") {
+    if var("WT_SESSION").is_some_and(|v| !v.is_empty()) {
+        return ColorDepth::TrueColor;
+    }
+    if get("ConEmuANSI").eq_ignore_ascii_case("on") {
+        return ColorDepth::TrueColor;
+    }
+    let term_program = get("TERM_PROGRAM").to_ascii_lowercase();
+    if matches!(
+        term_program.as_str(),
+        "iterm.app" | "wezterm" | "vscode" | "hyper" | "tabby" | "ghostty" | "orca"
+    ) {
+        return ColorDepth::TrueColor;
+    }
+    let term = get("TERM").to_ascii_lowercase();
+    if term.contains("direct")
+        || term.contains("kitty")
+        || term.contains("alacritty")
+        || term.contains("wezterm")
+        || term.contains("ghostty")
+    {
+        return ColorDepth::TrueColor;
+    }
+    if term.contains("256color") {
         return ColorDepth::Ansi256;
+    }
+    if is_windows && term.is_empty() {
+        return ColorDepth::TrueColor;
     }
     ColorDepth::Ansi16
 }
@@ -131,5 +162,68 @@ impl Default for AutoCompact {
             window: None,
             pct: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn depth(vars: &[(&str, &str)], is_windows: bool) -> ColorDepth {
+        color_depth_from(
+            |k| {
+                vars.iter()
+                    .find(|(name, _)| *name == k)
+                    .map(|(_, v)| (*v).to_string())
+            },
+            is_windows,
+        )
+    }
+
+    #[test]
+    fn no_color_overrides_terminal_and_platform() {
+        assert_eq!(
+            depth(
+                &[
+                    ("NO_COLOR", "1"),
+                    ("COLORTERM", "truecolor"),
+                    ("WT_SESSION", "guid")
+                ],
+                true
+            ),
+            ColorDepth::None
+        );
+    }
+
+    #[test]
+    fn windows_powershell_and_terminal_default_to_truecolor() {
+        assert_eq!(depth(&[], true), ColorDepth::TrueColor);
+        assert_eq!(
+            depth(&[("WT_SESSION", "1234-5678")], false),
+            ColorDepth::TrueColor
+        );
+        assert_eq!(depth(&[("ConEmuANSI", "ON")], true), ColorDepth::TrueColor);
+        assert_eq!(depth(&[("TERM", "dumb")], true), ColorDepth::Ansi16);
+    }
+
+    #[test]
+    fn unix_color_depth_follows_env_signals() {
+        assert_eq!(depth(&[], false), ColorDepth::Ansi16);
+        assert_eq!(
+            depth(&[("TERM", "xterm-256color")], false),
+            ColorDepth::Ansi256
+        );
+        assert_eq!(
+            depth(&[("COLORTERM", "truecolor")], false),
+            ColorDepth::TrueColor
+        );
+        assert_eq!(
+            depth(&[("TERM_PROGRAM", "Orca")], false),
+            ColorDepth::TrueColor
+        );
+        assert_eq!(
+            depth(&[("TERM", "xterm-direct")], false),
+            ColorDepth::TrueColor
+        );
     }
 }

@@ -488,7 +488,7 @@ mod tests {
         assert_eq!(
             out,
             vec![
-                "\u{ef23} Opus 4.8 · High | \u{f024b} app | \u{f02a2} main ● ↑2 | \u{f49b} 62% · 124k | \u{f1c0} 3:42 · 94% hit"
+                "\u{f0674} Opus 4.8 · High | \u{f024b} app | \u{f02a2} main ● ↑2 | \u{f49b} 62% · 124k | \u{f1c0} 3:42 · 94% hit"
             ]
         );
     }
@@ -617,5 +617,75 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn agy_preset_colors_context_by_usage_quiets_tools_and_orders_cost_last() {
+        let config = presets::get("agy").unwrap();
+        let theme = theme(&config);
+        let reg = Registry::default();
+        let s = scenarios::find("agy").unwrap();
+
+        let make_frame = || Frame {
+            now: scenarios::BASE,
+            tz: FixedOffset::east_opt(0).unwrap(),
+            width: None,
+            git: GitSource::Fixed(s.git()),
+            state: s.state(scenarios::BASE),
+            compact: AutoCompact::default(),
+            commands: Commands::Show,
+        };
+
+        // Context follows ok (green) -> warn (yellow) -> crit (red) by usage against 512k.
+        for (tokens, expected_token) in [
+            (100_000, Token::Ok),
+            (320_000, Token::Warn),
+            (440_000, Token::Crit),
+        ] {
+            let mut input = s.input(scenarios::BASE);
+            let cw = input.context_window.as_mut().unwrap();
+            cw.total_input_tokens = Some(tokens);
+            cw.used_percentage = None;
+            let rendered = lines(&input, &config, &reg, make_frame());
+            let line2 = &rendered[1];
+            let expected = theme.palette.color(expected_token);
+            let pct_span = line2
+                .iter()
+                .find(|sp| sp.text.contains('%'))
+                .expect("context pct span");
+            assert_eq!(line2[0].style.fg, expected, "gauge color at {tokens}");
+            assert_eq!(pct_span.style.fg, expected, "text color at {tokens}");
+        }
+
+        let rendered = lines(&s.input(scenarios::BASE), &config, &reg, make_frame());
+
+        // Line 2 ends with session cost and today's cost.
+        let line2_text = line_text(&rendered[1]);
+        let tasks_pos = line2_text.find("tasks").expect("agy.tasks on line 2");
+        let cost_pos = line2_text.find("$1.48").expect("cost on line 2");
+        let today_pos = line2_text.find("$6.40 today").expect("cost.today on line 2");
+        assert!(tasks_pos < cost_pos && cost_pos < today_pos, "{line2_text}");
+
+        // Line 4 first three time items use non-purple #a9b1d6.
+        let time_color = Color::parse("#a9b1d6");
+        let purple = theme.palette.color(Token::Session);
+        assert_ne!(time_color, purple);
+        let line4 = &rendered[3];
+        for needle in ["9-30 20:48", "40m", "9-30 23:59"] {
+            let span = line4
+                .iter()
+                .find(|sp| sp.text.contains(needle))
+                .unwrap_or_else(|| panic!("missing {needle} in line 4"));
+            assert_eq!(span.style.fg, time_color, "{needle}");
+        }
+
+        // Line 5 tool activity uses quiet #737aa2 instead of bright orange #ff9e64.
+        let line5 = &rendered[4];
+        let tool_span = line5
+            .iter()
+            .find(|sp| sp.text.contains("Bash"))
+            .expect("tool activity span");
+        assert_eq!(tool_span.style.fg, Color::parse("#737aa2"));
+        assert_ne!(tool_span.style.fg, Color::parse("#ff9e64"));
     }
 }

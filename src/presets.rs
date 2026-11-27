@@ -27,7 +27,7 @@ pub const PRESETS: &[Preset] = &[
         name: "agy",
         summary: "Antigravity HUD + agy-zh-pack: ring context gauge with compactions, dual Gemini/3P 5h & weekly quota icons with speed, timing and token telemetry",
         tags: &["multi-line", "quota", "context", "cache"],
-        toml: r#"
+        toml: r##"
 palette = "tokyo-night"
 skin = "plain"
 glyphs = "nerd"
@@ -48,48 +48,52 @@ left = [
 
 [[line]]
 left = [
-  { metric = "context", format = "{pct}%[ ({tokens}/{window})][ {compact_badge}]", options = { compact_window = 512000 } },
+  { metric = "context", color = "ok", format = "{pct}%[ ({tokens}/{window})][ {compact_badge}]", options = { compact_window = 512000 } },
   "cache",
-  "cost",
-  "cost.today",
   "agy.state",
   "agy.mode",
   "agy.tasks",
+  "cost",
+  "cost.today",
 ]
 
 [[line]]
 left = [
-  { metric = "quota.5h", widget = "bar", bar = "shapes", cells = 10, coloring = "gradient", format = "{pct}%[ ({left}, {reset})][ · {arrow}]", options = { pool = "gemini", label = "full", countdown = "spaced", reset_format = "%H:%M" } },
-  { metric = "quota.7d", widget = "text", format = "{pct}%[ · {reset}][ · {arrow}]", options = { pool = "gemini", label = "none", reset_format = "%-m/%-d %H:%M" } },
-  { metric = "quota.5h", widget = "bar", bar = "shapes", cells = 10, coloring = "gradient", format = "{pct}%[ ({left}, {reset})][ · {arrow}]", options = { pool = "3p", label = "full", countdown = "spaced", reset_format = "%H:%M" } },
+  { metric = "quota.5h", widget = "bar", bar = "shapes", cells = 10, coloring = "gradient", format = "{pct}%[ ({left}, {reset})][ · {arrow}]", options = { pool = "gemini", label = "none", countdown = "spaced", reset_format = "%H:%M" } },
+  { metric = "quota.7d", widget = "bar", bar = "shapes", cells = 10, coloring = "gradient", format = "{pct}%[ · {reset}][ · {arrow}]", options = { pool = "gemini", label = "none", reset_format = "%-m/%-d %H:%M" } },
+  { metric = "quota.5h", widget = "text", format = "{pct}%[ ({left}, {reset})][ · {arrow}]", options = { pool = "3p", label = "full", countdown = "spaced", reset_format = "%H:%M" } },
   { metric = "quota.7d", widget = "text", format = "{pct}%[ · {reset}][ · {arrow}]", options = { pool = "3p", label = "none", reset_format = "%-m/%-d %H:%M" } },
 ]
 
 [[line]]
 left = [
-  { metric = "session.start", format = "{at}" },
-  "duration",
-  { metric = "session.last_reply", format = "{at}" },
+  { metric = "session.start", color = "#a9b1d6", format = "{at}" },
+  { metric = "duration", color = "#a9b1d6" },
+  { metric = "session.last_reply", color = "#a9b1d6", format = "{at}" },
   "timing.ttft",
   "timing.tps",
   "session.tokens",
 ]
 
 [[line]]
-left = ["activity.tools"]
+left = [{ metric = "activity.tools", color = "#737aa2" }]
 
 [[line]]
-left = ["activity.agents"]
+left = [{ metric = "activity.agents", color = "#737aa2" }]
 
 [[line]]
-left = ["activity.todos", "activity.skills", "mcp"]
-"#,
+left = [
+  { metric = "activity.todos", color = "#737aa2" },
+  { metric = "activity.skills", color = "#737aa2" },
+  "mcp",
+]
+"##,
     },
     Preset {
         name: "agy-zh",
         summary: "Compact single-line Antigravity status bar with ring context, compactions and dual quota speed indicators",
         tags: &["quota", "context"],
-        toml: r#"
+        toml: r##"
 palette = "tokyo-night"
 skin = "plain"
 glyphs = "nerd"
@@ -100,19 +104,19 @@ left = [
   "model",
   { metric = "dir", icon_color = "bright_yellow" },
   { metric = "git", options = { branch_prefixes = "feature/=✨,feat/=✨,fix/=🐛,docs/=📝,refactor/=♻,chore/=🔧" } },
-  { metric = "context", format = "{pct}%[ ({tokens}/{window})][ {compact_badge}]", options = { compact_window = 512000 } },
+  { metric = "context", color = "ok", format = "{pct}%[ ({tokens}/{window})][ {compact_badge}]", options = { compact_window = 512000 } },
 ]
 right = ["timing.ttft", "timing.tps", "cache", "cost", "cost.today"]
 
 [[line]]
 left = [
   { metric = "quota.5h", widget = "bar", bar = "shapes", cells = 8, coloring = "gradient", format = "{pct}%[ ({left})][ · {arrow}]", options = { pool = "gemini", label = "short", countdown = "spaced" } },
-  { metric = "quota.7d", widget = "text", format = "{pct}%[ · {reset}][ · {arrow}]", options = { pool = "gemini", label = "none", reset_format = "%-m/%-d %H:%M" } },
-  { metric = "quota.5h", widget = "bar", bar = "shapes", cells = 8, coloring = "gradient", format = "{pct}%[ ({left})][ · {arrow}]", options = { pool = "3p", label = "short", countdown = "spaced" } },
+  { metric = "quota.7d", widget = "bar", bar = "shapes", cells = 8, coloring = "gradient", format = "{pct}%[ · {reset}][ · {arrow}]", options = { pool = "gemini", label = "none", reset_format = "%-m/%-d %H:%M" } },
+  { metric = "quota.5h", widget = "text", format = "{pct}%[ ({left})][ · {arrow}]", options = { pool = "3p", label = "short", countdown = "spaced" } },
   { metric = "quota.7d", widget = "text", format = "{pct}%[ · {reset}][ · {arrow}]", options = { pool = "3p", label = "none", reset_format = "%-m/%-d %H:%M" } },
 ]
 right = ["agy.state", "agy.mode", "auth"]
-"#,
+"##,
     },
     Preset {
         name: "cometix",

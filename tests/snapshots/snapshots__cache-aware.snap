@@ -3,83 +3,83 @@ source: tests/snapshots.rs
 expression: render_preset(preset.name)
 ---
 ── normal @ 60
- Opus 4.8 · High · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ ·  62% · 124k⏎
+󰙴 Opus 4.8 · High · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ ·  62% · 124k⏎
                                                       $1.20⏎
  ●●●●●○○○ warm 3:42⏎
 94% hit · 1× miss · last: tools changed             $1.65/h⏎
 ── normal @ 100
- Opus 4.8 · High · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ ·  62% · 124k                                        $1.20⏎
+󰙴 Opus 4.8 · High · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ ·  62% · 124k                                        $1.20⏎
  ●●●●●○○○ warm 3:42 · 94% hit · 1× miss · last: tools changed                              $1.65/h⏎
 ── normal @ 140
- Opus 4.8 · High · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ ·  62% · 124k                                                                                $1.20⏎
+󰙴 Opus 4.8 · High · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ ·  62% · 124k                                                                                $1.20⏎
  ●●●●●○○○ warm 3:42 · 94% hit · 1× miss · last: tools changed                                                                      $1.65/h⏎
 ── fresh @ 60
- Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  12% · 24k⏎
+󰙴 Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  12% · 24k⏎
                                 󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\ ·  $0.06⏎
  ●●●●●●○○ warm 4:20 · 0% hit⏎
 ── fresh @ 100
- Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  12% · 24k                       󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\ ·  $0.06⏎
+󰙴 Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  12% · 24k                       󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\ ·  $0.06⏎
  ●●●●●●○○ warm 4:20 · 0% hit⏎
 ── fresh @ 140
- Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  12% · 24k                                                               󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\ ·  $0.06⏎
+󰙴 Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  12% · 24k                                                               󰚰 ]8;;https://github.com/IpiggyI/CCometixLine/releases/tag/v2.2.0\v2.2.0 available]8;;\ ·  $0.06⏎
  ●●●●●●○○ warm 4:20 · 0% hit⏎
 ── near-full @ 60
- Opus 4.8 · Max · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\⏎
+󰙴 Opus 4.8 · Max · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\⏎
  91% · 182k                                         $18.42⏎
  ○○○○○○○○ cold · 71% hit · 6× miss · last: ttl expired 5m⏎
                                                     $5.18/h⏎
 ── near-full @ 100
- Opus 4.8 · Max · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\ ·  91% · 182k                                $18.42⏎
+󰙴 Opus 4.8 · Max · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\ ·  91% · 182k                                $18.42⏎
  ○○○○○○○○ cold · 71% hit · 6× miss · last: ttl expired 5m                                  $5.18/h⏎
 ── near-full @ 140
- Opus 4.8 · Max · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\ ·  91% · 182k                                                                        $18.42⏎
+󰙴 Opus 4.8 · Max · 󰉋 app · 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\ ·  91% · 182k                                                                        $18.42⏎
  ○○○○○○○○ cold · 71% hit · 6× miss · last: ttl expired 5m                                                                          $5.18/h⏎
 ── big-context @ 60
- Opus 5.5 1M · xHigh · fast · 󰉋 api · 󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\⏎
+󰙴 Opus 5.5 1M · xHigh · fast · 󰉋 api · 󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\⏎
  27% · 270k                                          $7.74⏎
  ●●●●●●○○ warm 45:00 · 97% hit                     $3.68/h⏎
 ── big-context @ 100
- Opus 5.5 1M · xHigh · fast · 󰉋 api · 󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\ ·  27% · 270k                                $7.74⏎
+󰙴 Opus 5.5 1M · xHigh · fast · 󰉋 api · 󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\ ·  27% · 270k                                $7.74⏎
  ●●●●●●○○ warm 45:00 · 97% hit                                                             $3.68/h⏎
 ── big-context @ 140
- Opus 5.5 1M · xHigh · fast · 󰉋 api · 󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\ ·  27% · 270k                                                                        $7.74⏎
+󰙴 Opus 5.5 1M · xHigh · fast · 󰉋 api · 󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\ ·  27% · 270k                                                                        $7.74⏎
  ●●●●●●○○ warm 45:00 · 97% hit                                                                                                     $3.68/h⏎
 ── third-party @ 60
- Kimi K2 Turbo · 󰉋 app · 󰊢 main ● ·  81% · 104k     $0.84⏎
+󰙴 Kimi K2 Turbo · 󰉋 app · 󰊢 main ● ·  81% · 104k     $0.84⏎
  ●●●●○○○○ warm 3:00 · 88% hit · 1× miss            $1.76/h⏎
 ── third-party @ 100
- Kimi K2 Turbo · 󰉋 app · 󰊢 main ● ·  81% · 104k                                             $0.84⏎
+󰙴 Kimi K2 Turbo · 󰉋 app · 󰊢 main ● ·  81% · 104k                                             $0.84⏎
  ●●●●○○○○ warm 3:00 · 88% hit · 1× miss                                                    $1.76/h⏎
 ── third-party @ 140
- Kimi K2 Turbo · 󰉋 app · 󰊢 main ● ·  81% · 104k                                                                                     $0.84⏎
+󰙴 Kimi K2 Turbo · 󰉋 app · 󰊢 main ● ·  81% · 104k                                                                                     $0.84⏎
  ●●●●○○○○ warm 3:00 · 88% hit · 1× miss                                                                                            $1.76/h⏎
 ── worktree @ 60
- Sonnet 5 · High · 󰉋 feature-x · 󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\⏎
+󰙴 Sonnet 5 · High · 󰉋 feature-x · 󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\⏎
  19% · 38k                                           $0.31⏎
  ●●●●●○○○ warm 3:30 · 91% hit                      $1.80/h⏎
 ── worktree @ 100
- Sonnet 5 · High · 󰉋 feature-x · 󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\ ·  19% · 38k                     $0.31⏎
+󰙴 Sonnet 5 · High · 󰉋 feature-x · 󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\ ·  19% · 38k                     $0.31⏎
  ●●●●●○○○ warm 3:30 · 91% hit                                                              $1.80/h⏎
 ── worktree @ 140
- Sonnet 5 · High · 󰉋 feature-x · 󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\ ·  19% · 38k                                                             $0.31⏎
+󰙴 Sonnet 5 · High · 󰉋 feature-x · 󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\ ·  19% · 38k                                                             $0.31⏎
  ●●●●●○○○ warm 3:30 · 91% hit                                                                                                      $1.80/h⏎
 ── non-git @ 60
- Haiku 4.5 · 󰉋 scratch ·  5% · 9k                   $0.02⏎
+󰙴 Haiku 4.5 · 󰉋 scratch ·  5% · 9k                   $0.02⏎
  ●●○○○○○○ warm 1:35 · 40% hit⏎
 ── non-git @ 100
- Haiku 4.5 · 󰉋 scratch ·  5% · 9k                                                           $0.02⏎
+󰙴 Haiku 4.5 · 󰉋 scratch ·  5% · 9k                                                           $0.02⏎
  ●●○○○○○○ warm 1:35 · 40% hit⏎
 ── non-git @ 140
- Haiku 4.5 · 󰉋 scratch ·  5% · 9k                                                                                                   $0.02⏎
+󰙴 Haiku 4.5 · 󰉋 scratch ·  5% · 9k                                                                                                   $0.02⏎
  ●●○○○○○○ warm 1:35 · 40% hit⏎
 ── gateway @ 60
- Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  40% · 80k     $3.10⏎
+󰙴 Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  40% · 80k     $3.10⏎
  ●●●●●○○○ warm 40:00 · 93% hit · 1× miss⏎
 ── gateway @ 100
- Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  40% · 80k                                             $3.10⏎
+󰙴 Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  40% · 80k                                             $3.10⏎
  ●●●●●○○○ warm 40:00 · 93% hit · 1× miss⏎
 ── gateway @ 140
- Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  40% · 80k                                                                                     $3.10⏎
+󰙴 Sonnet 5 · Med · 󰉋 app · 󰊢 main ✓ ·  40% · 80k                                                                                     $3.10⏎
  ●●●●●○○○ warm 40:00 · 93% hit · 1× miss⏎
 ── old-cc @ 60
 agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
@@ -88,13 +88,13 @@ agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
 ── old-cc @ 140
 agyline needs Antigravity CLI 1.5.8 or newer (running 1.2.0)⏎
 ── agy @ 60
- Orchestrator (Neon) · High · claude-opus-4-6-thinking⏎
+󰙴 Orchestrator (Neon) · High · claude-opus-4-6-thinking⏎
 󰉋 app · 󰊢 feat/agyline ● ↑1 ·  32% · 320k ↻1×      $1.48⏎
  ○○○○○○○○ · 99% hit                                $2.12/h⏎
 ── agy @ 100
- Orchestrator (Neon) · High · claude-opus-4-6-thinking · 󰉋 app · 󰊢 feat/agyline ● ↑1⏎
+󰙴 Orchestrator (Neon) · High · claude-opus-4-6-thinking · 󰉋 app · 󰊢 feat/agyline ● ↑1⏎
  32% · 320k ↻1×                                                                            $1.48⏎
  ○○○○○○○○ · 99% hit                                                                        $2.12/h⏎
 ── agy @ 140
- Orchestrator (Neon) · High · claude-opus-4-6-thinking · 󰉋 app · 󰊢 feat/agyline ● ↑1 ·  32% · 320k ↻1×                            $1.48⏎
+󰙴 Orchestrator (Neon) · High · claude-opus-4-6-thinking · 󰉋 app · 󰊢 feat/agyline ● ↑1 ·  32% · 320k ↻1×                            $1.48⏎
  ○○○○○○○○ · 99% hit                                                                                                                $2.12/h⏎

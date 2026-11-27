@@ -149,7 +149,7 @@ impl IconKey {
 /// The icon for `key`; empty when the tier has none.
 pub fn icon(key: IconKey, tier: GlyphTier) -> &'static str {
     let (nerd, unicode) = match key {
-        IconKey::Model => ("\u{ef23}", "◆"),
+        IconKey::Model => ("\u{f0674}", "✦"),
         IconKey::Effort => ("\u{f0e7}", "ϟ"),
         IconKey::Thinking => ("\u{f0eb}", "✻"),
         IconKey::Fast => ("\u{f135}", "»"),
@@ -184,7 +184,7 @@ pub fn icon(key: IconKey, tier: GlyphTier) -> &'static str {
         IconKey::Advisor => ("\u{f018b}", "◇"),
         IconKey::SessionStart => ("\u{f040d}", "▸"),
         IconKey::LastReply => ("\u{f075}", "↵"),
-        IconKey::Skills => ("\u{f0d0}", "✦"),
+        IconKey::Skills => ("\u{f0d0}", "✧"),
         IconKey::Hooks => ("\u{f13d}", "⌁"),
         IconKey::Mcp => ("\u{f1e6}", "⇌"),
         IconKey::Todos => ("\u{f0ae}", "☑"),
