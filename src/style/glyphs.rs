@@ -78,10 +78,17 @@ pub enum IconKey {
     Hooks,
     Mcp,
     Todos,
+    /// Claude model families, drawn the same in every tier but ASCII.
+    Haiku,
+    Sonnet,
+    Opus,
+    Fable,
+    /// A Claude model outside the known families.
+    Claude,
 }
 
 impl IconKey {
-    pub const ALL: [IconKey; 38] = [
+    pub const ALL: [IconKey; 43] = [
         IconKey::Model,
         IconKey::Effort,
         IconKey::Thinking,
@@ -120,6 +127,11 @@ impl IconKey {
         IconKey::Hooks,
         IconKey::Mcp,
         IconKey::Todos,
+        IconKey::Haiku,
+        IconKey::Sonnet,
+        IconKey::Opus,
+        IconKey::Fable,
+        IconKey::Claude,
     ];
 
     /// A short lowercase name, for pickers.
@@ -177,6 +189,11 @@ pub fn icon(key: IconKey, tier: GlyphTier) -> &'static str {
         IconKey::Hooks => ("\u{f13d}", "⌁"),
         IconKey::Mcp => ("\u{f1e6}", "⇌"),
         IconKey::Todos => ("\u{f0ae}", "☑"),
+        IconKey::Haiku => ("❀", "❀"),
+        IconKey::Sonnet => ("❦", "❦"),
+        IconKey::Opus => ("♫", "♫"),
+        IconKey::Fable => ("❧", "❧"),
+        IconKey::Claude => ("✻", "✻"),
     };
     match tier {
         GlyphTier::Nerd => nerd,
@@ -263,6 +280,7 @@ impl BarGlyphs {
 pub fn gauge_steps(tier: GlyphTier) -> &'static [&'static str] {
     match tier {
         GlyphTier::Nerd => &[
+            "\u{f0766}",
             "\u{f0a9e}",
             "\u{f0a9f}",
             "\u{f0aa0}",
@@ -314,6 +332,7 @@ mod tests {
             IconKey::Rate,
             IconKey::Today,
             IconKey::Command,
+            IconKey::Claude,
         ];
         for key in keys {
             for tier in [GlyphTier::Nerd, GlyphTier::Unicode] {
@@ -333,6 +352,10 @@ mod tests {
             IconKey::Hooks,
             IconKey::Mcp,
             IconKey::Todos,
+            IconKey::Haiku,
+            IconKey::Sonnet,
+            IconKey::Opus,
+            IconKey::Fable,
         ];
         for tier in [GlyphTier::Nerd, GlyphTier::Unicode] {
             for key in newer {
@@ -355,6 +378,7 @@ mod tests {
         assert_eq!(gauge(0.0, GlyphTier::Unicode), Some("○"));
         assert_eq!(gauge(0.5, GlyphTier::Unicode), Some("◑"));
         assert_eq!(gauge(1.0, GlyphTier::Unicode), Some("●"));
+        assert_eq!(gauge(0.0, GlyphTier::Nerd), Some("\u{f0766}"));
         assert_eq!(gauge(7.0, GlyphTier::Nerd), Some("\u{f0aa5}"));
         assert_eq!(gauge(0.5, GlyphTier::Ascii), None);
     }

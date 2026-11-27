@@ -161,7 +161,23 @@ fn model(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     if ctx.input.fast_mode == Some(true) {
         r = r.set("fast", "fast");
     }
+    r.icon = family_icon(&resolved.name).or_else(|| ctx.input.model_id().and_then(family_icon));
     Some(r)
+}
+
+/// The icon for a Claude model's family, from its name or id; `None` for
+/// models that are not Claude's.
+pub(super) fn family_icon(name: &str) -> Option<IconKey> {
+    let name = name.to_lowercase();
+    [
+        ("haiku", IconKey::Haiku),
+        ("sonnet", IconKey::Sonnet),
+        ("opus", IconKey::Opus),
+        ("fable", IconKey::Fable),
+        ("claude", IconKey::Claude),
+    ]
+    .into_iter()
+    .find_map(|(word, key)| name.contains(word).then_some(key))
 }
 
 /// The reasoning effort as `Low`, `Med`, `High`, `xHigh` or `Max`, for
@@ -306,5 +322,33 @@ mod tests {
         assert_eq!(model_text(&off, "", 0), "Opus 4.8");
         let none = format!(r#"{{{OPUS}}}"#);
         assert_eq!(model_text(&none, "", 0), "Opus 4.8");
+    }
+
+    #[test]
+    fn model_icon_follows_the_claude_family() {
+        let icon = |id: &str, name: &str| {
+            let json = format!(r#"{{"model": {{"id": "{id}", "display_name": "{name}"}}}}"#);
+            let input = Input::parse(&json).unwrap();
+            let reg = Registry::default();
+            let ctx = Ctx::new(
+                &input,
+                &reg,
+                0,
+                FixedOffset::east_opt(0).unwrap(),
+                GlyphTier::Unicode,
+            );
+            read(find("model").unwrap(), &ctx, &Options::default())
+                .unwrap()
+                .icon
+        };
+        assert_eq!(icon("claude-haiku-4-5", "Haiku 4.5"), Some(IconKey::Haiku));
+        assert_eq!(
+            icon("claude-sonnet-5-5", "Sonnet 5.5"),
+            Some(IconKey::Sonnet)
+        );
+        assert_eq!(icon("claude-opus-5-5", "Opus 5.5"), Some(IconKey::Opus));
+        assert_eq!(icon("claude-fable-5-2", "Fable 5.2"), Some(IconKey::Fable));
+        assert_eq!(icon("claude-next", "Next"), Some(IconKey::Claude));
+        assert_eq!(icon("gpt-6", "GPT 6"), None);
     }
 }

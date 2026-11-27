@@ -428,7 +428,9 @@ fn model_week(ctx: &Ctx, opts: &Options) -> Option<Reading> {
         ctx,
         opts,
     )?;
-    Some(reading.set("name", w.name.clone()))
+    let mut reading = reading.set("name", w.name.clone());
+    reading.icon = super::identity::family_icon(&w.name);
+    Some(reading)
 }
 
 /// A spend limit as a window, and the window's length.
