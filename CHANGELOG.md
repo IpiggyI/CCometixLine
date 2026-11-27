@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.1.0] - 2026-11-03
+## [2.1.0] - 2026-11-27
 
 ### Added
 - **Distribution**: this fork publishes to npm as `@ipiggyi/ccline` and its own GitHub Releases; the update check asks those sources
@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Environment**: `env` lists the `CLAUDE.md` files, rules, MCP servers and configured hooks
 - **MCP**: `mcp` lists the enabled MCP servers from user and project configuration, and those of the project's `.mcp.json` that `settings.json`, `.claude/settings.json` or `.claude/settings.local.json` approve (`enabledMcpjsonServers`, `enableAllProjectMcpServers`, `disabledMcpjsonServers`); Windows project paths match however they are written. Servers that plugins provide are not included
 - **Preset**: `hud`, labelled bars for context (used and window size) and the 5-hour and weekly quotas with countdown and reset time, and a row each for `activity.tools`, `activity.agents`, `activity.todos` and `activity.skills`
+- **Model Weekly Limit**: `quota.model` shows a model's own weekly window, such as Fable's, which Claude Code shows only in /usage. It reads `usage-snapshot.json` in Claude Code's config directory, in claude-hud's external snapshot shape, written by another tool such as cc-usage. The `model` option (default `Fable`) picks the window by name prefix; a snapshot older than 15 minutes is ignored
+- **Timezone**: a top-level `timezone` setting (`auto`, IANA names, aliases such as `Beijing`, or UTC offsets) for clock times, the daily cost ledger and `ccline preview --tz`, with a picker on the Claude Code page. `auto` uses `CCLINE_TZ`, then the system's local zone. An unknown value keeps the rest of `config.toml` and shows `! ccline tz`
+- **Model Family Icons**: Claude models show their family in front of the name: ❀ Haiku, ❦ Sonnet, ♫ Opus, ❧ Fable, and ✻ for other Claude models. Other models keep the model icon. `quota.model` takes the icon of the model it reports on
 - **Idle Compaction**: the companion mod can compact an idle session shortly before its 1-hour prompt cache expires when Claude Code's own idle compaction can't run (through a gateway, Bedrock, Vertex or Foundry). Off by default; turn it on with `[idle_compact]` in `config.toml` (`enabled`, `margin_secs` within 30–900, default 180) or on the Claude Code page. It acts only at 200k tokens or more (`CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` changes this, with a floor of 100k)
 
 ### Changed
@@ -33,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cache Countdown Color**: the `cache` countdown now changes color with the share of the cache lifetime left, through the item's `levels` (percent of the lifetime used up; `[[75, "warn"], [90, "crit"]]` by default): the last quarter is a warning (1:15 of 5 minutes, 15:00 of 1 hour), the last tenth is critical (0:30, 6:00). A cold cache is muted instead of a warning. The 1-hour cache used to warn only in its last 5 minutes
 - **Palette `terminal`**: the session items (`session_name`, `duration`, `session.start`, `session.last_reply`) are bright cyan instead of green
 - **Companion Mod**: it no longer only passes data to ccline; with idle compaction turned on it also acts on the session
+- **Limit Countdowns**: the countdown and reset time of `quota.5h` and the reset time of `quota.7d` keep the label color instead of turning yellow or red with the percentage; filled skins still tint the whole segment by level
+- **Gauge**: with Nerd Font glyphs the gauge starts with an empty circle, so a reading near zero no longer shows an eighth filled
 
 ### Fixed
 - **Prices**: estimates such as `cache.cold_cost` now use Anthropic's official price table (per model and version, the 5-minute and 1-hour cache write rates, cache reads, fast mode and long prompts) instead of a single input price per model
