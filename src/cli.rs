@@ -1,8 +1,8 @@
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
-#[command(name = "ccline")]
-#[command(version, about = "High-performance Claude Code StatusLine")]
+#[command(name = "codexline")]
+#[command(version, about = "High-performance Codex CLI StatusLine")]
 pub struct Cli {
     /// Enter TUI configuration mode
     #[arg(short = 'c', long = "config")]

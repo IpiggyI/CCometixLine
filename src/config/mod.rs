@@ -130,6 +130,10 @@ pub struct ItemConfig {
     /// (its text color in filled skins).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon_color: Option<String>,
+    /// Background color, the same way: draws the item as a rounded badge in
+    /// the skins without segments of their own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub badge: Option<String>,
     /// Thresholds in percent, e.g. `[[50, "warn"], [80, "crit"]]`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub levels: Option<Vec<(f64, String)>>,

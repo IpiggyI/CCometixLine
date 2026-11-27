@@ -33,6 +33,9 @@ pub type Options = toml::Table;
 pub struct Field {
     pub text: String,
     pub role: Option<Role>,
+    /// The text in parts with roles of their own, e.g. an icon drawn in
+    /// several colors; empty for plain fields.
+    pub parts: Vec<(String, Role)>,
 }
 
 /// What a metric produced for this render.
@@ -71,7 +74,31 @@ impl Reading {
         let text = text.into();
         if !text.is_empty() {
             self.fields.retain(|(n, _)| *n != name);
-            self.fields.push((name, Field { text, role }));
+            self.fields.push((
+                name,
+                Field {
+                    text,
+                    role,
+                    parts: Vec::new(),
+                },
+            ));
+        }
+        self
+    }
+
+    /// Set a field drawn in parts, each with its own role.
+    pub fn set_parts(mut self, name: &'static str, parts: Vec<(String, Role)>) -> Self {
+        let text: String = parts.iter().map(|(t, _)| t.as_str()).collect();
+        if !text.is_empty() {
+            self.fields.retain(|(n, _)| *n != name);
+            self.fields.push((
+                name,
+                Field {
+                    text,
+                    role: None,
+                    parts,
+                },
+            ));
         }
         self
     }

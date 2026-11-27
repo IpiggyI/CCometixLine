@@ -1,6 +1,7 @@
 //! Metrics only the companion mod can supply (Claude Code 2.1.287+), read
 //! from its bridge: the context window by category, the tools and agents
 //! running now, and the last model request's time to first token and speed.
+//! A Codex rollout has the time to first token and speed too.
 
 use super::{Ctx, Metric, MetricMeta, Options, Reading, fmt};
 use crate::state::bridge::{Bridge, Category as Row};
@@ -59,27 +60,33 @@ pub(super) fn metrics() -> Vec<Metric> {
             compute: breakdown,
         },
         Metric {
-            meta: meta(
-                "timing.ttft",
-                Category::Timing,
-                "Time to first token",
-                "How long the main loop's last model request took to start answering",
-                IconKey::Ttft,
-                ["{ttft}", "{ttft}", "{ttft}"],
-                &["ttft"],
-            ),
+            meta: MetricMeta {
+                needs_mod: false,
+                ..meta(
+                    "timing.ttft",
+                    Category::Timing,
+                    "Time to first token",
+                    "How long the main loop's last model request took to start answering",
+                    IconKey::Ttft,
+                    ["{ttft}", "{ttft}", "{ttft}"],
+                    &["ttft"],
+                )
+            },
             compute: ttft,
         },
         Metric {
-            meta: meta(
-                "timing.tps",
-                Category::Timing,
-                "Output speed",
-                "Output tokens per second while the main loop's last answer streamed",
-                IconKey::Speed,
-                ["{tps} tok/s", "{tps}/s", "{tps}"],
-                &["tps"],
-            ),
+            meta: MetricMeta {
+                needs_mod: false,
+                ..meta(
+                    "timing.tps",
+                    Category::Timing,
+                    "Output speed",
+                    "Output tokens per second while the main loop's last answer streamed",
+                    IconKey::Speed,
+                    ["{tps} tok/s", "{tps}/s", "{tps}"],
+                    &["tps"],
+                )
+            },
             compute: tps,
         },
     ]
@@ -193,8 +200,11 @@ pub(super) fn agents(ctx: &Ctx, _: &Options) -> Option<Reading> {
     )
 }
 
+/// Codex reports the time per turn, to the turn's first token.
 fn ttft(ctx: &Ctx, _: &Options) -> Option<Reading> {
-    let ms = bridge(ctx)?.turn.as_ref()?.ttft_ms?;
+    let ms = bridge(ctx)
+        .and_then(|b| b.turn.as_ref()?.ttft_ms)
+        .or_else(|| ctx.transcript()?.codex.ttft_ms)?;
     let text = if ms < 10_000 {
         format!("{:.1}s", ms as f64 / 1000.0)
     } else {
@@ -203,8 +213,15 @@ fn ttft(ctx: &Ctx, _: &Options) -> Option<Reading> {
     Some(Reading::default().set("ttft", text))
 }
 
+/// Codex's speed is the last answer's tokens over the time it streamed.
 fn tps(ctx: &Ctx, _: &Options) -> Option<Reading> {
-    let tps = bridge(ctx)?.turn.as_ref()?.tps.filter(|t| *t > 0.0)?;
+    let tps = bridge(ctx)
+        .and_then(|b| b.turn.as_ref()?.tps)
+        .or_else(|| {
+            let (tokens, ms) = ctx.transcript()?.codex.answer?;
+            (ms > 0).then(|| tokens as f64 * 1000.0 / ms as f64)
+        })
+        .filter(|t| *t > 0.0)?;
     Some(Reading::default().set("tps", format!("{tps:.0}")))
 }
 
@@ -255,6 +272,39 @@ mod tests {
                 .map(|p| p.text.as_str())
                 .collect(),
         )
+    }
+
+    #[test]
+    fn a_codex_rollout_gives_the_timing_without_a_bridge() {
+        use crate::metrics::TranscriptSource;
+        use crate::state::transcript::{Codex, Summary};
+        let input = Input::parse("{}").unwrap();
+        let reg = Registry::default();
+        let summary = Summary {
+            start: Some(1_790_808_000),
+            codex: Box::new(Codex {
+                ttft_ms: Some(1500),
+                answer: Some((100, 2000)),
+                ..Codex::default()
+            }),
+            ..Summary::default()
+        };
+        let ctx = Ctx::new(
+            &input,
+            &reg,
+            1_790_808_780,
+            FixedOffset::east_opt(0).unwrap(),
+            GlyphTier::Unicode,
+        )
+        .with_transcript(TranscriptSource::Fixed(Some(summary)));
+        let field = |id: &str, name: &str| {
+            read(find(id).unwrap(), &ctx, &Options::new())
+                .and_then(|r| r.get(name).map(|f| f.text.clone()))
+        };
+        assert_eq!(field("timing.ttft", "ttft").as_deref(), Some("1.5s"));
+        assert_eq!(field("timing.tps", "tps").as_deref(), Some("50"));
+        // No duration in the input: the time since the rollout began.
+        assert_eq!(field("duration", "dur").as_deref(), Some("13m"));
     }
 
     #[test]

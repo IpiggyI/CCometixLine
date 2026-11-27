@@ -121,9 +121,10 @@ pub fn try_lock(path: &Path, stale: Duration) -> bool {
     }
 }
 
-/// Start `ccline <args>` in the background, detached from Claude Code's
-/// pipes and process group so it outlives the render and nothing waits for
-/// it. Returns whether it started.
+/// Start `ccline <args>` in the background, detached from the caller's
+/// pipes and process group so it outlives the render. A thread reaps it
+/// when it exits, so a long-running provider leaves no zombies; the render
+/// never waits for it. Returns whether it started.
 pub fn spawn_detached(args: &[&std::ffi::OsStr]) -> bool {
     let Ok(exe) = std::env::current_exe() else {
         return false;
@@ -146,7 +147,15 @@ pub fn spawn_detached(args: &[&std::ffi::OsStr]) -> bool {
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
     }
-    cmd.spawn().is_ok()
+    match cmd.spawn() {
+        Ok(mut child) => {
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+            true
+        }
+        Err(_) => false,
+    }
 }
 
 /// Run `f` about once in `every` calls, keyed on the clock so no RNG is needed.

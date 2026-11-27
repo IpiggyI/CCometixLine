@@ -375,6 +375,11 @@ mod tests {
     #[test]
     fn browses_filters_and_applies_presets() {
         let (dir, paths) = temp_paths("presets");
+        // Saved as the user's config, so the page opens on cometix unmodified.
+        crate::presets::get("cometix")
+            .unwrap()
+            .save(&paths.config)
+            .unwrap();
         let mut app = App::new(Doc::open(paths), env());
         app.open_page(PageId::Presets);
         let s = screen(&mut app, 112, 33);

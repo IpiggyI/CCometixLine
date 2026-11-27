@@ -1,15 +1,24 @@
 [package]
-name = "ccometixline"
+name = "codexline"
 version = "2.1.0"
 edition = "2024"
 rust-version = "1.88"
-description = "CCometixLine (ccline) - High-performance Claude Code StatusLine tool written in Rust"
+default-run = "codexline"
+description = "codexline - High-performance Codex CLI StatusLine tool written in Rust"
 authors = ["Haleclipse"]
 license = "MIT"
 repository = "https://github.com/IpiggyI/CCometixLine"
 readme = "README.md"
-keywords = ["claude", "statusline", "powerline", "rust", "claude-code"]
+keywords = ["codex", "statusline", "powerline", "rust", "mcp"]
 categories = ["command-line-utilities", "development-tools"]
+
+[lib]
+name = "ccometixline"
+path = "src/lib.rs"
+
+[[bin]]
+name = "codexline"
+path = "src/main.rs"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

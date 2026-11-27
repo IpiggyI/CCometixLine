@@ -207,6 +207,7 @@ pub fn item_levels(
             color: laid.color,
             fg: laid.fg,
             icon_color: laid.icon_color,
+            badge: laid.badge,
         };
         Some(compose(&[view], Side::Left, &theme))
     }))
@@ -324,6 +325,7 @@ fn lay_item(cfg: &ItemConfig, ctx: &Ctx, theme: &Theme) -> Option<LaidItem> {
         color: cfg.color.as_deref().and_then(resolve),
         fg: cfg.fg.as_deref().and_then(resolve),
         icon_color: cfg.icon_color.as_deref().and_then(resolve),
+        badge: cfg.badge.as_deref().and_then(resolve),
         priority: cfg.priority.unwrap_or(meta.priority).clamp(1, 5),
     })
 }

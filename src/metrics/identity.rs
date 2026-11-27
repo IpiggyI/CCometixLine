@@ -1,5 +1,5 @@
 use super::{Ctx, Metric, MetricMeta, OptKind, OptSpec, Options, Reading};
-use crate::style::{Category, IconKey};
+use crate::style::{Category, Color, GlyphTier, IconKey, Role};
 use crate::widgets::WidgetKind;
 
 fn meta(
@@ -51,7 +51,9 @@ pub(super) fn metrics() -> Vec<Metric> {
                         "{name}[ · {effort}][ · {fast}]",
                         "{family}[ · {fast}]",
                     ],
-                    &["name", "family", "id", "effort", "fast"],
+                    &[
+                        "name", "family", "id", "effort", "fast", "orb", "ver", "short",
+                    ],
                 )
             },
             compute: model,
@@ -150,10 +152,26 @@ pub(super) fn metrics() -> Vec<Metric> {
 fn model(ctx: &Ctx, opts: &Options) -> Option<Reading> {
     let resolved = ctx.model()?;
     let family = resolved.name.split_whitespace().next().unwrap_or_default();
+    let id = ctx.input.model_id().unwrap_or_default();
     let mut r = Reading::default()
         .set("name", &resolved.name)
         .set("family", family)
-        .set("id", ctx.input.model_id().unwrap_or_default());
+        .set("id", id);
+    r = match Celestial::parse(id) {
+        Some((body, ver)) => {
+            let r = match body.color() {
+                Some(c) => r.set_role("short", body.name(), Role::Hue(c)),
+                None => r.set("short", body.name()),
+            }
+            .set("ver", ver);
+            if ctx.glyphs == GlyphTier::Ascii {
+                r
+            } else {
+                r.set_parts("orb", body.orb())
+            }
+        }
+        None => r.set("short", &resolved.name),
+    };
     let with_effort = opts.get("effort").and_then(|v| v.as_bool()).unwrap_or(true);
     if with_effort && let Some(level) = effort(ctx) {
         r = r.set("effort", level);
@@ -162,6 +180,84 @@ fn model(ctx: &Ctx, opts: &Options) -> Option<Reading> {
         r = r.set("fast", "fast");
     }
     Some(r)
+}
+
+/// The celestial body a Codex model is named after: `gpt-6.2-sol` is the
+/// sun, version `6.2`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Celestial {
+    Luna,
+    Terra,
+    Sol,
+    Astra,
+}
+
+impl Celestial {
+    /// The body and version of an id shaped `gpt-<version>-<body>`.
+    fn parse(id: &str) -> Option<(Celestial, &str)> {
+        let rest = id.strip_prefix("gpt-")?;
+        let (ver, body) = rest.split_once('-')?;
+        if !ver.starts_with(|c: char| c.is_ascii_digit()) {
+            return None;
+        }
+        let body = match body.to_ascii_lowercase().as_str() {
+            "luna" => Celestial::Luna,
+            "terra" => Celestial::Terra,
+            "sol" => Celestial::Sol,
+            "astra" => Celestial::Astra,
+            _ => return None,
+        };
+        Some((body, ver))
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Celestial::Luna => "luna",
+            Celestial::Terra => "terra",
+            Celestial::Sol => "sol",
+            Celestial::Astra => "astra",
+        }
+    }
+
+    /// The body in its colors, with what goes around it: a star beside the
+    /// moon, the earth's moon, the sun's inner planets, a star's trail.
+    fn orb(self) -> Vec<(String, Role)> {
+        let rgb = |hex: u32| Color::Rgb((hex >> 16) as u8, (hex >> 8) as u8, hex as u8);
+        let parts: &[(&str, Option<u32>)] = match self {
+            Celestial::Luna => &[
+                ("˙", Some(0x565f89)),
+                ("☾", Some(0xc0caf5)),
+                (" ", None),
+                ("·", Some(0x737aa2)),
+            ],
+            Celestial::Terra => &[("🌏", None), (" ", None), ("·", Some(0xa9b1d6))],
+            Celestial::Sol => &[
+                ("☀", Some(0xe0af68)),
+                (" ", None),
+                ("·", Some(0x9aa5ce)),
+                ("•", Some(0xe6c384)),
+                ("•", Some(0x7aa2f7)),
+            ],
+            Celestial::Astra => &[
+                ("─", Some(0x3b4261)),
+                ("─", Some(0x737aa2)),
+                ("✦", Some(0xe0e6ff)),
+            ],
+        };
+        parts
+            .iter()
+            .map(|(t, c)| (t.to_string(), c.map_or(Role::Text, |c| Role::Hue(rgb(c)))))
+            .collect()
+    }
+
+    /// The name's own color; `None` leaves it the item's text color.
+    fn color(self) -> Option<Color> {
+        match self {
+            Celestial::Terra => Some(Color::Rgb(0x7a, 0xa2, 0xf7)),
+            Celestial::Sol => Some(Color::Rgb(0xe0, 0xaf, 0x68)),
+            Celestial::Luna | Celestial::Astra => None,
+        }
+    }
 }
 
 /// The reasoning effort as `Low`, `Med`, `High`, `xHigh` or `Max`, for
@@ -306,5 +402,82 @@ mod tests {
         assert_eq!(model_text(&off, "", 0), "Opus 4.8");
         let none = format!(r#"{{{OPUS}}}"#);
         assert_eq!(model_text(&none, "", 0), "Opus 4.8");
+    }
+
+    /// The model item through `template`, as each piece's text and role.
+    fn celestial(id: &str, tier: GlyphTier, template: &str) -> Vec<(String, Role)> {
+        let json = format!(r#"{{"model": {{"id": "{id}", "display_name": "GPT X"}}}}"#);
+        let input = Input::parse(&json).unwrap();
+        let reg = Registry::default();
+        let ctx = Ctx::new(&input, &reg, 0, FixedOffset::east_opt(0).unwrap(), tier);
+        let r = read(find("model").unwrap(), &ctx, &Options::new()).unwrap();
+        crate::widgets::template::render(template, &r)
+            .into_iter()
+            .map(|p| (p.text, p.role))
+            .collect()
+    }
+
+    const BADGE: &str = "[{orb} ][{ver} ]{short}";
+
+    #[test]
+    fn celestial_models_get_their_body_version_and_color() {
+        let text = |id, tier| -> String {
+            celestial(id, tier, BADGE)
+                .into_iter()
+                .map(|p| p.0)
+                .collect()
+        };
+        assert_eq!(text("gpt-6-luna", GlyphTier::Nerd), "˙☾ · 6 luna");
+        assert_eq!(text("gpt-6.1-terra", GlyphTier::Unicode), "🌏 · 6.1 terra");
+        assert_eq!(text("gpt-6.2-sol", GlyphTier::Nerd), "☀ ·•• 6.2 sol");
+        assert_eq!(text("gpt-6.2-astra", GlyphTier::Nerd), "──✦ 6.2 astra");
+        assert_eq!(text("gpt-6.2-sol", GlyphTier::Ascii), "6.2 sol");
+
+        let hue = |id, field: &str, piece: &str| {
+            celestial(id, GlyphTier::Nerd, field)
+                .into_iter()
+                .find(|p| p.0 == piece)
+                .map(|p| p.1)
+        };
+        let amber = Some(Role::Hue(Color::Rgb(0xe0, 0xaf, 0x68)));
+        // The sun and its name share the amber; its three planets each have
+        // a color of their own; a star's trail brightens toward the star.
+        assert_eq!(hue("gpt-6.2-sol", "{orb}", "☀"), amber);
+        assert_eq!(hue("gpt-6.2-sol", "{short}", "sol"), amber);
+        let planets: Vec<Role> = celestial("gpt-6.2-sol", GlyphTier::Nerd, "{orb}")
+            .into_iter()
+            .skip(2)
+            .map(|p| p.1)
+            .collect();
+        assert_eq!(planets.len(), 3);
+        assert!(planets[0] != planets[1] && planets[1] != planets[2] && planets[0] != planets[2]);
+        let trail: Vec<(u8, u8, u8)> = celestial("gpt-6.2-astra", GlyphTier::Nerd, "{orb}")
+            .into_iter()
+            .map(|p| match p.1 {
+                Role::Hue(c) => c.to_rgb(),
+                other => panic!("{other:?}"),
+            })
+            .collect();
+        assert!(trail.windows(2).all(|w| w[0].0 < w[1].0), "{trail:?}");
+        // Luna's and astra's names keep the item's text color.
+        assert_eq!(hue("gpt-6-luna", "{short}", "luna"), Some(Role::Text));
+        assert_eq!(
+            hue("gpt-6.1-terra", "{short}", "terra").map(|r| matches!(r, Role::Hue(_))),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn other_models_show_their_name_without_a_body() {
+        for id in [
+            "gpt-reserve",
+            "gpt-6.2-nova",
+            "claude-opus-4-8",
+            "gpt-x-sol",
+        ] {
+            let pieces = celestial(id, GlyphTier::Nerd, BADGE);
+            let text: String = pieces.iter().map(|p| p.0.as_str()).collect();
+            assert_eq!(text, "GPT X", "{id}");
+        }
     }
 }

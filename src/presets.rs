@@ -20,7 +20,7 @@ pub struct Preset {
     toml: &'static str,
 }
 
-pub const DEFAULT: &str = "cometix";
+pub const DEFAULT: &str = "codex";
 
 pub const PRESETS: &[Preset] = &[
     Preset {
@@ -212,6 +212,25 @@ left = [{ metric = "activity.todos", icon = "📝" }]
 [[line]]
 left = [{ metric = "activity.skills", icon = "📚" }]
 "#,
+    },
+    Preset {
+        name: "codex",
+        summary: "Codex CLI: the model and its effort on a moon, earth, sun or star badge, then directory, git and context",
+        tags: &["context"],
+        toml: r##"
+palette = "terminal"
+skin = "plain"
+glyphs = "nerd"
+separator = " | "
+
+[[line]]
+left = [
+  { metric = "model", icon = "", format = "[{orb} ][{ver} ]{short}[ · {effort}][ · {fast}]", compact = "[{orb} ]{short}[ · {fast}]", minimal = "{short}", fg = "#c0caf5", badge = "#16161e" },
+  { metric = "dir", icon_color = "bright_yellow" },
+  "git",
+  { metric = "context", widget = "text", format = "{pct}%[ · {tokens}]" },
+]
+"##,
     },
 ];
 

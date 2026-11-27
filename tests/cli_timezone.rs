@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 fn bin() -> &'static str {
-    env!("CARGO_BIN_EXE_ccometixline")
+    env!("CARGO_BIN_EXE_codexline")
 }
 
 fn temp_home(tag: &str) -> PathBuf {
@@ -14,9 +14,11 @@ fn temp_home(tag: &str) -> PathBuf {
     dir
 }
 
-fn run_statusline(home: &std::path::Path, extra_tz: Option<&str>, payload: &str) -> String {
+/// The footer text codexline draws for one Codex snapshot, read over the
+/// provider's MCP protocol.
+fn run_statusline(home: &std::path::Path, extra_tz: Option<&str>, snapshot: &str) -> String {
     let mut cmd = Command::new(bin());
-    cmd.env("CCLINE_HOME", home)
+    cmd.env("CODEXLINE_HOME", home)
         .env_remove("CCLINE_TZ")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -24,20 +26,49 @@ fn run_statusline(home: &std::path::Path, extra_tz: Option<&str>, payload: &str)
     if let Some(tz) = extra_tz {
         cmd.env("CCLINE_TZ", tz);
     }
+    let snapshot: serde_json::Value = serde_json::from_str(snapshot).unwrap();
+    let read = serde_json::json!({
+        "jsonrpc": "2.0", "id": 1, "method": "resources/read",
+        "params": {
+            "uri": ccometixline::codex::URI,
+            "_meta": { "com.openai/codex-statusline-state": snapshot },
+        },
+    });
     let mut child = cmd.spawn().unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(payload.as_bytes())
-        .unwrap();
+    writeln!(child.stdin.take().unwrap(), "{read}").unwrap();
     let out = child.wait_with_output().unwrap();
     assert!(
         out.status.success(),
         "stderr: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    String::from_utf8(out.stdout).unwrap()
+    let reply: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let tree: serde_json::Value =
+        serde_json::from_str(reply["result"]["contents"][0]["text"].as_str().unwrap()).unwrap();
+    fn text(v: &serde_json::Value) -> String {
+        match v {
+            serde_json::Value::String(s) => s.clone(),
+            _ => v["children"]
+                .as_array()
+                .map(|c| c.iter().map(text).collect())
+                .unwrap_or_default(),
+        }
+    }
+    // Codex keeps no-break spaces only; compare the text as it reads.
+    text(&tree).replace('\u{a0}', " ")
+}
+
+/// A Codex snapshot whose five-hour window resets at `reset_at`.
+fn snapshot(thread: serde_json::Value, reset_at: i64) -> String {
+    serde_json::json!({
+        "account": { "rate_limits": [{
+            "limit_id": "codex", "limit_name": null,
+            "primary_limit": { "used_percent": 20.0, "window_minutes": 300, "resets_at": reset_at },
+            "secondary_limit": null,
+        }]},
+        "thread": thread,
+    })
+    .to_string()
 }
 
 #[test]
@@ -56,15 +87,13 @@ left = [{ metric = "quota.5h", widget = "text", format = "{reset}", options = { 
     let bj = FixedOffset::east_opt(8 * 3600).unwrap();
     let before = Utc::now();
     let reset_at = before.timestamp() + 3600;
-    let payload = serde_json::json!({
-        "session_id": "cli-tz-test",
-        "version": "2.1.305",
-        "cost": { "total_cost_usd": 1.25, "total_duration_ms": 60000.0 },
-        "rate_limits": {
-            "five_hour": { "used_percentage": 20.0, "resets_at": reset_at as f64 }
-        }
-    })
-    .to_string();
+    let payload = snapshot(
+        serde_json::json!({
+            "id": "cli-tz-test",
+            "usage": { "cost": { "total_cost_usd": 1.25 } },
+        }),
+        reset_at,
+    );
 
     let stdout = run_statusline(&home, Some("UTC"), &payload);
     let after = Utc::now();
@@ -103,11 +132,7 @@ left = [{ metric = "quota.5h", widget = "text", format = "{reset}", options = { 
     std::fs::write(home.join("config.toml"), config).unwrap();
 
     let reset_at = Utc::now().timestamp() + 3600;
-    let payload = serde_json::json!({
-        "version": "2.1.305",
-        "rate_limits": { "five_hour": { "used_percentage": 20.0, "resets_at": reset_at as f64 } }
-    })
-    .to_string();
+    let payload = snapshot(serde_json::json!({}), reset_at);
 
     let stdout_bj = run_statusline(&home, Some("Asia/Shanghai"), &payload);
     let bj = FixedOffset::east_opt(8 * 3600).unwrap();
@@ -121,14 +146,14 @@ left = [{ metric = "quota.5h", widget = "text", format = "{reset}", options = { 
         "expected {expected_bj} in {stdout_bj:?}"
     );
 
-    // Invalid timezone in config.toml preserves lines and appends `! ccline tz`.
+    // Invalid timezone in config.toml preserves lines and appends `! codexline tz`.
     std::fs::write(
         home.join("config.toml"),
         config.replace("timezone = \"auto\"", "timezone = \"Mars/Phobos\""),
     )
     .unwrap();
     let stdout_bad = run_statusline(&home, None, &payload);
-    assert!(stdout_bad.contains("! ccline tz"), "{stdout_bad:?}");
+    assert!(stdout_bad.contains("! codexline tz"), "{stdout_bad:?}");
 
     std::fs::remove_dir_all(&home).unwrap();
 }
@@ -143,7 +168,7 @@ fn preview_accepts_tz_flag_and_rejects_invalid_tz() {
     .unwrap();
     let run = |tz: &str| {
         let out = Command::new(bin())
-            .env("CCLINE_HOME", &home)
+            .env("CODEXLINE_HOME", &home)
             .args(["preview", "-s", "normal", "--tz", tz, "--color", "none"])
             .output()
             .unwrap();
@@ -172,7 +197,7 @@ fn preview_accepts_tz_flag_and_rejects_invalid_tz() {
     assert_eq!((parse_hhmm(&bj) + 1440 - parse_hhmm(&utc)) % 1440, 8 * 60);
 
     let bad = Command::new(bin())
-        .env("CCLINE_HOME", &home)
+        .env("CODEXLINE_HOME", &home)
         .args(["preview", "--tz", "Mars/Phobos"])
         .output()
         .unwrap();

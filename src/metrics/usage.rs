@@ -554,8 +554,17 @@ fn cache(ctx: &Ctx, _: &Options) -> Option<Reading> {
     Some(r.set("ttl", pc.ttl.clone().unwrap_or_default()))
 }
 
+/// Codex reports no duration; the time since the rollout began stands in.
 fn duration(ctx: &Ctx, _: &Options) -> Option<Reading> {
-    let ms = ctx.input.cost.as_ref()?.total_duration_ms?;
+    let ms = ctx
+        .input
+        .cost
+        .as_ref()
+        .and_then(|c| c.total_duration_ms)
+        .or_else(|| {
+            let start = ctx.transcript()?.start?;
+            Some(ctx.now.saturating_sub(start).max(0) as f64 * 1000.0)
+        })?;
     Some(Reading::default().set("dur", fmt::duration_ms(ms as u64)))
 }
 

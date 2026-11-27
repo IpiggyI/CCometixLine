@@ -1,8 +1,9 @@
-//! Read-only session summaries accumulated across bounded incremental scans.
+//! Read-only session summaries accumulated across bounded incremental scans,
+//! from Claude Code transcripts and Codex rollouts alike.
 
 use chrono::DateTime;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
@@ -30,6 +31,19 @@ pub struct Summary {
     pub agents: Vec<Agent>,
     pub agent_count: usize,
     pub todos: Vec<Todo>,
+    pub codex: Box<Codex>,
+}
+
+/// What only a Codex rollout records.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+pub struct Codex {
+    /// The latest turn's time to its first token.
+    pub ttft_ms: Option<u64>,
+    /// The latest answer's tokens and the milliseconds it streamed.
+    pub answer: Option<(u64, u64)>,
+    /// The latest rate limit windows a response reported, shaped as in the
+    /// status line snapshot.
+    pub rate_limits: Option<Value>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
@@ -404,6 +418,141 @@ impl Scan {
             }
             Some("user") => self.user(record),
             Some("attachment") => self.hook(&record["attachment"]),
+            Some("event_msg") => self.codex(&record["payload"], timestamp(record).unwrap_or(0)),
+            _ => {}
+        }
+    }
+
+    /// A Codex rollout event. Codex records each tool and subagent once it
+    /// is done, so nothing from a rollout is shown as running but agents.
+    fn codex(&mut self, event: &Value, at: i64) {
+        match event["type"].as_str() {
+            Some("item_completed") => self.codex_item(event, at),
+            Some("task_complete" | "turn_aborted") => {
+                if let Some(ms) = event["time_to_first_token_ms"].as_u64() {
+                    self.summary.codex.ttft_ms = Some(ms);
+                }
+                // Codex stops a turn's subagents with it, and an agent
+                // stopped that way reports no completion.
+                for agent in self.summary.agents.iter_mut().filter(|a| a.end.is_none()) {
+                    agent.end = Some(at);
+                }
+            }
+            Some("token_count") => {
+                let limits = &event["rate_limits"];
+                if !limits["primary"].is_null() || !limits["secondary"].is_null() {
+                    self.summary.codex.rate_limits = Some(json!({
+                        "primary_limit": limits["primary"],
+                        "secondary_limit": limits["secondary"],
+                    }));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn codex_item(&mut self, event: &Value, at: i64) {
+        let item = &event["item"];
+        let start = event["started_at_ms"].as_i64().map_or(at, |ms| ms / 1000);
+        let failed = item["status"] == "failed";
+        match item["type"].as_str() {
+            Some("AgentMessage") => {
+                self.summary.last_reply = Some(at);
+                if let (Some(tokens), Some(from), Some(to)) = (
+                    event["content_token_count"].as_u64(),
+                    event["started_at_ms"].as_u64(),
+                    event["completed_at_ms"].as_u64(),
+                ) && to > from
+                {
+                    self.summary.codex.answer = Some((tokens, to - from));
+                }
+            }
+            Some("CommandExecution") => {
+                // `["/usr/bin/zsh", "-lc", "git status"]`
+                let command = item["command"]
+                    .as_array()
+                    .and_then(|c| c.last())
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
+                let target = target("Bash", &json!({ "command": command }));
+                self.finished(item, "Shell", target, failed, start);
+            }
+            Some("McpToolCall") => {
+                let (Some(server), Some(tool)) = (item["server"].as_str(), item["tool"].as_str())
+                else {
+                    return;
+                };
+                let name = format!("mcp__{server}__{tool}");
+                self.finished(item, &name, String::new(), failed, start);
+            }
+            Some("FileChange") => {
+                let file = item["changes"]
+                    .as_object()
+                    .and_then(|c| c.keys().next())
+                    .cloned()
+                    .unwrap_or_default();
+                let target = target("Edit", &json!({ "file_path": file }));
+                self.finished(item, "Edit", target, failed, start);
+            }
+            Some("SubAgentActivity") => self.codex_agent(item, start),
+            _ => {}
+        }
+    }
+
+    fn finished(&mut self, item: &Value, name: &str, target: String, failed: bool, start: i64) {
+        let Some(id) = item["id"].as_str().filter(|id| !id.is_empty()) else {
+            return;
+        };
+        let name = clean(name, 128);
+        let calls = &mut self.summary.tool_calls;
+        calls.count += 1;
+        calls.last = Some((name.clone(), failed));
+        increment(&mut calls.counts, name.clone());
+        calls.recent.push(Tool {
+            id: clean(id, 128),
+            name,
+            target,
+            status: if failed {
+                Status::Error
+            } else {
+                Status::Completed
+            },
+            start,
+        });
+        cap(&mut calls.recent, RECENT);
+    }
+
+    /// A Codex subagent, named by the last part of its path, e.g.
+    /// `/root/reviewer`.
+    fn codex_agent(&mut self, item: &Value, at: i64) {
+        let Some(thread) = item["agent_thread_id"].as_str().filter(|id| !id.is_empty()) else {
+            return;
+        };
+        let id = clean(thread, 128);
+        match item["kind"].as_str() {
+            Some("started") => {
+                let path = item["agent_path"].as_str().unwrap_or_default();
+                self.summary.agent_count += 1;
+                self.summary.agents.push(Agent {
+                    id,
+                    kind: clean(path.rsplit('/').next().unwrap_or("agent"), 64),
+                    model: string(&item["model"], 128),
+                    effort: string(&item["reasoning_effort"], 32),
+                    start: at,
+                    ..Agent::default()
+                });
+                cap(&mut self.summary.agents, AGENTS);
+            }
+            Some("completed") => {
+                if let Some(agent) = self
+                    .summary
+                    .agents
+                    .iter_mut()
+                    .find(|a| a.id == id && a.end.is_none())
+                {
+                    agent.end = Some(at);
+                }
+            }
             _ => {}
         }
     }
@@ -823,6 +972,129 @@ mod tests {
 
     fn lines(records: &[Value]) -> String {
         records.iter().map(|r| format!("{r}\n")).collect()
+    }
+
+    #[test]
+    fn codex_rollouts_give_tools_agents_answers_and_limits() {
+        let at = |secs: u32| format!("2026-11-26T11:{:02}:{:02}.000Z", secs / 60, secs % 60);
+        let ms = |secs: u32| 1_795_701_600_000_i64 + i64::from(secs) * 1000;
+        let item = |secs: u32, item: Value| {
+            json!({"timestamp": at(secs), "type": "event_msg", "payload": {
+                "type": "item_completed", "item": item,
+                "started_at_ms": ms(secs) - 2000, "completed_at_ms": ms(secs),
+            }})
+        };
+        let limits = |primary: Value| {
+            json!({"timestamp": at(9), "type": "event_msg", "payload": {"type": "token_count",
+                "rate_limits": {"limit_id": "codex", "primary": primary, "secondary": null}}})
+        };
+        let records = [
+            json!({"timestamp": at(0), "type": "session_meta", "payload": {"id": "t-1"}}),
+            // Code mode's wrapper call is not a tool of its own.
+            json!({"timestamp": at(1), "type": "response_item", "payload": {
+                "type": "custom_tool_call", "name": "exec", "call_id": "c0"}}),
+            item(
+                2,
+                json!({"type": "CommandExecution", "id": "exec-1", "status": "completed",
+                "command": ["/usr/bin/zsh", "-lc", "git status"]}),
+            ),
+            item(
+                3,
+                json!({"type": "McpToolCall", "id": "call-1", "status": "failed",
+                "server": "fastctx", "tool": "grep"}),
+            ),
+            item(
+                4,
+                json!({"type": "FileChange", "id": "exec-2", "status": "completed",
+                "changes": {"/w/src/lib.rs": {"type": "update"}}}),
+            ),
+            item(
+                5,
+                json!({"type": "SubAgentActivity", "kind": "started", "id": "call-2",
+                "agent_thread_id": "a1", "agent_path": "/root/reviewer",
+                "model": "gpt-6.2-sol", "reasoning_effort": "xhigh"}),
+            ),
+            item(
+                6,
+                json!({"type": "SubAgentActivity", "kind": "started", "id": "call-3",
+                "agent_thread_id": "a2", "agent_path": "/root/matching",
+                "model": null, "reasoning_effort": null}),
+            ),
+            item(
+                7,
+                json!({"type": "SubAgentActivity", "kind": "interacted", "id": "call-4",
+                "agent_thread_id": "a1", "agent_path": "/root/reviewer"}),
+            ),
+            item(
+                8,
+                json!({"type": "SubAgentActivity", "kind": "completed", "id": "done-a1",
+                "agent_thread_id": "a1", "agent_path": "/root/reviewer"}),
+            ),
+            limits(json!({"used_percent": 42.0, "window_minutes": 300, "resets_at": 1000})),
+            // A response without the limit headers keeps the last ones.
+            limits(Value::Null),
+            json!({"timestamp": at(10), "type": "event_msg", "payload": {
+                "type": "item_completed", "item": {"type": "AgentMessage", "id": "m1"},
+                "content_token_count": 100, "started_at_ms": ms(8), "completed_at_ms": ms(10)}}),
+            json!({"timestamp": at(11), "type": "event_msg", "payload": {
+                "type": "task_complete", "time_to_first_token_ms": 1500}}),
+        ];
+        let summary = Fixture::new().summary(&lines(&records));
+        let start = timestamp(&records[0]).unwrap();
+        assert_eq!(summary.start, Some(start));
+        assert_eq!(summary.last_reply, Some(start + 10));
+        let tools = &summary.tool_calls;
+        assert_eq!(tools.count, 3);
+        let shown: Vec<_> = tools
+            .recent
+            .iter()
+            .map(|t| (t.name.as_str(), t.target.as_str(), t.status, t.start))
+            .collect();
+        let started = |secs: u32| (ms(secs) - 2000) / 1000;
+        assert_eq!(
+            shown,
+            [
+                ("Shell", "git status", Status::Completed, started(2)),
+                ("mcp__fastctx__grep", "", Status::Error, started(3)),
+                ("Edit", "lib.rs", Status::Completed, started(4)),
+            ]
+        );
+        assert_eq!(tools.last, Some(("Edit".into(), false)));
+        assert_eq!(summary.agent_count, 2);
+        let agents: Vec<_> = summary
+            .agents
+            .iter()
+            .map(|a| {
+                (
+                    a.kind.as_str(),
+                    a.model.as_deref(),
+                    a.effort.as_deref(),
+                    a.end,
+                )
+            })
+            .collect();
+        assert_eq!(
+            agents,
+            [
+                (
+                    "reviewer",
+                    Some("gpt-6.2-sol"),
+                    Some("xhigh"),
+                    Some(started(8))
+                ),
+                // Still running when the turn ended, which stops it.
+                ("matching", None, None, Some(start + 11)),
+            ]
+        );
+        assert_eq!(summary.codex.answer, Some((100, 2000)));
+        assert_eq!(summary.codex.ttft_ms, Some(1500));
+        assert_eq!(
+            summary.codex.rate_limits,
+            Some(json!({
+                "primary_limit": {"used_percent": 42.0, "window_minutes": 300, "resets_at": 1000},
+                "secondary_limit": null,
+            }))
+        );
     }
 
     #[test]

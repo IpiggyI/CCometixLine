@@ -207,6 +207,10 @@ pub const TEXT: &[(&str, &str)] = &[
     ("couldn't remove {old}: {e}", "无法移除 {old}：{e}"),
     ("couldn't delete {name}: {e}", "无法删除 {name}：{e}"),
     (
+        "Codex CLI: the model and its effort on a moon, earth, sun or star badge, then directory, git and context",
+        "Codex CLI：模型和推理强度放在月亮、地球、太阳或群星徽章里，后接目录、git 和上下文",
+    ),
+    (
         "Classic look: model, directory, git, context and cache on one line",
         "经典外观：模型、目录、git、上下文和缓存排在一行",
     ),

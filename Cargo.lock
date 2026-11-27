@@ -135,23 +135,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccometixline"
-version = "2.1.0"
-dependencies = [
- "chrono",
- "clap",
- "dirs",
- "insta",
- "ratatui",
- "regex",
- "serde",
- "serde_json",
- "toml",
- "unicode-segmentation",
- "unicode-width",
-]
-
-[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -209,6 +192,23 @@ name = "clap_lex"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
+
+[[package]]
+name = "codexline"
+version = "2.1.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "dirs",
+ "insta",
+ "ratatui",
+ "regex",
+ "serde",
+ "serde_json",
+ "toml",
+ "unicode-segmentation",
+ "unicode-width",
+]
 
 [[package]]
 name = "colorchoice"

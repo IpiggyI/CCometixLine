@@ -1,17 +1,18 @@
 use std::path::PathBuf;
 
-/// ccline's data directory: `$CCLINE_HOME` if set, else `~/.claude/ccline`.
+/// codexline's data directory: `$CODEXLINE_HOME` if set, else
+/// `~/.codex/codexline`.
 ///
-/// The default location is part of the install contract (the npm package
-/// copies the binary there), so it does not follow `CLAUDE_CONFIG_DIR`.
+/// Kept apart from Claude Code's `~/.claude/ccline`, so the two status lines
+/// have their own config and state.
 pub fn home() -> PathBuf {
-    if let Some(dir) = std::env::var_os("CCLINE_HOME").filter(|d| !d.is_empty()) {
+    if let Some(dir) = std::env::var_os("CODEXLINE_HOME").filter(|d| !d.is_empty()) {
         return PathBuf::from(dir);
     }
     dirs::home_dir()
         .unwrap_or_default()
-        .join(".claude")
-        .join("ccline")
+        .join(".codex")
+        .join("codexline")
 }
 
 pub fn config_file() -> PathBuf {
@@ -37,6 +38,14 @@ pub fn claude_dir() -> PathBuf {
         return PathBuf::from(dir);
     }
     dirs::home_dir().unwrap_or_default().join(".claude")
+}
+
+/// Codex's own home, honoring `CODEX_HOME`; its threads are under `sessions`.
+pub fn codex_home() -> PathBuf {
+    if let Some(dir) = std::env::var_os("CODEX_HOME").filter(|d| !d.is_empty()) {
+        return PathBuf::from(dir);
+    }
+    dirs::home_dir().unwrap_or_default().join(".codex")
 }
 
 /// Write `contents` to `path` atomically: write a sibling temp file, then

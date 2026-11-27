@@ -574,6 +574,7 @@ impl Scenario {
                 content: "cover the new segment".into(),
                 status: "in_progress".into(),
             }],
+            ..Summary::default()
         })
     }
 

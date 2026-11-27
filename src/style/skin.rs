@@ -92,6 +92,8 @@ pub struct ItemView<'a> {
     /// Replaces the icon's color: `color` in the plain skins, the text
     /// color in filled ones.
     pub icon_color: Option<Color>,
+    /// A background of its own, in skins whose items have none.
+    pub badge: Option<Color>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -231,6 +233,7 @@ pub fn segment_colors(category: Category, theme: &Theme) -> (Option<Color>, Opti
         color: None,
         fg: None,
         icon_color: None,
+        badge: None,
     };
     segment(&view, theme)
 }
@@ -354,13 +357,16 @@ pub fn paint(item: &ItemView, theme: &Theme) -> Vec<Span> {
                 let fg = match p.role {
                     Role::Icon => item.icon_color.or(base),
                     Role::Text | Role::Strong => sev.or(item.fg).or(base),
-                    Role::Steady => item.icon_color.or_else(|| theme.token(item.category.into())),
+                    Role::Steady => item
+                        .icon_color
+                        .or_else(|| theme.token(item.category.into())),
                     Role::Muted | Role::Empty => muted,
                     Role::Sep => sep,
                     Role::Fill(s) => severity_token(s).and_then(|t| theme.token(t)).or(base),
                     Role::Gradient(t) => gradient(theme, t),
                     Role::Good => theme.token(Token::Ok),
                     Role::Bad => theme.token(Token::Crit),
+                    Role::Hue(c) => Some(c),
                     Role::Pace { used, .. } => {
                         if used {
                             sev.or(base)
@@ -417,6 +423,7 @@ pub fn paint(item: &ItemView, theme: &Theme) -> Vec<Span> {
                     ..Style::default()
                 },
                 (Role::Icon, false) => style(item.icon_color.or(fg), bg),
+                (Role::Hue(c), false) => style(Some(c), bg),
                 (role, false) => Style {
                     fg,
                     bg,
@@ -427,6 +434,25 @@ pub fn paint(item: &ItemView, theme: &Theme) -> Vec<Span> {
             Span::styled(p.text.clone(), s).with_link(p.link.clone())
         })
         .collect()
+}
+
+/// An item's spans on its badge: padded by a space on each side, with
+/// rounded caps in the badge color where the font has them.
+fn badged(item: &ItemView, spans: Vec<Span>, theme: &Theme) -> Vec<Span> {
+    let Some(bg) = item.badge else {
+        return spans;
+    };
+    let caps = theme.glyphs == GlyphTier::Nerd;
+    let cap = |glyph| caps.then(|| Span::styled(glyph, Style::fg(bg)));
+    let pad = || Span::styled(" ", Style::default().with_bg(Some(bg)));
+    let mut out: Vec<Span> = cap(PILL_LEFT).into_iter().chain([pad()]).collect();
+    out.extend(spans.into_iter().map(|mut s| {
+        s.style.bg = s.style.bg.or(Some(bg));
+        s
+    }));
+    out.push(pad());
+    out.extend(cap(PILL_RIGHT));
+    out
 }
 
 /// Paint and join the items of one side of a line.
@@ -442,7 +468,7 @@ pub fn compose(items: &[ItemView], side: Side, theme: &Theme) -> Line {
                 if i > 0 {
                     line.push(Span::styled(theme.separator(), between.clone()));
                 }
-                line.extend(paint(item, theme));
+                line.extend(badged(item, paint(item, theme), theme));
             }
         }
         SkinKind::Bracket => {
@@ -451,7 +477,7 @@ pub fn compose(items: &[ItemView], side: Side, theme: &Theme) -> Line {
                     line.push(Span::raw(" "));
                 }
                 line.push(Span::styled("[", between.clone()));
-                line.extend(paint(item, theme));
+                line.extend(badged(item, paint(item, theme), theme));
                 line.push(Span::styled("]", between.clone()));
             }
         }
@@ -542,7 +568,35 @@ mod tests {
             color: None,
             fg: None,
             icon_color: None,
+            badge: None,
         }
+    }
+
+    #[test]
+    fn badge_puts_one_item_on_its_own_background() {
+        let p = [Piece::new("sol", Role::Text)];
+        let bg = Color::Rgb(0x1f, 0x23, 0x35);
+        let items = [ItemView {
+            badge: Some(bg),
+            ..item(&p)
+        }];
+        let nerd = compose(&items, Side::Left, &theme(SkinKind::Plain, GlyphTier::Nerd));
+        assert_eq!(line_text(&nerd), "\u{e0b6} sol \u{e0b4}");
+        assert_eq!(nerd[0].style.fg, Some(bg));
+        assert!(nerd[1..4].iter().all(|s| s.style.bg == Some(bg)));
+        assert_eq!(nerd[4].style.bg, None);
+        let unicode = compose(
+            &items,
+            Side::Left,
+            &theme(SkinKind::Plain, GlyphTier::Unicode),
+        );
+        assert_eq!(line_text(&unicode), " sol ");
+        let filled = compose(
+            &items,
+            Side::Left,
+            &theme(SkinKind::Powerline, GlyphTier::Nerd),
+        );
+        assert!(!line_text(&filled).contains('\u{e0b6}'));
     }
 
     #[test]

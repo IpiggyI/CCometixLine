@@ -1,18 +1,16 @@
 use ccometixline::cli::{Cli, Command, ModAction, PreviewArgs};
-use ccometixline::config::{Config, DepthSetting, LoadNote};
+use ccometixline::config::{Config, DepthSetting};
 use ccometixline::env::{AutoCompact, ClaudeSettings};
-use ccometixline::input::{Input, MAX_INPUT_BYTES, SubagentInput};
+use ccometixline::input::Input;
 use ccometixline::metrics::{Commands, GitSource};
 use ccometixline::models::Registry;
 use ccometixline::render::ansi::{self, EmitOptions};
-use ccometixline::render::span::{Span, Style};
 use ccometixline::scenarios;
 use ccometixline::state::{self, StateView};
 use ccometixline::statusline::{self, Frame};
-use ccometixline::style::palette::Token;
 use ccometixline::timezone::{self, Timezone};
 use chrono::Utc;
-use std::io::{self, IsTerminal, Read};
+use std::io::{self, IsTerminal};
 
 fn main() {
     let cli = Cli::parse_args();
@@ -40,120 +38,19 @@ fn main() {
 
     if cli.config || io::stdin().is_terminal() {
         if !io::stdout().is_terminal() {
-            eprintln!("ccline: the configuration TUI needs a terminal.");
+            eprintln!("codexline: the configuration TUI needs a terminal.");
             std::process::exit(1);
         }
         if let Err(e) = ccometixline::tui::run() {
-            eprintln!("ccline: {e}");
+            eprintln!("codexline: {e}");
             std::process::exit(1);
         }
         return;
     }
 
-    run(cli.subagent);
-}
-
-fn run(subagent: bool) {
-    let mut text = String::new();
-    let _ = io::stdin()
-        .take(MAX_INPUT_BYTES as u64)
-        .read_to_string(&mut text);
-    let tasks = SubagentInput::detect(&text).or_else(|| {
-        // Asked for explicitly but not a task list: there is nothing to draw.
-        subagent.then(SubagentInput::default)
-    });
-    if let Some(payload) = tasks {
-        return run_subagent(&payload, &text);
-    }
-    let input = match Input::parse(&text) {
-        Ok(input) => input,
-        Err(e) => {
-            println!("\x1b[0mccline: could not read the status line input ({e})\x1b[0m");
-            return;
-        }
-    };
-    let (config, note) = Config::load();
-    let registry = Registry::load();
-    let settings = ClaudeSettings::for_input(&input);
-    let now = Utc::now().timestamp();
-    let tz = config
-        .timezone
-        .resolve(now, timezone::detect_system_offset(now));
-    let mut view = state::observe(&input, &text, &registry, now, tz);
-    view.latest_version = state::update::available(&config.update, now);
-    let frame = Frame {
-        now,
-        tz,
-        width: statusline::budget(&config, &settings),
-        git: GitSource::Cached(config.git.cache_ms),
-        state: view,
-        compact: settings.auto_compact(),
-        commands: Commands::Run {
-            stdin: text.clone(),
-        },
-    };
-    let mut lines = statusline::lines(&input, &config, &registry, frame);
-    let mut warnings = Vec::new();
-    if let LoadNote::Invalid(_) = note {
-        warnings.push(" ! ccline config");
-    }
-    if config.timezone.invalid_spec().is_some() {
-        warnings.push(" ! ccline tz");
-    }
-    if !warnings.is_empty() {
-        let warn = statusline::theme(&config).palette.color(Token::Warn);
-        for text in warnings {
-            let mark = Span::styled(
-                text,
-                Style {
-                    fg: warn,
-                    ..Style::default()
-                },
-            );
-            match lines.first_mut() {
-                Some(first) => first.push(mark),
-                None => lines.push(vec![mark]),
-            }
-        }
-    }
-    let opts = EmitOptions {
-        depth: config.color_depth.resolve(),
-        guards: true,
-    };
-    println!("{}", ansi::emit(&lines, opts));
-}
-
-/// `subagentStatusLine`: one JSON object per task, `{"id", "content"}`.
-/// Tasks whose line comes out empty are left out, so Claude Code keeps its
-/// own text for them (an empty `content` would hide the task).
-fn run_subagent(payload: &SubagentInput, raw: &str) {
-    let (config, _) = Config::load();
-    let registry = Registry::load();
-    let now = Utc::now().timestamp();
-    let tz = config
-        .timezone
-        .resolve(now, timezone::detect_system_offset(now));
-    let frame = Frame {
-        now,
-        tz,
-        width: None,
-        git: GitSource::Cached(config.git.cache_ms),
-        state: StateView::default(),
-        compact: AutoCompact::default(),
-        commands: Commands::Run {
-            stdin: raw.to_string(),
-        },
-    };
-    let opts = EmitOptions {
-        depth: config.color_depth.resolve(),
-        guards: false,
-    };
-    for (id, line) in statusline::subagent_lines(payload, &config, &registry, frame) {
-        let content = ansi::emit(&[line], opts);
-        if !content.is_empty() {
-            println!("{}", serde_json::json!({ "id": id, "content": content }));
-        }
-    }
+    // Codex starts the status line provider with piped stdio and keeps it
+    // running.
+    ccometixline::codex::serve();
 }
 
 /// `ccline mod`: the companion mod's state, or installing and removing it

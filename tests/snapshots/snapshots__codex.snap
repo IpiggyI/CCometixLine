@@ -1,0 +1,62 @@
+---
+source: tests/snapshots.rs
+assertion_line: 83
+expression: render_preset(preset.name)
+---
+── normal @ 60
+ Opus 4.8 · High  | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ |  62% · 124k⏎
+── normal @ 100
+ Opus 4.8 · High  | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ |  62% · 124k⏎
+── normal @ 140
+ Opus 4.8 · High  | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/main\main ● ↑2]8;;\ |  62% · 124k⏎
+── fresh @ 60
+ Sonnet 5 · Med  | 󰉋 app | 󰊢 main ✓ |  12% · 24k⏎
+── fresh @ 100
+ Sonnet 5 · Med  | 󰉋 app | 󰊢 main ✓ |  12% · 24k⏎
+── fresh @ 140
+ Sonnet 5 · Med  | 󰉋 app | 󰊢 main ✓ |  12% · 24k⏎
+── near-full @ 60
+ Opus 4.8 · Max  | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\⏎
+ 91% · 182k⏎
+── near-full @ 100
+ Opus 4.8 · Max  | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\ |  91% · 182k⏎
+── near-full @ 140
+ Opus 4.8 · Max  | 󰉋 app | 󰊢 ]8;;https://github.com/acme/app/tree/feature/auth\feature/auth ⚠ ↓3]8;;\ |  91% · 182k⏎
+── big-context @ 60
+ Opus 5.5 1M · xHigh · fast  | 󰉋 api | 󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\⏎
+ 27% · 270k⏎
+── big-context @ 100
+ Opus 5.5 1M · xHigh · fast  | 󰉋 api | 󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\ |  27% · 270k⏎
+── big-context @ 140
+ Opus 5.5 1M · xHigh · fast  | 󰉋 api | 󰊢 ]8;;https://github.com/acme/monorepo/tree/main\main ✓]8;;\ |  27% · 270k⏎
+── third-party @ 60
+ Kimi K2 Turbo  | 󰉋 app | 󰊢 main ● |  81% · 104k⏎
+── third-party @ 100
+ Kimi K2 Turbo  | 󰉋 app | 󰊢 main ● |  81% · 104k⏎
+── third-party @ 140
+ Kimi K2 Turbo  | 󰉋 app | 󰊢 main ● |  81% · 104k⏎
+── worktree @ 60
+ Sonnet 5 · High  | 󰉋 feature-x⏎
+󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\ |  19% · 38k⏎
+── worktree @ 100
+ Sonnet 5 · High  | 󰉋 feature-x | 󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\ |  19% · 38k⏎
+── worktree @ 140
+ Sonnet 5 · High  | 󰉋 feature-x | 󰊢 ]8;;https://gitlab.com/group/team/app/-/tree/worktree-feature-x\worktree-feature-x ● ↑1]8;;\ |  19% · 38k⏎
+── non-git @ 60
+ Haiku 4.5  | 󰉋 scratch |  5% · 9k⏎
+── non-git @ 100
+ Haiku 4.5  | 󰉋 scratch |  5% · 9k⏎
+── non-git @ 140
+ Haiku 4.5  | 󰉋 scratch |  5% · 9k⏎
+── gateway @ 60
+ Sonnet 5 · Med  | 󰉋 app | 󰊢 main ✓ |  40% · 80k⏎
+── gateway @ 100
+ Sonnet 5 · Med  | 󰉋 app | 󰊢 main ✓ |  40% · 80k⏎
+── gateway @ 140
+ Sonnet 5 · Med  | 󰉋 app | 󰊢 main ✓ |  40% · 80k⏎
+── old-cc @ 60
+ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+── old-cc @ 100
+ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎
+── old-cc @ 140
+ccline needs Claude Code 2.1.153 or newer (running 2.1.140)⏎

@@ -2,6 +2,8 @@
 //! roles into colors for the active palette and skin, so widgets never pick
 //! colors themselves.
 
+use super::color::Color;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Severity {
     #[default]
@@ -42,6 +44,9 @@ pub enum Role {
         used: bool,
         elapsed: bool,
     },
+    /// A color the metric picks for the value itself, e.g. a model family's;
+    /// the one exception to roles deciding colors.
+    Hue(Color),
 }
 
 #[derive(Clone, Debug, PartialEq)]

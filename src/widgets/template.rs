@@ -96,7 +96,11 @@ fn emit(nodes: &[Node], reading: &Reading, out: &mut Vec<Piece>) {
             Node::Lit(text) => literal(text, lit_role, out),
             Node::Field(name) => {
                 if let Some(f) = reading.get(name) {
-                    out.push(Piece::new(f.text.clone(), f.role.unwrap_or(Role::Text)));
+                    if f.parts.is_empty() {
+                        out.push(Piece::new(f.text.clone(), f.role.unwrap_or(Role::Text)));
+                    } else {
+                        out.extend(f.parts.iter().map(|(t, r)| Piece::new(t.clone(), *r)));
+                    }
                 }
             }
             Node::Group(inner) => {
@@ -144,6 +148,18 @@ mod tests {
 
     fn text(pieces: &[Piece]) -> String {
         pieces.iter().map(|p| p.text.as_str()).collect()
+    }
+
+    #[test]
+    fn a_field_in_parts_keeps_each_part_role() {
+        let amber = Role::Hue(crate::style::Color::Rgb(0xe0, 0xaf, 0x68));
+        let r = Reading::default()
+            .set("short", "sol")
+            .set_parts("orb", vec![("☀".into(), amber), (" ".into(), Role::Text)]);
+        let pieces = render("[{orb}]{short}", &r);
+        let roles: Vec<(&str, Role)> = pieces.iter().map(|p| (p.text.as_str(), p.role)).collect();
+        assert_eq!(roles, [("☀", amber), (" sol", Role::Text)]);
+        assert_eq!(r.get("orb").unwrap().text, "☀ ");
     }
 
     #[test]
