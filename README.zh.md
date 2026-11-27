@@ -38,7 +38,7 @@ npm install -g @ipiggyi/ccline --registry https://registry.npmmirror.com
 
 </details>
 
-安装后程序位于 `~/.claude/ccline/ccline`，同时提供全局命令 `ccline`。以后更新：`npm update -g @ipiggyi/ccline`。
+安装后提供全局命令 `ccline`。第一次运行 `ccline` 时，它会把程序复制到 `~/.claude/ccline/ccline`；npm 可能不运行原来负责这一步的安装脚本。以后更新：先运行 `npm update -g @ipiggyi/ccline`，再运行一次 `ccline --version` 刷新这份副本。
 
 <details>
 <summary>手动下载</summary>

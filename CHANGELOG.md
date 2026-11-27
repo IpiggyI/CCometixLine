@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-11-27
+
+### Fixed
+- **npm Install**: npm 12 no longer runs install scripts by default, so installing `@ipiggyi/ccline` left no binary at `~/.claude/ccline/ccline`. The `ccline` command now copies its binary there on its first run, and again after an update. A binary there that npm did not put there is left alone
+
 ## [2.1.0] - 2026-11-27
 
 ### Added

@@ -38,7 +38,7 @@ npm install -g @ipiggyi/ccline --registry https://registry.npmmirror.com
 
 </details>
 
-The package puts the binary at `~/.claude/ccline/ccline` and the `ccline` command on your PATH. To update later: `npm update -g @ipiggyi/ccline`.
+The package puts the `ccline` command on your PATH. Its first run copies the binary to `~/.claude/ccline/ccline`, because npm may skip the install script that used to do it. To update later: `npm update -g @ipiggyi/ccline`, then run `ccline --version` once to refresh that copy.
 
 <details>
 <summary>Manual download</summary>

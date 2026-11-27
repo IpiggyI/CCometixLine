@@ -21,7 +21,7 @@ In China, the npm mirror is faster:
 npm install -g @ipiggyi/ccline --registry https://registry.npmmirror.com
 ```
 
-The binary goes to `~/.claude/ccline/ccline`, and `ccline` is on your PATH.
+`ccline` is on your PATH. Its first run copies the binary to `~/.claude/ccline/ccline`, because npm may skip the install script that used to do it.
 
 ## Set up
 
@@ -37,7 +37,7 @@ Run `ccline` in a terminal: the first run picks a preset and connects Claude Cod
 }
 ```
 
-Requires Claude Code 2.1.153 or newer. Update with `npm update -g @ipiggyi/ccline`.
+Requires Claude Code 2.1.153 or newer. Update with `npm update -g @ipiggyi/ccline`, then run `ccline --version` once to refresh the copy in `~/.claude/ccline`.
 
 ## More
 

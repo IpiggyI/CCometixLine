@@ -216,6 +216,7 @@ fn update() {
         Some(latest) if is_newer(&latest, CURRENT) => {
             println!("ccline {latest} is available (running {CURRENT}).");
             println!("Upgrade:       npm update -g @ipiggyi/ccline");
+            println!("Then run:      ccline --version (refreshes ~/.claude/ccline)");
             println!("Release notes: {RELEASES}/tag/v{latest}");
         }
         Some(latest) => println!("ccline {CURRENT} is up to date (latest published: {latest})."),
